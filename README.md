@@ -1,0 +1,1 @@
+# Rick Learning Platform
