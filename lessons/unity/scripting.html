@@ -1,0 +1,94 @@
+<!-- lessons/unity/scripting.html -->
+
+<p class="lesson-text">
+  In Unity schrijf je gedrag voor GameObjects met <strong>C# scripts</strong>.
+  Elk script erft van <code>MonoBehaviour</code> — de basis-klasse voor alle Unity-scripts.
+</p>
+
+<h3>Een script aanmaken</h3>
+<p class="lesson-text">
+  Ga naar <strong>Assets → Create → C# Script</strong> en geef het een naam.
+  Dubbelklik om het in Visual Studio of Rider te openen.
+</p>
+
+<div class="code-block"><span class="kw">using</span> UnityEngine;
+
+<span class="kw">public class</span> <span class="cl">MijnScript</span> : MonoBehaviour
+{
+    <span class="cm">// Wordt eenmalig uitgevoerd bij het starten</span>
+    <span class="kw">void</span> <span class="fn">Start</span>()
+    {
+        Debug.<span class="fn">Log</span>(<span class="st">"Het spel is gestart!"</span>);
+    }
+
+    <span class="cm">// Wordt elke frame aangeroepen (~60x per seconde)</span>
+    <span class="kw">void</span> <span class="fn">Update</span>()
+    {
+        <span class="cm">// Hier schrijf je gedrag dat elke frame gebeurt</span>
+    }
+}</div>
+
+<h3>GameObject bewegen</h3>
+<p class="lesson-text">
+  Met <code>transform.position</code> kun je een object verplaatsen.
+  Gebruik altijd <code>Time.deltaTime</code> zodat beweging framerate-onafhankelijk is.
+</p>
+
+<div class="code-block"><span class="kw">public class</span> <span class="cl">PlayerMovement</span> : MonoBehaviour
+{
+    <span class="kw">public float</span> speed = <span class="nm">5f</span>;
+
+    <span class="kw">void</span> <span class="fn">Update</span>()
+    {
+        <span class="kw">float</span> h = Input.<span class="fn">GetAxis</span>(<span class="st">"Horizontal"</span>); <span class="cm">// A/D of pijltjes</span>
+        <span class="kw">float</span> v = Input.<span class="fn">GetAxis</span>(<span class="st">"Vertical"</span>);   <span class="cm">// W/S of pijltjes</span>
+
+        Vector3 richting = <span class="kw">new</span> <span class="fn">Vector3</span>(h, <span class="nm">0</span>, v);
+        transform.position += richting * speed * Time.deltaTime;
+    }
+}</div>
+
+<div class="info-box info-box-orange">
+  <div class="info-box-title">⚠️ Belangrijke regel</div>
+  <p>
+    Vergeet <code>Time.deltaTime</code> nooit bij beweging!
+    Zonder dit beweegt je object 60× sneller op 60fps dan op 1fps.
+  </p>
+</div>
+
+<h3>Public variabelen & de Inspector</h3>
+<p class="lesson-text">
+  <strong>Public variabelen</strong> zijn zichtbaar en aanpasbaar in de Unity Inspector —
+  ideaal voor het testen van waarden zonder opnieuw te compileren.
+</p>
+
+<div class="code-block"><span class="kw">public float</span> jumpForce = <span class="nm">10f</span>;  <span class="cm">// Zichtbaar in Inspector</span>
+<span class="kw">private float</span> health  = <span class="nm">100f</span>; <span class="cm">// Niet zichtbaar in Inspector</span></div>
+
+<div class="exercise-box">
+  <h4>🎯 Opdracht 1 — Roterend object</h4>
+  <p class="lesson-text">
+    Maak een nieuw C# script <code>Rotator</code>. Voeg een public float
+    <code>rotationSpeed</code> toe met waarde 90. Gebruik in Update():
+    <code>transform.Rotate(0, rotationSpeed * Time.deltaTime, 0);</code>
+    Koppel het script aan een Cube in je scene.
+  </p>
+</div>
+
+<div class="exercise-box">
+  <h4>🎯 Opdracht 2 — Beweging met input</h4>
+  <p class="lesson-text">
+    Kopieer het <code>PlayerMovement</code> script hierboven. Pas het aan zodat
+    het object ook omhoog/omlaag kan bewegen met de Q en E toetsen.
+    <em>Tip: gebruik <code>Input.GetKey(KeyCode.Q)</code></em>
+  </p>
+</div>
+
+<div class="info-box info-box-green">
+  <div class="info-box-title">✅ Goed gedaan!</div>
+  <p>
+    Sla je scripts op en test ze in de Unity Editor. Kijk goed naar de Console
+    voor eventuele foutmeldingen. Als alles werkt, ga dan door naar
+    <strong>Physics &amp; Colliders</strong>.
+  </p>
+</div>

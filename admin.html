@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesontwerper — ICT Leerlijn Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --bg4:#21262d;
+      --border:#30363d; --border2:#444c56;
+      --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
+      --accent:#2ea043; --accent2:#3fb950;
+      --blue:#388bfd; --blue2:#58a6ff;
+      --purple:#bc8cff; --orange:#f78166; --orange2:#ffa657;
+      --yellow:#e3b341; --red:#f85149;
+      --radius:8px; --radius2:12px;
+    }
+    [data-theme="light"] {
+      --bg:#f6f8fa; --bg2:#fff; --bg3:#f0f2f5; --bg4:#e8eaed;
+      --border:#d0d7de; --border2:#b1bac4;
+      --text:#1f2328; --text2:#57606a; --text3:#8c959f;
+      --accent:#1a7f37; --accent2:#2da44e;
+      --blue:#0969da; --blue2:#0550ae;
+      --purple:#8250df; --orange:#bc4c00; --orange2:#953800;
+      --yellow:#9a6700; --red:#cf222e;
+    }
+    body { font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; line-height:1.5; }
+    button { font-family:'Space Grotesk',sans-serif; cursor:pointer; }
+    input,select,textarea { font-family:'Space Grotesk',sans-serif; }
+
+    /* ── Layout ── */
+    .admin-layout { display:flex; min-height:100vh; }
+
+    /* ── Left panel: structure ── */
+    .structure-panel {
+      width:280px; min-width:280px; background:var(--bg2);
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column;
+      height:100vh; position:sticky; top:0; overflow:hidden;
+    }
+    .panel-header {
+      padding:16px 18px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+    }
+    .panel-header-title { font-size:13px; font-weight:600; color:var(--text2); letter-spacing:.5px; text-transform:uppercase; }
+
+    .structure-scroll { flex:1; overflow-y:auto; padding:8px 0; }
+    .structure-scroll::-webkit-scrollbar { width:4px; }
+    .structure-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+    /* ── Right panel: editor ── */
+    .editor-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+
+    /* ── Topbar ── */
+    .topbar {
+      padding:12px 24px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+      background:var(--bg2); flex-shrink:0; position:sticky; top:0; z-index:10;
+    }
+    .topbar-brand { display:flex; align-items:center; gap:8px; }
+    .brand-chip { background:var(--orange); color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:.5px; }
+    .topbar-title { font-size:15px; font-weight:600; }
+    .topbar-sub { font-size:12px; color:var(--text2); }
+    .topbar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+    /* ── Buttons ── */
+    .btn { padding:7px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; border:none; transition:all .15s; cursor:pointer; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover { background:var(--accent2); }
+    .btn-ghost { background:var(--bg4); color:var(--text2); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--border2); }
+    .btn-danger { background:rgba(248,81,73,.1); color:var(--red); border:1px solid rgba(248,81,73,.2); }
+    .btn-danger:hover { background:rgba(248,81,73,.2); }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .btn-icon { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:14px; border-radius:6px; }
+    .icon-btn { background:transparent; border:1px solid transparent; border-radius:6px; padding:4px 6px; font-size:13px; color:var(--text3); transition:all .15s; }
+    .icon-btn:hover { background:var(--bg4); color:var(--text); border-color:var(--border); }
+
+    /* ── Structure tree ── */
+    .tree-subject { margin-bottom:2px; }
+    .tree-subject-header {
+      display:flex; align-items:center; gap:6px;
+      padding:6px 18px; cursor:pointer; user-select:none;
+      font-size:10px; font-weight:600; color:var(--text3);
+      letter-spacing:1px; text-transform:uppercase;
+    }
+    .tree-subject-header:hover { color:var(--text2); }
+    .tree-chevron { font-size:9px; transition:transform .15s; }
+    .tree-subject.open .tree-chevron { transform:rotate(90deg); }
+
+    .tree-course { display:none; }
+    .tree-subject.open .tree-course { display:block; }
+
+    .tree-course-item {
+      display:flex; align-items:center; gap:8px;
+      padding:7px 18px 7px 28px; cursor:pointer;
+      transition:background .12s; border-radius:0;
+    }
+    .tree-course-item:hover { background:var(--bg3); }
+    .tree-course-item.active { background:var(--bg3); }
+    .tree-course-icon { font-size:13px; flex-shrink:0; }
+    .tree-course-name { font-size:13px; font-weight:500; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .tree-pages { display:none; }
+    .tree-course-item.open + .tree-pages { display:block; }
+
+    .tree-page-item {
+      display:flex; align-items:center; gap:6px;
+      padding:5px 18px 5px 44px; cursor:pointer; transition:background .12s;
+    }
+    .tree-page-item:hover { background:var(--bg4); }
+    .tree-page-item.active { background:var(--bg4); }
+    .tree-page-dot { width:6px; height:6px; border-radius:50%; background:var(--border2); flex-shrink:0; }
+    .tree-page-item.active .tree-page-dot { background:var(--blue); }
+    .tree-page-name { font-size:12px; color:var(--text2); flex:1; }
+    .tree-page-item.active .tree-page-name { color:var(--text); }
+    .tree-page-type { font-size:10px; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono',monospace; flex-shrink:0; }
+
+    /* ── Add buttons in tree ── */
+    .tree-add-btn {
+      display:flex; align-items:center; gap:5px;
+      padding:4px 18px 4px 44px; font-size:11px;
+      color:var(--text3); cursor:pointer; transition:color .12s;
+      background:transparent; border:none; width:100%; text-align:left;
+    }
+    .tree-add-btn:hover { color:var(--accent2); }
+    .tree-add-page-btn { padding-left:28px; }
+    .tree-add-page-btn:hover { color:var(--blue2); }
+
+    /* ── Editor main area ── */
+    .editor-main { flex:1; overflow-y:auto; }
+    .editor-main::-webkit-scrollbar { width:6px; }
+    .editor-main::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      height:100%; min-height:400px; text-align:center; padding:40px;
+    }
+    .empty-icon { font-size:40px; margin-bottom:16px; opacity:.4; }
+    .empty-title { font-size:16px; font-weight:600; margin-bottom:6px; }
+    .empty-sub { font-size:13px; color:var(--text2); max-width:300px; }
+
+    /* ── Page editor ── */
+    .page-editor { padding:24px 28px; }
+
+    .page-meta-card {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); padding:20px 24px; margin-bottom:20px;
+    }
+    .page-meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .page-meta-full { grid-column:1/-1; }
+
+    .field-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; display:block; }
+    .field-input {
+      width:100%; background:var(--bg3); border:1px solid var(--border);
+      border-radius:var(--radius); color:var(--text); font-size:13px;
+      padding:8px 12px; transition:border-color .15s; outline:none;
+    }
+    .field-input:focus { border-color:var(--border2); }
+    .field-select {
+      width:100%; background:var(--bg3); border:1px solid var(--border);
+      border-radius:var(--radius); color:var(--text); font-size:13px;
+      padding:8px 12px; outline:none; cursor:pointer;
+      appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 12px center;
+      padding-right:32px;
+    }
+    .field-select:focus { border-color:var(--border2); }
+
+    /* ── Section cards ── */
+    .sections-area { display:flex; flex-direction:column; gap:0; }
+
+    .section-card {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); margin-bottom:12px;
+      transition:border-color .15s;
+    }
+    .section-card:focus-within { border-color:var(--border2); }
+
+    .section-card-header {
+      display:flex; align-items:center; gap:8px;
+      padding:12px 16px; border-bottom:1px solid var(--border);
+      cursor:grab;
+    }
+    .section-card-header:active { cursor:grabbing; }
+    .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; }
+    .section-title-input {
+      flex:1; background:transparent; border:none; outline:none;
+      color:var(--text); font-size:14px; font-weight:600;
+      font-family:'Space Grotesk',sans-serif;
+    }
+    .section-title-input::placeholder { color:var(--text3); font-weight:400; }
+    .section-actions { display:flex; gap:4px; align-items:center; }
+
+    /* ── Component list ── */
+    .components-list { padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
+
+    .component-card {
+      background:var(--bg3); border:1px solid var(--border);
+      border-radius:var(--radius); overflow:hidden;
+    }
+    .component-header {
+      display:flex; align-items:center; gap:8px;
+      padding:8px 12px; border-bottom:1px solid var(--border);
+      background:var(--bg4);
+    }
+    .component-type-badge {
+      font-size:10px; padding:2px 7px; border-radius:4px;
+      font-family:'JetBrains Mono',monospace; font-weight:500;
+    }
+    .comp-text    { background:rgba(56,139,253,.15);  color:#58a6ff; }
+    .comp-code    { background:rgba(188,140,255,.15); color:#d2a8ff; }
+    .comp-callout { background:rgba(46,160,67,.15);   color:#3fb950; }
+    .comp-video   { background:rgba(247,129,102,.15); color:#ffa657; }
+    .comp-image   { background:rgba(227,179,65,.15);  color:#e3b341; }
+    .comp-quiz    { background:rgba(248,81,73,.15);   color:#f85149; }
+
+    .component-body { padding:10px 12px; }
+
+    .comp-textarea {
+      width:100%; background:transparent; border:none; outline:none;
+      color:var(--text); font-size:13px; line-height:1.6;
+      font-family:'Space Grotesk',sans-serif; resize:vertical;
+      min-height:72px;
+    }
+    .comp-code-area {
+      width:100%; background:transparent; border:none; outline:none;
+      color:#c9d1d9; font-size:12px; line-height:1.6;
+      font-family:'JetBrains Mono',monospace; resize:vertical;
+      min-height:100px;
+    }
+    .comp-input {
+      width:100%; background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius); color:var(--text); font-size:13px;
+      padding:6px 10px; outline:none; margin-bottom:6px;
+      font-family:'Space Grotesk',sans-serif;
+    }
+    .comp-input:focus { border-color:var(--border2); }
+
+    .comp-meta-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .comp-meta-label { font-size:11px; color:var(--text3); white-space:nowrap; }
+    .comp-meta-select {
+      flex:1; background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius); color:var(--text); font-size:12px;
+      padding:4px 8px; outline:none; font-family:'JetBrains Mono',monospace;
+    }
+
+    .callout-style-row { display:flex; gap:6px; margin-bottom:8px; }
+    .callout-style-btn {
+      flex:1; padding:4px; border-radius:5px; font-size:11px; font-weight:600;
+      border:1px solid var(--border); background:var(--bg4); color:var(--text2);
+      cursor:pointer; transition:all .12s; text-align:center;
+    }
+    .callout-style-btn.active { border-color:currentColor; }
+    .callout-style-btn.tip    { color:#58a6ff; }
+    .callout-style-btn.tip.active    { background:rgba(56,139,253,.12); }
+    .callout-style-btn.warning { color:#ffa657; }
+    .callout-style-btn.warning.active { background:rgba(247,129,102,.12); }
+    .callout-style-btn.success { color:#3fb950; }
+    .callout-style-btn.success.active { background:rgba(46,160,67,.12); }
+
+    /* ── Add component toolbar ── */
+    .add-component-bar {
+      display:flex; align-items:center; gap:6px;
+      padding:10px 16px; border-top:1px dashed var(--border);
+      flex-wrap:wrap;
+    }
+    .add-comp-label { font-size:11px; color:var(--text3); margin-right:2px; }
+    .add-comp-btn {
+      display:flex; align-items:center; gap:4px;
+      padding:4px 10px; border-radius:5px; font-size:11px; font-weight:500;
+      border:1px solid var(--border); background:transparent; cursor:pointer;
+      transition:all .12s; font-family:'Space Grotesk',sans-serif;
+    }
+    .add-comp-btn:hover { background:var(--bg4); border-color:var(--border2); }
+
+    /* ── Add section btn ── */
+    .add-section-btn {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      width:100%; padding:14px; border-radius:var(--radius2);
+      border:2px dashed var(--border); background:transparent;
+      color:var(--text3); font-size:13px; cursor:pointer;
+      transition:all .15s; margin-bottom:12px;
+    }
+    .add-section-btn:hover { border-color:var(--border2); color:var(--text2); background:var(--bg2); }
+
+    /* ── Export modal ── */
+    .save-indicator {
+      font-size:11px; padding:4px 10px; border-radius:5px; transition:all .3s;
+    }
+    .save-indicator.saved   { background:rgba(46,160,67,.1); color:var(--accent2); border:1px solid rgba(46,160,67,.2); }
+    .save-indicator.unsaved { background:rgba(227,179,65,.1); color:var(--yellow); border:1px solid rgba(227,179,65,.2); }
+
+    /* ── Type badges ── */
+    .type-lesson   { background:rgba(56,139,253,.15);  color:#58a6ff; }
+    .type-exercise { background:rgba(46,160,67,.15);   color:#3fb950; }
+    .type-quiz     { background:rgba(188,140,255,.15); color:#d2a8ff; }
+    .type-project  { background:rgba(247,129,102,.15); color:#ffa657; }
+
+    /* ── Drag indicator ── */
+    .drag-over { border:2px dashed var(--blue) !important; background:rgba(56,139,253,.04) !important; }
+
+    /* ── Light mode fixes ── */
+    [data-theme="light"] .comp-code-area { color:#1f2328; }
+  </style>
+</head>
+<body>
+
+<div class="admin-layout">
+
+  <!-- ══════════════════ STRUCTURE PANEL ══════════════════ -->
+  <aside class="structure-panel">
+    <div class="panel-header">
+      <span class="panel-header-title">Structuur</span>
+      <button class="btn btn-sm btn-ghost" onclick="showNewPageModal()" title="Nieuwe pagina">+ Pagina</button>
+    </div>
+    <div class="structure-scroll" id="structureTree"></div>
+  </aside>
+
+  <!-- ══════════════════ EDITOR + PREVIEW ══════════════════ -->
+  <div class="editor-panel">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-chip">ADMIN</div>
+        <div>
+          <div class="topbar-title" id="topbarTitle">Lesontwerper</div>
+          <div class="topbar-sub" id="topbarSub">Selecteer een pagina links</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="save-indicator saved" id="saveIndicator">✓ Opgeslagen</span>
+        <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
+        <a href="index.html" class="btn btn-primary btn-sm">← Terug naar studentenview</a>
+      </div>
+    </div>
+
+    <!-- Editor only, no preview -->
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <div class="editor-main" id="editorMain">
+        <div class="empty-state">
+          <div class="empty-icon">✏️</div>
+          <div class="empty-title">Selecteer een pagina</div>
+          <div class="empty-sub">Kies een les links in de structuurpaneel om hem te bewerken, of maak een nieuwe pagina aan.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ NEW PAGE MODAL ═══════════════════ -->
+<div class="modal-overlay" id="newPageModal" onclick="if(event.target===this)closeNewPageModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Nieuwe pagina</span>
+      <button class="icon-btn" onclick="closeNewPageModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;gap:14px;">
+        <div>
+          <label class="field-label">Cursus</label>
+          <select class="field-select" id="npCourse"></select>
+        </div>
+        <div>
+          <label class="field-label">Paginatitel</label>
+          <input class="field-input" id="npTitle" placeholder="bijv. Loops & iteratie" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label class="field-label">Type</label>
+            <select class="field-select" id="npType">
+              <option value="theory">Theorie</option>
+              <option value="exercise">Oefening</option>
+              <option value="quiz">Quiz</option>
+              <option value="project">Project</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">XP beloning</label>
+            <input class="field-input" id="npXP" type="number" value="60" min="0" max="500" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeNewPageModal()">Annuleren</button>
+      <button class="btn btn-primary" onclick="createNewPage()">Pagina aanmaken</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   DATA MODEL
+   All pages are stored in localStorage under
+   "ict-admin-pages" as an array of page objects.
+   On first load, demo pages are seeded.
+═══════════════════════════════════════════════ */
+
+let COURSES = [];
+
+const COMP_TYPES = [
+  { type:"text",    label:"Tekst",     icon:"T" },
+  { type:"code",    label:"Code",      icon:"<>" },
+  { type:"callout", label:"Tip/Waarschuwing", icon:"!" },
+  { type:"video",   label:"Video",     icon:"▶" },
+  { type:"quiz",    label:"Vraag",     icon:"?" },
+];
+
+const TYPE_LABELS = {
+  theory:   { label:"theorie",  cls:"type-lesson" },
+  exercise: { label:"oefening", cls:"type-exercise" },
+  quiz:     { label:"quiz",     cls:"type-quiz" },
+  project:  { label:"project",  cls:"type-project" },
+};
+
+let pages = [];
+let activePage = null;
+let unsaved = false;
+
+/* ── Load / seed ── */
+function loadPages() {
+  try {
+    const raw = localStorage.getItem("ict-admin-pages");
+    if (raw) { pages = JSON.parse(raw); return; }
+  } catch {}
+
+  // Seed with demo pages built from BUILTIN data
+  pages = [
+    makePage("python", "Introductie Python",  "theory",   50, [
+      makeSection("Wat is Python?", [
+        makeComp("text", "Python is een van de populairste programmeertalen. Het is leesbaar, veelzijdig en perfect als eerste taal."),
+        makeComp("callout", "Data science, web development (Django/Flask), scripting, AI/ML en games.", {style:"success", title:"✅ Toepassingen"}),
+      ]),
+      makeSection("Je eerste programma", [
+        makeComp("text", "Maak een bestand hallo.py en typ het volgende:"),
+        makeComp("code", 'print("Hallo, wereld!")', {language:"python"}),
+      ]),
+    ]),
+    makePage("python", "Loops & iteratie", "exercise", 60, [
+      makeSection("Introductie", [
+        makeComp("text", "In Python gebruik je loops om code herhaaldelijk uit te voeren. Er zijn twee soorten: de for-loop en de while-loop."),
+        makeComp("callout", "Gebruik een for-loop als je weet hoeveel keer. Gebruik een while-loop als je herhaalt totdat iets verandert.", {style:"tip", title:"💡 Wanneer welke?"}),
+      ]),
+      makeSection("For-loop", [
+        makeComp("text", "De for-loop itereert over een reeks waarden via range()."),
+        makeComp("code", "# Print getallen 1 tot 5\nfor i in range(1, 6):\n    print(f\"Getal: {i}\")", {language:"python"}),
+      ]),
+      makeSection("While-loop", [
+        makeComp("text", "De while-loop blijft draaien zolang een conditie waar is."),
+        makeComp("code", "teller = 0\nwhile teller < 5:\n    print(teller)\n    teller += 1", {language:"python"}),
+        makeComp("callout", "Als de conditie nooit False wordt stopt je programma nooit. Stop met Ctrl+C.", {style:"warning", title:"⚠️ Oneindige loop"}),
+      ]),
+      makeSection("Opdrachten", [
+        makeComp("quiz", "Schrijf een for-loop die alle even getallen van 2 t/m 20 print.", {label:"🎯 Opdracht 1"}),
+        makeComp("quiz", "Tel op: 1+2+3... Stop zodra de som > 50. Print het eindresultaat.", {label:"🎯 Opdracht 2"}),
+      ]),
+    ]),
+    makePage("unity", "C# Scripting basics", "exercise", 80, [
+      makeSection("MonoBehaviour basis", [
+        makeComp("text", "In Unity schrijf je gedrag voor GameObjects met C# scripts die erven van MonoBehaviour."),
+        makeComp("code", "using UnityEngine;\npublic class MijnScript : MonoBehaviour {\n    void Start()  { Debug.Log(\"Gestart!\"); }\n    void Update() { /* elke frame */ }\n}", {language:"csharp"}),
+      ]),
+      makeSection("Beweging", [
+        makeComp("text", "Gebruik transform.position met Time.deltaTime voor framerate-onafhankelijke beweging."),
+        makeComp("callout", "Vergeet Time.deltaTime nooit bij beweging — anders is je game framerate-afhankelijk.", {style:"warning", title:"⚠️ Time.deltaTime"}),
+      ]),
+    ]),
+  ];
+  savePages();
+}
+
+function savePages() {
+  localStorage.setItem("ict-admin-pages", JSON.stringify(pages));
+  markSaved();
+}
+
+/* ── Factories ── */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function makePage(courseId, title, type, xp, sections=[]) {
+  return { id:uid(), courseId, title, type, xp, sections };
+}
+function makeSection(title, components=[]) {
+  return { id:uid(), title, components };
+}
+function makeComp(type, content="", meta={}) {
+  return { id:uid(), type, content, meta };
+}
+
+/* ─── Theme ─── */
+(function(){ const t=localStorage.getItem("ict-theme")||"dark"; applyTheme(t); })();
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme||"dark";
+  const next = cur==="dark"?"light":"dark";
+  applyTheme(next); localStorage.setItem("ict-theme",next);
+}
+function applyTheme(t) {
+  document.documentElement.dataset.theme=t;
+  const btn=document.getElementById("themeToggle");
+  if(btn) btn.textContent=t==="dark"?"🌙":"☀️";
+}
+
+/* ═══ STRUCTURE TREE ═══ */
+function buildTree() {
+  const tree = document.getElementById("structureTree");
+  const sections = {};
+  COURSES.forEach(c => {
+    if (!sections[c.section]) sections[c.section] = [];
+    sections[c.section].push(c);
+  });
+
+  tree.innerHTML = "";
+  Object.entries(sections).forEach(([sec, courses]) => {
+    const subj = document.createElement("div");
+    subj.className = "tree-subject open";
+    subj.innerHTML = `<div class="tree-subject-header" onclick="this.parentElement.classList.toggle('open')"><span class="tree-chevron">▶</span>${sec}</div>`;
+
+    const courseWrap = document.createElement("div");
+    courseWrap.className = "tree-course";
+
+    courses.forEach(course => {
+      const courseItem = document.createElement("div");
+      courseItem.className = "tree-course-item";
+      courseItem.dataset.courseId = course.id;
+      const coursePages = pages.filter(p => p.courseId === course.id);
+
+      courseItem.innerHTML = `<span class="tree-course-icon">${course.icon}</span><span class="tree-course-name">${course.name}</span><span style="font-size:11px;color:var(--text3)">${coursePages.length}</span>`;
+      courseItem.addEventListener("click", () => {
+        courseItem.classList.toggle("open");
+        pagesDiv.style.display = courseItem.classList.contains("open") ? "block" : "none";
+      });
+
+      const pagesDiv = document.createElement("div");
+      pagesDiv.className = "tree-pages";
+      pagesDiv.style.display = "none";
+
+      coursePages.forEach(page => {
+        const pi = document.createElement("div");
+        pi.className = "tree-page-item" + (activePage?.id===page.id?" active":"");
+        pi.dataset.pageId = page.id;
+        const tl = TYPE_LABELS[page.type]||TYPE_LABELS.theory;
+        pi.innerHTML = `<div class="tree-page-dot"></div><span class="tree-page-name">${page.title}</span><span class="tree-page-type ${tl.cls}">${tl.label}</span>`;
+        pi.addEventListener("click", () => openPage(page.id));
+        pagesDiv.appendChild(pi);
+      });
+
+      // Add page button
+      const addBtn = document.createElement("button");
+      addBtn.className = "tree-add-btn";
+      addBtn.innerHTML = `<span style="font-size:10px">＋</span> Les toevoegen`;
+      addBtn.onclick = (e) => { e.stopPropagation(); prefillNewPage(course.id); showNewPageModal(); };
+      pagesDiv.appendChild(addBtn);
+
+      courseWrap.appendChild(courseItem);
+      courseWrap.appendChild(pagesDiv);
+    });
+
+    subj.appendChild(courseWrap);
+    tree.appendChild(subj);
+  });
+}
+
+/* ═══ PAGE EDITOR ═══ */
+function openPage(pageId) {
+  activePage = pages.find(p => p.id === pageId);
+  if (!activePage) return;
+
+  // Update tree selection
+  document.querySelectorAll(".tree-page-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.pageId === pageId);
+    el.querySelector(".tree-page-dot").style.background = el.dataset.pageId === pageId ? "var(--blue)" : "";
+  });
+  // Open parent course
+  document.querySelectorAll(".tree-course-item").forEach(el => {
+    if (el.dataset.courseId === activePage.courseId) {
+      el.classList.add("open");
+      el.nextElementSibling.style.display = "block";
+    }
+  });
+
+  const course = COURSES.find(c => c.id === activePage.courseId);
+  document.getElementById("topbarTitle").textContent = activePage.title;
+  document.getElementById("topbarSub").textContent   = (course?.name||"") + " › " + (TYPE_LABELS[activePage.type]?.label||"");
+
+  renderEditor();
+}
+
+function renderEditor() {
+  if (!activePage) return;
+  const main = document.getElementById("editorMain");
+
+  main.innerHTML = `
+    <div class="page-editor">
+      <!-- Page metadata -->
+      <div class="page-meta-card">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;">Pagina-instellingen</div>
+        <div class="page-meta-grid">
+          <div class="page-meta-full">
+            <label class="field-label">Titel</label>
+            <input class="field-input" id="metaTitle" value="${esc(activePage.title)}" oninput="updateMeta('title',this.value)" placeholder="Paginatitel..." />
+          </div>
+          <div>
+            <label class="field-label">Type</label>
+            <select class="field-select" id="metaType" onchange="updateMeta('type',this.value)">
+              <option value="theory"   ${activePage.type==='theory'  ?'selected':''}>Theorie</option>
+              <option value="exercise" ${activePage.type==='exercise'?'selected':''}>Oefening</option>
+              <option value="quiz"     ${activePage.type==='quiz'    ?'selected':''}>Quiz</option>
+              <option value="project"  ${activePage.type==='project' ?'selected':''}>Project</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">XP beloning</label>
+            <input class="field-input" id="metaXP" type="number" value="${activePage.xp}" min="0" max="500" oninput="updateMeta('xp',parseInt(this.value)||0)" />
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+          <button class="btn btn-danger btn-sm" onclick="deletePage()">🗑 Pagina verwijderen</button>
+        </div>
+      </div>
+
+      <!-- Sections -->
+      <div class="sections-area" id="sectionsArea">
+        ${activePage.sections.map((s,si) => renderSectionCard(s,si)).join("")}
+      </div>
+
+      <!-- Add section -->
+      <button class="add-section-btn" onclick="addSection()">＋ Sectie toevoegen</button>
+    </div>`;
+
+  wireEditorEvents();
+}
+
+function renderSectionCard(section, si) {
+  return `
+  <div class="section-card" data-section-id="${section.id}">
+    <div class="section-card-header" draggable="true">
+      <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
+      <input class="section-title-input" value="${esc(section.title)}"
+        placeholder="Sectienaam (bijv. For-loop, Opdrachten...)"
+        data-section-id="${section.id}" oninput="updateSectionTitle(this)" />
+      <div class="section-actions">
+        <button class="icon-btn" onclick="moveSection('${section.id}',-1)" title="Omhoog">↑</button>
+        <button class="icon-btn" onclick="moveSection('${section.id}',1)"  title="Omlaag">↓</button>
+        <button class="icon-btn" style="color:var(--red)" onclick="deleteSection('${section.id}')" title="Verwijderen">✕</button>
+      </div>
+    </div>
+
+    <div class="components-list" data-section-id="${section.id}">
+      ${section.components.map((c,ci) => renderCompCard(c, section.id, ci)).join("")}
+    </div>
+
+    <div class="add-component-bar">
+      <span class="add-comp-label">Toevoegen:</span>
+      ${COMP_TYPES.map(ct => `
+        <button class="add-comp-btn" onclick="addComponent('${section.id}','${ct.type}')">
+          <span>${ct.icon}</span>${ct.label}
+        </button>`).join("")}
+    </div>
+  </div>`;
+}
+
+function renderCompCard(comp, sectionId, ci) {
+  const typeMeta = {
+    text:    { label:"Tekst",    cls:"comp-text" },
+    code:    { label:"Code",     cls:"comp-code" },
+    callout: { label:"Tip/Waarschuwing", cls:"comp-callout" },
+    video:   { label:"Video",    cls:"comp-video" },
+    quiz:    { label:"Vraag",    cls:"comp-quiz" },
+  }[comp.type] || { label:"Component", cls:"comp-text" };
+
+  let body = "";
+
+  if (comp.type === "text") {
+    body = `<textarea class="comp-textarea" rows="3"
+      data-comp-id="${comp.id}" data-field="content"
+      oninput="updateComp(this)" placeholder="Schrijf je uitleg hier...">${esc(comp.content)}</textarea>`;
+  }
+
+  if (comp.type === "code") {
+    body = `
+      <div class="comp-meta-row">
+        <span class="comp-meta-label">Taal:</span>
+        <select class="comp-meta-select" data-comp-id="${comp.id}" data-field="meta.language" onchange="updateCompMeta(this)">
+          ${["python","javascript","java","csharp","html","css","bash","text"].map(l =>
+            `<option value="${l}" ${comp.meta?.language===l?"selected":""}>${l}</option>`).join("")}
+        </select>
+        <span class="comp-meta-label">Bestandsnaam:</span>
+        <input class="comp-meta-select" style="flex:1.5" value="${esc(comp.meta?.filename||"")}"
+          data-comp-id="${comp.id}" data-field="meta.filename" oninput="updateCompMeta(this)"
+          placeholder="bijv. loops.py" />
+      </div>
+      <textarea class="comp-code-area" rows="6"
+        data-comp-id="${comp.id}" data-field="content"
+        oninput="updateComp(this)" placeholder="Code hier...">${esc(comp.content)}</textarea>`;
+  }
+
+  if (comp.type === "callout") {
+    const style = comp.meta?.style || "tip";
+    const title = comp.meta?.title || "";
+    body = `
+      <div class="callout-style-row">
+        ${["tip","warning","success"].map(s => `
+          <button class="callout-style-btn ${s}${style===s?" active":""}"
+            data-comp-id="${comp.id}" onclick="setCalloutStyle(this,'${s}')">
+            ${s==="tip"?"💡 Tip":s==="warning"?"⚠️ Waarschuwing":"✅ Succes"}
+          </button>`).join("")}
+      </div>
+      <input class="comp-input" value="${esc(title)}"
+        data-comp-id="${comp.id}" data-field="meta.title"
+        oninput="updateCompMeta(this)" placeholder="Titel (bijv. 💡 Wanneer welke?)" />
+      <textarea class="comp-textarea" rows="2"
+        data-comp-id="${comp.id}" data-field="content"
+        oninput="updateComp(this)" placeholder="Inhoud van de tip of waarschuwing...">${esc(comp.content)}</textarea>`;
+  }
+
+  if (comp.type === "video") {
+    body = `
+      <input class="comp-input" value="${esc(comp.content)}"
+        data-comp-id="${comp.id}" data-field="content"
+        oninput="updateComp(this)" placeholder="YouTube URL of video-ID..." />
+      <input class="comp-input" value="${esc(comp.meta?.caption||"")}"
+        data-comp-id="${comp.id}" data-field="meta.caption"
+        oninput="updateCompMeta(this)" placeholder="Ondertitel (optioneel)" />`;
+  }
+
+  if (comp.type === "quiz") {
+    body = `
+      <input class="comp-input" value="${esc(comp.meta?.label||"🎯 Opdracht")}"
+        data-comp-id="${comp.id}" data-field="meta.label"
+        oninput="updateCompMeta(this)" placeholder="Label (bijv. 🎯 Opdracht 1)" />
+      <textarea class="comp-textarea" rows="3"
+        data-comp-id="${comp.id}" data-field="content"
+        oninput="updateComp(this)" placeholder="Beschrijf de opdracht of vraag...">${esc(comp.content)}</textarea>`;
+  }
+
+  return `
+  <div class="component-card" data-comp-id="${comp.id}">
+    <div class="component-header">
+      <span class="component-type-badge ${typeMeta.cls}">${typeMeta.label}</span>
+      <div style="flex:1"></div>
+      <button class="icon-btn" onclick="moveComp('${sectionId}','${comp.id}',-1)" title="Omhoog">↑</button>
+      <button class="icon-btn" onclick="moveComp('${sectionId}','${comp.id}',1)"  title="Omlaag">↓</button>
+      <button class="icon-btn" style="color:var(--red)" onclick="deleteComp('${sectionId}','${comp.id}')" title="Verwijderen">✕</button>
+    </div>
+    <div class="component-body">${body}</div>
+  </div>`;
+}
+
+function wireEditorEvents() {
+  // Drag-to-reorder sections (simplified: just use move buttons for now,
+  // visual drag is wired for future enhancement)
+}
+
+/* ═══ MUTATIONS ═══ */
+function markUnsaved() {
+  unsaved = true;
+  const ind = document.getElementById("saveIndicator");
+  ind.textContent = "● Niet opgeslagen"; ind.className = "save-indicator unsaved";
+}
+function markSaved() {
+  unsaved = false;
+  const ind = document.getElementById("saveIndicator");
+  if (ind) { ind.textContent = "✓ Opgeslagen"; ind.className = "save-indicator saved"; }
+}
+
+function updateMeta(field, value) {
+  if (!activePage) return;
+  activePage[field] = value;
+  markUnsaved();
+  debounceSave();
+  if (field === "title") {
+    document.getElementById("topbarTitle").textContent = value;
+    const treeItem = document.querySelector(`.tree-page-item[data-page-id="${activePage.id}"] .tree-page-name`);
+    if (treeItem) treeItem.textContent = value;
+  }
+  if (field === "type") {
+    const tl = TYPE_LABELS[value]||TYPE_LABELS.theory;
+    document.getElementById("topbarSub").textContent = (COURSES.find(c=>c.id===activePage.courseId)?.name||"") + " › " + tl.label;
+    const badge = document.querySelector(`.tree-page-item[data-page-id="${activePage.id}"] .tree-page-type`);
+    if (badge) { badge.textContent = tl.label; badge.className = "tree-page-type " + tl.cls; }
+  }
+}
+
+function updateSectionTitle(input) {
+  const section = activePage?.sections.find(s => s.id === input.dataset.sectionId);
+  if (section) { section.title = input.value; markUnsaved(); debounceSave(); }
+}
+
+function updateComp(textarea) {
+  const comp = findComp(textarea.dataset.compId);
+  if (comp) { comp.content = textarea.value; markUnsaved(); debounceSave(); }
+}
+
+function updateCompMeta(input) {
+  const comp = findComp(input.dataset.compId);
+  if (!comp) return;
+  const field = input.dataset.field.replace("meta.","");
+  if (!comp.meta) comp.meta = {};
+  comp.meta[field] = input.value;
+  markUnsaved(); debounceSave();
+}
+
+function setCalloutStyle(btn, style) {
+  const comp = findComp(btn.dataset.compId);
+  if (!comp) return;
+  comp.meta = comp.meta || {};
+  comp.meta.style = style;
+  // Update active state on buttons
+  btn.closest(".callout-style-row").querySelectorAll(".callout-style-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  markUnsaved(); debounceSave();
+}
+
+function findComp(compId) {
+  for (const s of activePage?.sections || []) {
+    const c = s.components.find(c => c.id === compId);
+    if (c) return c;
+  }
+  return null;
+}
+
+function addSection() {
+  if (!activePage) return;
+  activePage.sections.push(makeSection("Nieuwe sectie", [makeComp("text","")]));
+  markUnsaved(); debounceSave(); renderEditor();
+  // Focus the new section title
+  const inputs = document.querySelectorAll(".section-title-input");
+  inputs[inputs.length-1]?.focus();
+  inputs[inputs.length-1]?.select();
+}
+
+function deleteSection(sectionId) {
+  if (!activePage) return;
+  if (!confirm("Sectie verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
+  activePage.sections = activePage.sections.filter(s => s.id !== sectionId);
+  markUnsaved(); debounceSave(); renderEditor();
+}
+
+function moveSection(sectionId, dir) {
+  if (!activePage) return;
+  const idx = activePage.sections.findIndex(s => s.id === sectionId);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= activePage.sections.length) return;
+  [activePage.sections[idx], activePage.sections[newIdx]] = [activePage.sections[newIdx], activePage.sections[idx]];
+  markUnsaved(); debounceSave(); renderEditor();
+}
+
+function addComponent(sectionId, type) {
+  const section = activePage?.sections.find(s => s.id === sectionId);
+  if (!section) return;
+  const defaults = {
+    text:    { content:"", meta:{} },
+    code:    { content:"", meta:{ language:"python", filename:"" } },
+    callout: { content:"", meta:{ style:"tip", title:"💡 Tip" } },
+    video:   { content:"", meta:{ caption:"" } },
+    quiz:    { content:"", meta:{ label:"🎯 Opdracht" } },
+  }[type] || { content:"", meta:{} };
+  section.components.push(makeComp(type, defaults.content, defaults.meta));
+  markUnsaved(); debounceSave(); renderEditor();
+}
+
+function deleteComp(sectionId, compId) {
+  const section = activePage?.sections.find(s => s.id === sectionId);
+  if (!section) return;
+  section.components = section.components.filter(c => c.id !== compId);
+  markUnsaved(); debounceSave(); renderEditor();
+}
+
+function moveComp(sectionId, compId, dir) {
+  const section = activePage?.sections.find(s => s.id === sectionId);
+  if (!section) return;
+  const idx = section.components.findIndex(c => c.id === compId);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= section.components.length) return;
+  [section.components[idx], section.components[newIdx]] = [section.components[newIdx], section.components[idx]];
+  markUnsaved(); debounceSave(); renderEditor();
+}
+
+function deletePage() {
+  if (!activePage) return;
+  if (!confirm(`"${activePage.title}" permanent verwijderen?`)) return;
+  pages = pages.filter(p => p.id !== activePage.id);
+  activePage = null;
+  savePages(); buildTree();
+  document.getElementById("editorMain").innerHTML = `<div class="empty-state"><div class="empty-icon">✏️</div><div class="empty-title">Pagina verwijderd</div><div class="empty-sub">Selecteer een andere pagina links.</div></div>`;
+  
+  document.getElementById("topbarTitle").textContent = "Lesontwerper";
+  document.getElementById("topbarSub").textContent = "Selecteer een pagina links";
+}
+
+/* ── Debounced auto-save ── */
+let saveTimer;
+function debounceSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { savePages(); buildTree(); }, 800);
+}
+
+/* ═══ NEW PAGE MODAL ═══ */
+function showNewPageModal() {
+  const sel = document.getElementById("npCourse");
+  sel.innerHTML = COURSES.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  document.getElementById("npTitle").value = "";
+  document.getElementById("npXP").value = "60";
+  const modal = document.getElementById("newPageModal");
+  modal.style.display = "flex";
+  requestAnimationFrame(() => modal.classList.add("visible"));
+  document.getElementById("npTitle").focus();
+}
+
+function prefillNewPage(courseId) {
+  showNewPageModal();
+  document.getElementById("npCourse").value = courseId;
+}
+
+function closeNewPageModal() {
+  const modal = document.getElementById("newPageModal");
+  modal.classList.remove("visible");
+  setTimeout(() => modal.style.display = "none", 200);
+}
+
+function createNewPage() {
+  const courseId = document.getElementById("npCourse").value;
+  const title    = document.getElementById("npTitle").value.trim();
+  const type     = document.getElementById("npType").value;
+  const xp       = parseInt(document.getElementById("npXP").value) || 60;
+  if (!title) { document.getElementById("npTitle").focus(); return; }
+  const page = makePage(courseId, title, type, xp, [makeSection("Introductie", [makeComp("text","")])]);
+  pages.push(page);
+  savePages(); buildTree(); closeNewPageModal();
+  // Small delay so tree re-renders first
+  setTimeout(() => openPage(page.id), 100);
+}
+
+/* ═══ HELPERS ═══ */
+function esc(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function escHTML(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escAttr(str) { return (str||"").replace(/"/g,"&quot;"); }
+/* ═══ INIT ═══ */
+(async () => {
+  try {
+    const res = await fetch('api/courses.php');
+    if (res.ok) COURSES = await res.json();
+  } catch (_) {}
+  loadPages();
+  buildTree();
+})();
+
+// Auto-save on close
+window.addEventListener("beforeunload", e => {
+  if (unsaved) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+
+</body>
+</html>

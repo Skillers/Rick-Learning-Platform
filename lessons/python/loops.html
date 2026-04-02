@@ -1,0 +1,87 @@
+<!-- lessons/python/loops.html -->
+<!-- Dit bestand wordt ingeladen door de app als lesinhoud -->
+<!-- Je kunt hier gewone HTML schrijven + de CSS-klassen uit main.css gebruiken -->
+
+<p class="lesson-text">
+  In Python gebruik je loops om code herhaaldelijk uit te voeren.
+  Er zijn twee soorten: de <strong>for-loop</strong> en de <strong>while-loop</strong>.
+</p>
+
+<h3>For-loop</h3>
+<p class="lesson-text">
+  De for-loop itereert over een reeks waarden, zoals een lijst of een <code>range()</code>.
+</p>
+
+<div class="code-block"><span class="cm"># Print getallen 1 tot 5</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nm">1</span>, <span class="nm">6</span>):
+    <span class="fn">print</span>(<span class="st">f"Getal: {i}"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Getal: 1</span>
+<span class="cm"># Getal: 2</span>
+<span class="cm"># Getal: 3 ...</span></div>
+
+<h3>Over een lijst itereren</h3>
+
+<div class="code-block">namen = [<span class="st">"Anna"</span>, <span class="st">"Boris"</span>, <span class="st">"Clara"</span>]
+
+<span class="kw">for</span> naam <span class="kw">in</span> namen:
+    <span class="fn">print</span>(<span class="st">f"Hallo, {naam}!"</span>)</div>
+
+<h3>While-loop</h3>
+<p class="lesson-text">
+  De while-loop blijft draaien <strong>zolang een conditie waar is</strong>.
+  Let goed op dat je geen oneindige loop maakt!
+</p>
+
+<div class="code-block">teller = <span class="nm">0</span>
+
+<span class="kw">while</span> teller &lt; <span class="nm">5</span>:
+    <span class="fn">print</span>(<span class="st">f"Teller: {teller}"</span>)
+    teller += <span class="nm">1</span>  <span class="cm"># BELANGRIJK: vergeet dit niet!</span></div>
+
+<div class="info-box info-box-blue">
+  <div class="info-box-title">💡 Handige loop-commando's</div>
+  <p>
+    <code>break</code> — stop de loop onmiddellijk<br>
+    <code>continue</code> — sla de rest van deze iteratie over<br>
+    <code>else</code> — voer dit uit als de loop normaal eindigt
+  </p>
+</div>
+
+<h3>Geneste loops</h3>
+<p class="lesson-text">Je kunt loops ook in elkaar nesten:</p>
+
+<div class="code-block"><span class="kw">for</span> rij <span class="kw">in</span> <span class="fn">range</span>(<span class="nm">3</span>):
+    <span class="kw">for</span> kolom <span class="kw">in</span> <span class="fn">range</span>(<span class="nm">3</span>):
+        <span class="fn">print</span>(<span class="st">f"({rij},{kolom})"</span>, end=<span class="st">" "</span>)
+    <span class="fn">print</span>()  <span class="cm"># nieuwe regel</span></div>
+
+<div class="exercise-box">
+  <h4>🎯 Opdracht 1 — For-loop</h4>
+  <p class="lesson-text">
+    Schrijf een for-loop die alle even getallen van 2 t/m 20 print.
+    <em>Tip: gebruik <code>range(2, 21, 2)</code></em>
+  </p>
+</div>
+
+<div class="exercise-box">
+  <h4>🎯 Opdracht 2 — While-loop</h4>
+  <p class="lesson-text">
+    Schrijf een while-loop die getallen optelt (1 + 2 + 3 + ...) en stopt
+    zodra de som groter is dan 50. Print de som en het laatste getal.
+  </p>
+</div>
+
+<div class="exercise-box">
+  <h4>🎯 Bonus — Naamlus</h4>
+  <p class="lesson-text">
+    Maak een lijst met de namen van 5 klasgenoten. Loop er over heen en
+    print: <em>"Hallo [naam], welkom bij Python!"</em>
+  </p>
+</div>
+
+<div class="info-box info-box-green">
+  <div class="info-box-title">✅ Klaar?</div>
+  <p>Vink de taken af in het paneel rechts en klik op "Volgende →" om door te gaan naar <strong>Functies</strong>.</p>
+</div>
