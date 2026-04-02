@@ -1,0 +1,100 @@
+USE `Rick Learning Platform`;
+
+INSERT INTO `PageTypes` (`Id`, `Name`, `Color`) VALUES
+(1, 'lesson',   'type-lesson'),
+(2, 'exercise', 'type-exercise'),
+(3, 'quiz',     'type-quiz'),
+(4, 'project',  'type-project');
+
+INSERT INTO `Subjects` (`Name`) VALUES
+('Programmeren'),
+('Game & VR'),
+('Rekenen MBO');
+
+INSERT INTO `Courses` (`Name`, `Icon`, `Color`, `Subject_Id`) VALUES
+('Python',                 '🐍', 'c-python', 1),
+('JavaScript (Processing)','⚡', 'c-js',     1),
+('Java',                   '☕', 'c-java',   1),
+('Unity 6',                '🎮', 'c-unity',  2),
+('Unity 6 OpenXR / VR',    '🥽', 'c-vr',     2),
+('Rekenen voor N4',        '🔢', 'c-math',   3),
+('Rekenen voor N3',        '📐', 'c-math',   3);
+
+INSERT INTO `Pages` (`Course_Id`, `title`, `order`, `published`, `PageType_Id`) VALUES
+(1, 'Introductie Python',    1, 1, 1),
+(1, 'Variabelen & types',    2, 1, 1),
+(1, 'Loops & iteratie',      3, 1, 2),
+(1, 'Functies',              4, 1, 1),
+(1, 'Lijsten & dicts',       5, 1, 1),
+(1, 'Bestanden lezen',       6, 1, 2),
+(1, 'Quiz: Basis Python',    7, 1, 3),
+(1, 'OOP & Classes',         8, 1, 1),
+(1, 'API''s & requests',     9, 1, 2),
+(1, 'Project: Calculator',  10, 1, 4),
+
+(2, 'JS Basics',             1, 1, 1),
+(2, 'Functies & scope',      2, 1, 1),
+(2, 'DOM manipulatie',       3, 1, 2),
+(2, 'Events & listeners',    4, 1, 2),
+(2, 'Canvas & animaties',    5, 1, 1),
+(2, 'Processing / p5.js',    6, 1, 1),
+(2, 'Quiz: JS Basis',        7, 1, 3),
+(2, 'Fetch & JSON',          8, 1, 2),
+(2, 'Creatieve sketch',      9, 1, 2),
+(2, 'Project: Mini-game',   10, 1, 4),
+
+(3, 'Java Introductie',      1, 1, 1),
+(3, 'Datatypes & variabelen',2, 1, 1),
+(3, 'Methoden',              3, 1, 1),
+(3, 'Arrays',                4, 1, 2),
+(3, 'OOP & Classes',         5, 1, 1),
+(3, 'Overerving',            6, 1, 1),
+(3, 'Interfaces',            7, 1, 1),
+(3, 'Quiz: Java Basis',      8, 1, 3),
+(3, 'Collections',           9, 1, 1),
+(3, 'Exceptions',           10, 1, 2),
+(3, 'File I/O',             11, 1, 2),
+(3, 'Project: Console game',12, 1, 4),
+
+(4, 'Unity setup & editor',   1, 1, 1),
+(4, 'GameObjects & Scene',    2, 1, 1),
+(4, 'Components & Inspector', 3, 1, 1),
+(4, 'C# Basis in Unity',      4, 1, 1),
+(4, 'C# Scripting basics',    5, 1, 2),
+(4, 'Physics & colliders',    6, 1, 1),
+(4, 'UI Canvas & TextMeshPro',7, 1, 2),
+(4, 'Audio & SFX',            8, 1, 1),
+(4, 'Animator & clips',       9, 1, 1),
+(4, 'Quiz: Unity Basis',     10, 1, 3),
+(4, 'Mini-game project',     11, 1, 4),
+
+(5, 'XR Plugin setup',       1, 1, 1),
+(5, 'OpenXR configureren',   2, 1, 1),
+(5, 'Controllers & input',   3, 1, 1),
+(5, 'Locomotion systemen',   4, 1, 2),
+(5, 'XR Interactables',      5, 1, 2),
+(5, 'UI in VR',              6, 1, 1),
+(5, 'Quiz: XR Basis',        7, 1, 3),
+(5, 'Project: VR scene',     8, 1, 4),
+
+(6, 'Getallen & bewerkingen', 1, 1, 1),
+(6, 'Procenten',              2, 1, 2),
+(6, 'Breuken',                3, 1, 1),
+(6, 'Verhoudingen',           4, 1, 2),
+(6, 'Formules gebruiken',     5, 1, 1),
+(6, 'Meten & eenheden',       6, 1, 2),
+(6, 'Statistiek',             7, 1, 1),
+(6, 'Tabellen & grafieken',   8, 1, 2),
+(6, 'Ruimtemeten',            9, 1, 1),
+(6, 'Examentraining N4',     10, 1, 3),
+
+(7, 'Basis rekenen',          1, 1, 1),
+(7, 'Procenten & breuken',    2, 1, 2),
+(7, 'Verhoudingen',           3, 1, 2),
+(7, 'Meten & meetkunde',      4, 1, 2),
+(7, 'Formules',               5, 1, 1),
+(7, 'Statistiek & kansen',    6, 1, 1),
+(7, 'Tabellen & grafieken',   7, 1, 2),
+(7, 'Ruimtemeten',            8, 1, 1),
+(7, 'Geld & financieel',      9, 1, 2),
+(7, 'Examentraining N3',     10, 1, 3);

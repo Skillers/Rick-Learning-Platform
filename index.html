@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICT Leerlijn — ROC Midden Nederland</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- Sidebar is loaded dynamically by js/sidebar.js -->
+  <div id="sidebar-mount"></div>
+
+  <!-- ══════════════════════════════
+       MAIN CONTENT
+       ══════════════════════════════ -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Dashboard</div>
+        <div class="page-sub"   id="pageSub">Welkom terug!</div>
+      </div>
+      <div class="topbar-right">
+        <div class="streak-badge" id="streakBadge">🔥 12-daagse streak</div>
+        <button class="notif-btn theme-btn" id="themeToggle" title="Wissel thema" onclick="toggleTheme()">🌙</button>
+        <button class="notif-btn" title="Meldingen">🔔</button>
+        <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
+             onclick="showDashboard()">ST</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ╔══════════════════════════
+           ║  DASHBOARD VIEW
+           ╚══════════════════════════ -->
+      <div class="view active" id="view-dashboard">
+
+        <!-- Welcome banner -->
+        <div class="dash-welcome">
+          <div>
+            <div style="font-size:22px;margin-bottom:6px;">👋</div>
+            <div class="welcome-text">
+              <h2>Verder gaan waar je gebleven bent?</h2>
+              <p id="welcomeSub">Kies een cursus hieronder om te beginnen.</p>
+            </div>
+          </div>
+          <div class="welcome-actions">
+            <button class="btn btn-primary" id="continueBtn">▶ Verder leren</button>
+            <button class="btn btn-ghost"   onclick="showDashboard()">Overzicht</button>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value">1240</div>
+            <div class="stat-label">XP totaal</div>
+            <div class="stat-trend">+85 deze week</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value">18</div>
+            <div class="stat-label">Lessen voltooid</div>
+            <div class="stat-trend">van 62 totaal</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-value">4</div>
+            <div class="stat-label">Badges behaald</div>
+            <div class="stat-trend">2 bijna bereikt</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔥</div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">Dag streak</div>
+            <div class="stat-trend">Persoonlijk record!</div>
+          </div>
+        </div>
+
+        <!-- Course cards -->
+        <div class="section-title">
+          Actieve cursussen <span>— klik om te openen</span>
+        </div>
+        <div class="courses-grid" id="coursesGrid">
+          <!-- Built by js/app.js → buildDashboard() -->
+        </div>
+
+        <!-- Activity row -->
+        <div class="activity-grid">
+
+          <div class="recent-list">
+            <div class="section-title">Recente activiteit</div>
+            <div class="recent-item">
+              <div class="recent-icon c-python">🐍</div>
+              <div>
+                <div class="recent-name">Variabelen &amp; types</div>
+                <div class="recent-meta">Python · Voltooid · 2u geleden</div>
+              </div>
+              <div class="recent-badge type-exercise">+50 XP</div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-icon c-unity">🎮</div>
+              <div>
+                <div class="recent-name">GameObjects &amp; Scene</div>
+                <div class="recent-meta">Unity 6 · Voltooid · Gisteren</div>
+              </div>
+              <div class="recent-badge type-quiz" style="background:rgba(188,140,255,.15);color:var(--purple2);">+75 XP</div>
+            </div>
+            <div class="recent-item">
+              <div class="recent-icon c-math">🔢</div>
+              <div>
+                <div class="recent-name">Procenten · Quiz 8/10</div>
+                <div class="recent-meta">Rekenen N4 · Gisteren</div>
+              </div>
+              <div class="recent-badge" style="background:rgba(139,148,158,.12);color:var(--text2);">+40 XP</div>
+            </div>
+          </div>
+
+          <div class="heatmap-card">
+            <div class="section-title">Activiteit (12 weken)</div>
+            <div class="heatmap-grid" id="heatmap"></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center;">
+              <span style="font-size:10px;color:var(--text3);">Minder</span>
+              <div style="display:flex;gap:3px;align-items:center;">
+                <div class="heatmap-cell"></div>
+                <div class="heatmap-cell l1"></div>
+                <div class="heatmap-cell l2"></div>
+                <div class="heatmap-cell l3"></div>
+                <div class="heatmap-cell l4"></div>
+              </div>
+              <span style="font-size:10px;color:var(--text3);">Meer</span>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /view-dashboard -->
+
+      <!-- ╔══════════════════════════
+           ║  LESSON VIEW
+           ╚══════════════════════════ -->
+      <div class="view" id="view-lesson">
+
+        <!-- Lesson header -->
+        <div class="lesson-view-header">
+          <div style="flex:1">
+            <div class="lesson-breadcrumb" id="lessonBreadcrumb">
+              Python <span>›</span> Les
+            </div>
+            <div class="lesson-title" id="lessonTitle">Les titel</div>
+            <div class="lesson-meta">
+              <div class="lesson-tag type-lesson" id="lessonTypeTag">Les</div>
+              <div style="font-size:12px;color:var(--text2);">⏱ ~20 min</div>
+              <div style="font-size:12px;color:var(--accent2);" id="lessonXP">+60 XP bij voltooiing</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost" onclick="showDashboard()">← Dashboard</button>
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="lesson-body">
+
+          <!-- Main content (loaded dynamically) -->
+          <div class="lesson-content" id="lessonContent">
+            <!-- Loaded by loadLessonContent() -->
+          </div>
+
+          <!-- Right panel -->
+          <div class="lesson-sidebar-panel">
+
+            <!-- XP / Level -->
+            <div class="panel-card">
+              <div class="panel-title">Jouw voortgang</div>
+              <div class="xp-bar-container">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:12px;color:var(--text2);" id="xpLevel">Level 7</span>
+                  <span style="font-size:12px;color:var(--blue2);" id="xpCurrent">1240</span>
+                </div>
+                <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:62%"></div></div>
+                <div class="xp-text">
+                  <span></span>
+                  <span id="xpNext">Level 8 bij 1500</span>
+                </div>
+              </div>
+              <div id="slideCounter"></div>
+            </div>
+
+            <!-- Task checklist -->
+            <div class="panel-card">
+              <div class="panel-title">Taken in deze les</div>
+              <div id="tasksList"></div>
+            </div>
+
+            <!-- Mini course progress -->
+            <div class="panel-card">
+              <div class="panel-title">Cursus voortgang</div>
+              <div id="miniProgress"></div>
+            </div>
+
+            <!-- Nav buttons -->
+            <div class="nav-btns">
+              <button class="btn btn-ghost" id="btnPrev">← Vorige</button>
+              <button class="btn btn-primary" id="btnNext">Volgende →</button>
+            </div>
+
+            <!-- Report inbox (teacher) -->
+            <div class="panel-card" id="reportPanelCard">
+              <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Meldingen</span>
+                <span id="reportBadge" class="report-badge" style="display:none">0</span>
+              </div>
+              <div id="reportPanel"></div>
+            </div>
+
+          </div>
+        </div>
+
+      </div><!-- /view-lesson -->
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /app-layout -->
+
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
