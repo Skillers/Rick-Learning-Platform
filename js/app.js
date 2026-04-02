@@ -12,10 +12,8 @@
  * The sidebar entry stays on the page level.
  */
 
-import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, TYPE_LABELS } from './sidebar.js';
+import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS } from './sidebar.js';
 
-/* ── Constants ───────────────────────────────── */
-const SECTION_HEIGHT_LIMIT = () => window.innerHeight * 1.5;
 
 /* ── Data ────────────────────────────────────── */
 let COURSES = [];
@@ -34,6 +32,7 @@ let currentCourse   = null;
 let currentLesson   = null;
 let currentSlides   = [];
 let currentSlideIdx = 0;
+let fullView        = false;
 
 /* ── Init ────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", async () => {
@@ -112,10 +111,10 @@ function buildHeatmap() {
    LESSON LOADING
 ═══════════════════════════════════════════════ */
 function loadLesson(courseId, lessonId) {
-  const course = COURSES.find(c => c.id === courseId);
-  if (!course) return;
-  const lesson = course.lessons.find(l => l.id === lessonId);
-  if (!lesson) return;
+  const course = COURSES.find(c => c.id == courseId);
+  if (!course) { console.error("[loadLesson] course not found", courseId, COURSES.map(c=>c.id)); return; }
+  const lesson = course.lessons.find(l => l.id == lessonId);
+  if (!lesson) { console.error("[loadLesson] lesson not found", lessonId, course.lessons.map(l=>l.id)); return; }
 
   currentCourse = course;
   currentLesson = lesson;
@@ -152,13 +151,27 @@ function loadLesson(courseId, lessonId) {
 }
 
 async function loadLessonContent(course, lesson) {
-  try {
-    const res = await fetch(lesson.file);
-    if (res.ok) return parseSections(await res.text());
-  } catch (_) {}
+  if (lesson.file) {
+    try {
+      const res = await fetch(lesson.file);
+      if (res.ok) return parseSections(await res.text());
+    } catch (_) {}
+  }
 
   const builtin = BUILTIN_CONTENT[`${course.id}-${lesson.id}`];
   if (builtin) return parseSections(builtin);
+
+  // Fall back to section titles from the database
+  const dbSections = getSectionsByPage()[lesson.id];
+  if (dbSections && dbSections.length) {
+    return dbSections.map(s => ({
+      title: s.title,
+      html: `<div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;margin-top:8px;">
+               <div style="font-size:28px;margin-bottom:8px;">📝</div>
+               <div style="font-size:13px;color:var(--text2);">Inhoud voor <strong>${s.title}</strong> wordt nog toegevoegd.</div>
+             </div>`
+    }));
+  }
 
   return [{
     title: null,
@@ -211,38 +224,41 @@ function parseSections(html) {
 ═══════════════════════════════════════════════ */
 function paginateSections(sections) {
   currentSlideIdx = 0;
-
-  // Measure each section by rendering off-screen
-  const contentEl = document.getElementById("lessonContent");
-  const probe = document.createElement("div");
-  probe.className = "lesson-content";
-  probe.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;width:${contentEl.offsetWidth || 640}px;top:0;left:-9999px;`;
-  document.body.appendChild(probe);
-
-  const measured = sections.map(s => {
-    probe.innerHTML = `<div>${s.title ? `<h3 class="section-heading">${s.title}</h3>` : ""}${s.html}</div>`;
-    return { section: s, height: probe.firstChild.offsetHeight };
-  });
-  document.body.removeChild(probe);
-
-  // Greedy grouping: fill a slide until adding the next section would exceed limit
-  const limit  = SECTION_HEIGHT_LIMIT();
-  const slides = [];
-  let slide = [], running = 0;
-
-  measured.forEach(({ section, height }) => {
-    if (running + height > limit && slide.length > 0) {
-      slides.push(slide);
-      slide = [];
-      running = 0;
-    }
-    slide.push(section);
-    running += height;
-  });
-  if (slide.length) slides.push(slide);
-
-  currentSlides = slides;
+  fullView = false;
+  const btn = document.getElementById("viewToggleBtn");
+  if (btn) btn.textContent = "Switch to full view";
+  // One section per slide
+  currentSlides = sections.map(s => [s]);
   renderSlide(0);
+}
+
+function toggleView() {
+  fullView = !fullView;
+  const btn = document.getElementById("viewToggleBtn");
+  if (btn) btn.textContent = fullView ? "Switch to section view" : "Switch to full view";
+  if (fullView) renderFullView();
+  else renderSlide(currentSlideIdx);
+}
+
+function renderFullView() {
+  const allSections = currentSlides.flat();
+  const sectionsHTML = allSections.map((s, globalIdx) => {
+    const sectionKey   = `${currentCourse.id}__${currentLesson.id}__${globalIdx}`;
+    const reportCount  = getReportCount(sectionKey);
+    const reportedClass = reportCount > 0 ? " reported" : "";
+    return `
+    <div class="page-section" data-section-key="${sectionKey}">
+      <div class="section-header-row">
+        ${s.title ? `<h3 class="section-heading">${s.title}</h3>` : `<div></div>`}
+        <button class="report-btn${reportedClass}" data-section-key="${sectionKey}" data-section-title="${s.title || "Sectie " + (globalIdx + 1)}" title="Fout melden in deze sectie">
+          ${reportCount > 0 ? `<span class="report-count">${reportCount}</span>` : ""}⚑
+        </button>
+      </div>
+      ${s.html}
+    </div>`;
+  }).join("");
+  document.getElementById("lessonContent").innerHTML = sectionsHTML;
+  wireReportButtons();
 }
 
 function renderSlide(idx) {
@@ -768,6 +784,7 @@ namen = [<span class="st">"Anna"</span>, <span class="st">"Boris"</span>, <span 
 ═══════════════════════════════════════════════ */
 window.toggleTheme      = toggleTheme;
 window.showDashboard    = showDashboard;
+window.toggleView       = toggleView;
 window.closeReportModal = closeReportModal;
 window.submitReport     = submitReport;
 window.resolveReport    = resolveReport;

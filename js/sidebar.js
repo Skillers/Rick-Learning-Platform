@@ -5,12 +5,14 @@ export const TYPE_LABELS = {
   project:  { label: "project", cls: "type-project" },
 };
 
-let _subjects = [];
-let _courseRows = [];
-let _pageRows   = [];
-let _courses    = [];
+let _subjects      = [];
+let _courseRows    = [];
+let _pageRows      = [];
+let _courses       = [];
+let _sectionsByPage = {};
 
-export function getCourses() { return _courses; }
+export function getCourses()        { return _courses; }
+export function getSectionsByPage() { return _sectionsByPage; }
 
 function url(path) {
   return new URL(path, import.meta.url).href;
@@ -99,6 +101,7 @@ export async function initSidebar(mountId, onLessonClick) {
       if (!byPage[s.page_id]) byPage[s.page_id] = [];
       byPage[s.page_id].push(s);
     });
+    _sectionsByPage = byPage;
     Object.entries(byPage).forEach(([pageId, sections]) => {
       const sectionList = document.getElementById("section-list-" + pageId);
       if (!sectionList) return;
