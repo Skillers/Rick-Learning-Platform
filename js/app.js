@@ -275,12 +275,19 @@ function buildDashboard() {
   grid.innerHTML = "";
   COURSES.forEach(course => grid.appendChild(buildCourseCard(course)));
 
-  const activeCourse = COURSES.find(c => c.lessons.some(l => l.status === "active"));
-  if (activeCourse) {
-    const al = activeCourse.lessons.find(l => l.status === "active");
-    if (al) {
-      document.getElementById("continueBtn").addEventListener("click", () => loadLesson(activeCourse.id, al.id));
-      document.getElementById("welcomeSub").textContent = `Je bent bezig met "${al.title}" in ${activeCourse.name}`;
+  const saved = JSON.parse(sessionStorage.getItem("ict_last") || "null");
+  const resumeCourse = saved ? COURSES.find(c => c.id == saved.courseId) : null;
+  const resumeLesson = resumeCourse ? resumeCourse.lessons.find(l => l.id == saved.lessonId) : null;
+
+  if (resumeCourse && resumeLesson) {
+    document.getElementById("continueBtn").onclick = () => loadLesson(resumeCourse.id, resumeLesson.id, saved.sectionIdx ?? 0);
+    document.getElementById("welcomeSub").textContent = `Je bent bezig met "${resumeLesson.title}" in ${resumeCourse.name}`;
+  } else {
+    const firstCourse = COURSES[0];
+    const firstLesson = firstCourse?.lessons[0];
+    if (firstCourse && firstLesson) {
+      document.getElementById("continueBtn").onclick = () => loadLesson(firstCourse.id, firstLesson.id);
+      document.getElementById("welcomeSub").textContent = `Kies een cursus hieronder om te beginnen.`;
     }
   }
 }
@@ -554,6 +561,14 @@ function renderFullView() {
 
 function renderSlide(idx) {
   currentSlideIdx = Math.max(0, Math.min(idx, currentSlides.length - 1));
+
+  // Update saved position with current section index
+  if (currentCourse && currentLesson) {
+    sessionStorage.setItem("ict_last", JSON.stringify({
+      courseId: currentCourse.id, lessonId: currentLesson.id, sectionIdx: currentSlideIdx
+    }));
+  }
+
   document.getElementById("lessonContent")?.classList.remove("full-view");
   const slide  = currentSlides[currentSlideIdx];
   const total  = currentSlides.length;
@@ -900,9 +915,9 @@ function setTopbar(title, sub) {
   document.getElementById("pageSub").textContent   = sub;
 }
 function showDashboard() {
+  buildDashboard();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug! Je bent goed op weg.");
-  // Clear sidebar active state by passing null — sidebar module handles its own DOM
   document.querySelectorAll(".lesson-item").forEach(e => e.classList.remove("active"));
 }
 function el(tag, className = "", text = "") {
