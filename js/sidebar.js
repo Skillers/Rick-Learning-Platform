@@ -24,7 +24,7 @@ async function fetchJSON(path) {
   return res.json();
 }
 
-export async function initSidebar(mountId, onLessonClick) {
+export async function initSidebar(mountId, onLessonClick, onCourseClick) {
   const mount = document.getElementById(mountId);
   if (!mount) {
     console.error(`[Sidebar] Mount element #${mountId} not found`);
@@ -76,7 +76,7 @@ export async function initSidebar(mountId, onLessonClick) {
     _courseRows = await fetchJSON("../api/courses.php");
     _courseRows.forEach(c => {
       const bucket = document.getElementById("subject-" + c.subject_id);
-      if (bucket) bucket.appendChild(buildCourseGroup(c, onLessonClick));
+      if (bucket) bucket.appendChild(buildCourseGroup(c, onLessonClick, onCourseClick));
     });
   } catch (err) {
     console.error("[Sidebar] Failed to load courses:", err);
@@ -158,7 +158,7 @@ export async function initSidebar(mountId, onLessonClick) {
   return _courses;
 }
 
-function buildCourseGroup(course, onLessonClick) {
+function buildCourseGroup(course, onLessonClick, onCourseClick) {
   const group = mkEl("div", "course-group");
   group.id = "group-" + course.id;
 
@@ -166,6 +166,11 @@ function buildCourseGroup(course, onLessonClick) {
   header.addEventListener("click", () => toggleGroup(course.id));
 
   const icon = mkEl("div", "course-icon " + course.color, course.icon);
+  if (onCourseClick) {
+    icon.addEventListener("click", e => { e.stopPropagation(); onCourseClick(course.id); });
+    icon.title = "Cursusoverzicht openen";
+    icon.style.cursor = "pointer";
+  }
   const info = mkEl("div", "course-info");
   const bar  = mkEl("div", "course-progress-line");
   const fill = mkEl("div", "course-progress-fill");

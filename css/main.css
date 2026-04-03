@@ -416,6 +416,42 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .heatmap-cell.l3 { background: rgba(46,160,67,.75); }
 .heatmap-cell.l4 { background: var(--accent); }
 
+/* ── Course view ─────────────────────────────── */
+.course-view-header {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 20px 24px; margin-bottom: 16px;
+}
+.course-view-icon {
+  width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.course-view-progress-bar {
+  height: 4px; background: var(--bg4); border-radius: 2px; margin-bottom: 20px; overflow: hidden;
+}
+.course-view-progress-fill {
+  height: 100%; border-radius: 2px; background: var(--blue); transition: width .4s;
+}
+.course-view-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.course-page-item {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 14px 18px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.course-page-item:hover { border-color: var(--blue); background: var(--bg3); }
+.course-page-num {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: var(--bg4); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+}
+.course-page-info { flex: 1; }
+.course-page-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.course-page-meta  { font-size: 12px; color: var(--text3); margin-top: 3px; }
+
 /* ── Lesson view ─────────────────────────────── */
 .lesson-view-header {
   background: var(--bg2); border: 1px solid var(--border);
