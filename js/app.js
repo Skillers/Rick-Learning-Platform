@@ -55,7 +55,7 @@ async function bootApp() {
   if (_stopLoginAnim) { _stopLoginAnim(); _stopLoginAnim = null; }
   document.getElementById("login-screen").style.display  = "none";
   document.getElementById("app-layout").style.display    = "";
-  await initSidebar("sidebar-mount", loadLesson);
+  await initSidebar("sidebar-mount", loadLesson, showCourse);
   COURSES = getCourses();
   updateSidebarUser(STUDENT);
   buildDashboard();
@@ -292,12 +292,48 @@ function buildDashboard() {
   }
 }
 
+function showCourse(courseId) {
+  const course = COURSES.find(c => c.id == courseId);
+  if (!course) return;
+
+  const icon = document.getElementById("courseViewIcon");
+  icon.textContent  = course.icon;
+  icon.className    = "course-view-icon " + course.color;
+
+  document.getElementById("courseViewTitle").textContent = course.name;
+  document.getElementById("courseViewSub").textContent   =
+    `${course.progress.done} van ${course.progress.total} lessen voltooid`;
+
+  document.getElementById("courseViewFill").style.width      = course.progress.pct + "%";
+  document.getElementById("courseViewFill").style.background = course.progress.color;
+
+  const list = document.getElementById("courseViewList");
+  list.innerHTML = "";
+  course.lessons.forEach((lesson, i) => {
+    const tl   = TYPE_LABELS[lesson.type] ?? { label: lesson.type, cls: "type-lesson" };
+    const item = el("div", "course-page-item");
+    item.addEventListener("click", () => loadLesson(course.id, lesson.id));
+
+    const num  = el("div", "course-page-num", String(i + 1));
+    const info = el("div", "course-page-info");
+    info.appendChild(el("div", "course-page-title", lesson.title));
+
+    const meta = el("div", "course-page-meta");
+    const tag  = el("span", "lesson-tag " + tl.cls, tl.label);
+    meta.appendChild(tag);
+    info.appendChild(meta);
+
+    item.append(num, info);
+    list.appendChild(item);
+  });
+
+  setTopbar(course.name, course.section);
+  showView("course");
+}
+
 function buildCourseCard(course) {
   const card = el("div", "course-card");
-  card.addEventListener("click", () => {
-    const active = course.lessons.find(l => l.status === "active") || course.lessons[0];
-    loadLesson(course.id, active.id);
-  });
+  card.addEventListener("click", () => showCourse(course.id));
   const header = el("div", "course-card-header");
   const tw = el("div");
   tw.append(el("div", "course-card-title", course.name), el("div", "course-card-cat", course.category));
