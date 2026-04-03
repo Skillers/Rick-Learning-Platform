@@ -8,7 +8,120 @@
 </head>
 <body>
 
-<div class="app-layout">
+<!-- ══════════════════════════════
+     LOGIN SCREEN
+     ══════════════════════════════ -->
+<div id="login-screen" class="login-screen">
+
+  <canvas id="loginCanvas" class="login-canvas"></canvas>
+
+  <!-- Topbar — identical structure to the app topbar -->
+  <div class="login-topbar">
+    <div class="login-topbar-brand">
+      <div class="brand-icon">IC</div>
+      <div>
+        <div class="brand-name">ICT Leerlijn</div>
+        <div class="brand-sub">ROC Midden Nederland</div>
+      </div>
+    </div>
+    <button class="notif-btn theme-btn" id="loginThemeToggle" title="Wissel thema" onclick="toggleTheme()">🌙</button>
+  </div>
+
+  <!-- Centered area — one card visible at a time -->
+  <div class="login-body">
+
+    <!-- ── View: Inloggen ── -->
+    <div class="login-card" id="lv-login">
+      <div class="login-card-header">
+        <div class="page-title">Inloggen</div>
+        <div class="page-sub">Voer je gegevens in om verder te gaan.</div>
+      </div>
+      <form class="login-form" onsubmit="handleLogin(event)">
+        <div class="login-field-group">
+          <label class="login-label" for="loginName">Gebruikersnaam</label>
+          <input class="login-input" type="text" id="loginName"
+                 placeholder="bijv. anna.bakker" autocomplete="username" />
+        </div>
+        <div class="login-field-group">
+          <label class="login-label" for="loginPass">Wachtwoord</label>
+          <input class="login-input" type="password" id="loginPass"
+                 placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="login-error" id="loginError"></div>
+        <button class="btn btn-primary login-btn" type="submit">Inloggen →</button>
+      </form>
+      <div class="login-links">
+        <button class="login-link" onclick="showLoginView('forgot')">Wachtwoord vergeten?</button>
+        <button class="login-link" onclick="showLoginView('register')">Nog geen account? <strong>Aanmelden →</strong></button>
+      </div>
+    </div>
+
+    <!-- ── View: Wachtwoord vergeten ── -->
+    <div class="login-card" id="lv-forgot" style="display:none">
+      <div class="login-card-header">
+        <div class="page-title">Wachtwoord vergeten</div>
+        <div class="page-sub">Voer je e-mailadres in. Je ontvangt een resetlink.</div>
+      </div>
+      <form class="login-form" onsubmit="handleForgot(event)" id="forgotForm">
+        <div class="login-field-group">
+          <label class="login-label" for="forgotField">E-mailadres</label>
+          <input class="login-input" type="email" id="forgotField"
+                 placeholder="bijv. anna@roc.nl" autocomplete="email" />
+        </div>
+        <div class="login-error" id="forgotError"></div>
+        <div class="login-success" id="forgotSuccess" style="display:none">
+          ✅ Als dit account bestaat, ontvang je binnenkort een e-mail met instructies.
+        </div>
+        <button class="btn btn-primary login-btn" type="submit" id="forgotBtn">Resetlink versturen →</button>
+      </form>
+      <div class="login-links">
+        <button class="login-link" onclick="showLoginView('login')">← Terug naar inloggen</button>
+      </div>
+    </div>
+
+    <!-- ── View: Account aanmaken ── -->
+    <div class="login-card" id="lv-register" style="display:none">
+      <div class="login-card-header">
+        <div class="page-title">Account aanmaken</div>
+        <div class="page-sub">Maak een account aan om te beginnen met leren.</div>
+      </div>
+      <form class="login-form" onsubmit="handleRegister(event)">
+        <div class="login-field-group">
+          <label class="login-label" for="regUsername">Gebruikersnaam</label>
+          <input class="login-input" type="text" id="regUsername"
+                 placeholder="Minimaal 4 tekens" autocomplete="username" />
+          <div class="field-hint" id="hintUsername"></div>
+        </div>
+        <div class="login-field-group">
+          <label class="login-label" for="regEmail">E-mailadres</label>
+          <input class="login-input" type="email" id="regEmail"
+                 placeholder="bijv. anna@roc.nl" autocomplete="email" />
+          <div class="field-hint" id="hintEmail"></div>
+        </div>
+        <div class="login-field-group">
+          <label class="login-label" for="regPass">Wachtwoord</label>
+          <input class="login-input" type="password" id="regPass"
+                 placeholder="Minimaal 9 tekens" autocomplete="new-password" />
+        </div>
+        <div class="login-field-group">
+          <label class="login-label" for="regPass2">Wachtwoord bevestigen</label>
+          <input class="login-input" type="password" id="regPass2"
+                 placeholder="Herhaal wachtwoord" autocomplete="new-password" />
+          <div class="field-hint" id="hintPass"></div>
+        </div>
+        <div class="login-error" id="registerError"></div>
+        <button class="btn btn-primary login-btn" type="submit">Account aanmaken →</button>
+      </form>
+      <div class="login-links">
+        <button class="login-link" onclick="showLoginView('login')">← Terug naar inloggen</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="app-layout" id="app-layout" style="display:none">
 
   <!-- Sidebar is loaded dynamically by js/sidebar.js -->
   <div id="sidebar-mount"></div>
@@ -28,8 +141,18 @@
         <div class="streak-badge" id="streakBadge">🔥 12-daagse streak</div>
         <button class="notif-btn theme-btn" id="themeToggle" title="Wissel thema" onclick="toggleTheme()">🌙</button>
         <button class="notif-btn" title="Meldingen">🔔</button>
-        <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
-             onclick="showDashboard()">ST</div>
+        <div class="avatar-wrap">
+          <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
+               onclick="toggleAvatarMenu()">ST</div>
+          <div class="avatar-menu" id="avatarMenu">
+            <div class="avatar-menu-info">
+              <div class="avatar-menu-name" id="avatarMenuName">Studentnaam</div>
+              <div class="avatar-menu-sub" id="avatarMenuSub">student</div>
+            </div>
+            <div class="avatar-menu-divider"></div>
+            <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -159,6 +282,7 @@
               <div style="font-size:12px;color:var(--accent2);" id="lessonXP">+60 XP bij voltooiing</div>
             </div>
           </div>
+          <button class="btn btn-ghost" id="btnPrev" style="display:none">← Vorige</button>
           <button class="btn btn-ghost" id="viewToggleBtn" onclick="toggleView()">Switch to full view</button>
           <button class="btn btn-ghost" onclick="showDashboard()">← Dashboard</button>
         </div>
@@ -167,8 +291,11 @@
         <div class="lesson-body">
 
           <!-- Main content (loaded dynamically) -->
-          <div class="lesson-content" id="lessonContent">
-            <!-- Loaded by loadLessonContent() -->
+          <div class="lesson-main-col">
+            <div class="lesson-content" id="lessonContent">
+              <!-- Loaded by loadLessonContent() -->
+            </div>
+            <div id="nextPageNav"></div>
           </div>
 
           <!-- Right panel -->
@@ -203,12 +330,6 @@
               <div id="miniProgress"></div>
             </div>
 
-            <!-- Nav buttons -->
-            <div class="nav-btns">
-              <button class="btn btn-ghost" id="btnPrev">← Vorige</button>
-              <button class="btn btn-primary" id="btnNext">Volgende →</button>
-            </div>
-
             <!-- Report inbox (teacher) -->
             <div class="panel-card" id="reportPanelCard">
               <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
@@ -228,6 +349,7 @@
 </div><!-- /app-layout -->
 
 <script type="module" src="js/app.js"></script>
+
 
 </body>
 </html>
