@@ -102,6 +102,7 @@
           <label class="login-label" for="regPass">Wachtwoord</label>
           <input class="login-input" type="password" id="regPass"
                  placeholder="Minimaal 9 tekens" autocomplete="new-password" />
+          <div class="field-hint" id="hintPassLen"></div>
         </div>
         <div class="login-field-group">
           <label class="login-label" for="regPass2">Wachtwoord bevestigen</label>
@@ -150,6 +151,8 @@
               <div class="avatar-menu-sub" id="avatarMenuSub">student</div>
             </div>
             <div class="avatar-menu-divider"></div>
+            <button class="avatar-menu-item" style="color:var(--text)" onclick="showAccount()">Mijn account</button>
+            <div class="avatar-menu-divider"></div>
             <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
           </div>
         </div>
@@ -163,19 +166,31 @@
            ╚══════════════════════════ -->
       <div class="view active" id="view-dashboard">
 
-        <!-- Welcome banner -->
-        <div class="dash-welcome">
-          <div>
-            <div style="font-size:22px;margin-bottom:6px;">👋</div>
-            <div class="welcome-text">
-              <h2>Verder gaan waar je gebleven bent?</h2>
-              <p id="welcomeSub">Kies een cursus hieronder om te beginnen.</p>
+        <!-- Welcome row -->
+        <div class="dash-top-row">
+
+          <!-- Welcome banner -->
+          <div class="dash-welcome">
+            <div>
+              <div style="font-size:22px;margin-bottom:6px;">👋</div>
+              <div class="welcome-text">
+                <h2>Verder gaan waar je gebleven bent?</h2>
+                <p id="welcomeSub">Kies een cursus hieronder om te beginnen.</p>
+              </div>
+            </div>
+            <div class="welcome-actions">
+              <button class="btn btn-primary" id="continueBtn">▶ Verder leren</button>
+              <button class="btn btn-ghost"   onclick="showDashboard()">Overzicht</button>
             </div>
           </div>
-          <div class="welcome-actions">
-            <button class="btn btn-primary" id="continueBtn">▶ Verder leren</button>
-            <button class="btn btn-ghost"   onclick="showDashboard()">Overzicht</button>
+
+          <!-- Tip card -->
+          <div class="dash-tip-card">
+            <div class="dash-tip-label">💡 Wist je dat...</div>
+            <div class="dash-tip-text" id="dashTipText"></div>
+            <div class="dash-tip-dots" id="dashTipDots"></div>
           </div>
+
         </div>
 
         <!-- Stat cards -->
@@ -265,9 +280,22 @@
       </div><!-- /view-dashboard -->
 
       <!-- ╔══════════════════════════
+           ║  ACCOUNT VIEW
+           ╚══════════════════════════ -->
+      <div class="view" id="view-account">
+        <div class="account-card">
+          <div class="account-avatar" id="accountAvatar"></div>
+          <div class="account-name"   id="accountName"></div>
+          <div class="account-email"  id="accountEmail"></div>
+        </div>
+      </div><!-- /view-account -->
+
+      <!-- ╔══════════════════════════
            ║  COURSE VIEW
            ╚══════════════════════════ -->
       <div class="view" id="view-course">
+
+        <!-- Header -->
         <div class="course-view-header">
           <div class="course-view-icon" id="courseViewIcon"></div>
           <div>
@@ -276,10 +304,27 @@
           </div>
           <button class="btn btn-ghost" style="margin-left:auto" onclick="showDashboard()">← Dashboard</button>
         </div>
-        <div class="course-view-progress-bar">
-          <div class="course-view-progress-fill" id="courseViewFill"></div>
+
+        <!-- Two-column body -->
+        <div class="course-view-body">
+
+          <!-- Left: page + section list -->
+          <div class="course-view-left">
+            <div class="course-view-progress-bar">
+              <div class="course-view-progress-fill" id="courseViewFill"></div>
+            </div>
+            <div class="course-view-list" id="courseViewList"></div>
+          </div>
+
+          <!-- Right: description panel -->
+          <div class="course-view-right">
+            <div class="panel-card">
+              <div class="panel-title">Over deze cursus</div>
+              <div class="course-view-desc" id="courseViewDesc"></div>
+            </div>
+          </div>
+
         </div>
-        <div class="course-view-list" id="courseViewList"></div>
       </div><!-- /view-course -->
 
       <!-- ╔══════════════════════════
