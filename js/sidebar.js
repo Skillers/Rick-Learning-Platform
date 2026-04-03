@@ -105,7 +105,9 @@ export async function initSidebar(mountId, onLessonClick) {
     Object.entries(byPage).forEach(([pageId, sections]) => {
       const sectionList = document.getElementById("section-list-" + pageId);
       if (!sectionList) return;
-      sections.forEach(s => sectionList.appendChild(buildSectionItem(s)));
+      const page = _pageRows.find(p => p.id == pageId);
+      const courseId = page?.course_id;
+      sections.forEach((s, idx) => sectionList.appendChild(buildSectionItem(s, idx, courseId, pageId, onLessonClick)));
 
       const wrap = sectionList.closest(".lesson-wrap");
       if (!wrap) return;
@@ -202,8 +204,12 @@ function buildLessonItem(page, onLessonClick) {
   return wrap;
 }
 
-function buildSectionItem(section) {
+function buildSectionItem(section, idx, courseId, pageId, onSectionClick) {
   const item = mkEl("div", "section-item");
+  item.addEventListener("click", e => {
+    e.stopPropagation();
+    onSectionClick(courseId, pageId, idx);
+  });
   item.append(
     mkEl("div", "section-status"),
     mkEl("div", "section-name", section.title)

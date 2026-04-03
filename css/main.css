@@ -244,6 +244,54 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .page-sub   { font-size: 12px; color: var(--text2); margin-top: 1px; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
+.avatar-wrap { position: relative; }
+
+.avatar-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 180px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  z-index: 200;
+  overflow: hidden;
+}
+.avatar-menu.open { display: block; }
+
+.avatar-menu-info {
+  padding: 12px 14px 10px;
+}
+.avatar-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.avatar-menu-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+.avatar-menu-divider {
+  height: 1px;
+  background: var(--border);
+}
+.avatar-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--red);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.avatar-menu-item:hover { background: var(--bg3); }
+
 .streak-badge {
   display: flex; align-items: center; gap: 5px;
   background: rgba(227,179,65,.1); border: 1px solid rgba(227,179,65,.25);
@@ -387,6 +435,10 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .lesson-content {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--radius2); padding: 24px;
+  display: flex; flex-direction: column;
+}
+.lesson-content.full-view {
+  background: transparent; border-color: transparent; padding: 0;
 }
 .lesson-sidebar-panel { display: flex; flex-direction: column; gap: 12px; }
 .panel-card {
@@ -418,9 +470,24 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .xp-fill { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--blue), var(--purple)); }
 .xp-text { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-top: 4px; }
 
-/* ── Lesson nav buttons ──────────────────────── */
-.nav-btns { display: flex; gap: 8px; margin-top: 16px; }
-.nav-btns .btn { flex: 1; text-align: center; }
+/* ── Main content column wrapper ─────────────── */
+.lesson-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ── Next page button (below last section) ───── */
+.next-page-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+}
+.next-page-btn { font-size: 14px; padding: 10px 20px; }
 
 /* ── Lesson content typography ───────────────── */
 .lesson-text { font-size: 14px; color: var(--text2); line-height: 1.7; margin: 10px 0; }
@@ -517,12 +584,13 @@ code {
 
 /* Section spacing */
 .page-section {
-  padding-bottom: 8px;
+  padding: 20px 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 .page-section + .page-section {
-  margin-top: 28px;
-  padding-top: 28px;
-  border-top: 1px solid var(--border);
+  margin-top: 16px;
 }
 
 .section-heading {
@@ -552,7 +620,7 @@ code {
 
 /* ── Footer wrapper ───────────────────────────── */
 .slide-footer {
-  margin-top: 36px;
+  margin-top: auto;
   padding-top: 20px;
   border-top: 1px solid var(--border);
   display: flex;
@@ -678,6 +746,7 @@ code {
 /* ── Light mode overrides ─────────────────────── */
 [data-theme="light"] .slide-progress-track { background: #eaeef2; }
 [data-theme="light"] .slide-footer         { border-top-color: #d0d7de; }
+[data-theme="light"] .next-page-wrap       { background: #ffffff; border-color: #d0d7de; }
 [data-theme="light"] .slide-arrow          { background: #fff; border-color: #d0d7de; color: #57606a; }
 [data-theme="light"] .slide-arrow:hover:not(:disabled) { background: #f6f8fa; border-color: #b1bac4; color: #1f2328; }
 [data-theme="light"] .slide-arrow-next     { border-color: #0969da; color: #0969da; }
@@ -743,6 +812,9 @@ code {
   background: #ffffff;
   border-color: #d0d7de;
 }
+[data-theme="light"] .lesson-content.full-view {
+  background: transparent; border-color: transparent;
+}
 
 [data-theme="light"] .course-card:hover {
   background: #f6f8fa;
@@ -793,7 +865,7 @@ code {
 [data-theme="light"] .recent-item         { border-bottom-color: #d0d7de; }
 [data-theme="light"] .lessons-list .lesson-item.active { background: #ddeeff; }
 
-[data-theme="light"] .page-section + .page-section { border-top-color: #d0d7de; }
+[data-theme="light"] .page-section { background: #f6f8fa; border-color: #d0d7de; }
 
 /* Theme button active state */
 .theme-btn { font-size: 15px !important; }
@@ -1078,3 +1150,155 @@ code {
 [data-theme="light"] .report-toast { background: #fff; border-color: #2da44e; }
 [data-theme="light"] .report-item { border-bottom-color: #d0d7de; }
 [data-theme="light"] .report-item-note { border-left-color: #b1bac4; }
+
+/* ═══════════════════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════════════════ */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+/* Topbar — same rules as .topbar */
+.login-topbar {
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.login-topbar-brand { display: flex; align-items: center; gap: 10px; }
+
+/* Background canvas */
+.login-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Centered area */
+.login-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative; /* sit above canvas */
+  background: radial-gradient(ellipse 600px 500px at 50% 50%,
+    rgba(56, 139, 253, 0.04) 0%,
+    transparent 70%);
+}
+
+/* Card — same as .lesson-content */
+.login-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card-header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Form */
+.login-form       { display: flex; flex-direction: column; gap: 16px; }
+.login-field-group { display: flex; flex-direction: column; gap: 6px; }
+
+.login-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+}
+
+/* Input — same as .report-textarea style */
+.login-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.login-input::placeholder  { color: var(--text3); }
+.login-input:focus         { border-color: var(--blue); }
+.login-input.input-valid   { border-color: var(--accent2); }
+.login-input.input-invalid { border-color: var(--red); }
+
+.field-hint {
+  font-size: 11px;
+  min-height: 14px;
+  margin-top: -2px;
+}
+.field-hint.hint-valid   { color: var(--accent2); }
+.field-hint.hint-invalid { color: var(--red); }
+
+.login-error {
+  font-size: 12px;
+  color: var(--red);
+  min-height: 16px;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-success {
+  font-size: 12px;
+  color: var(--accent2);
+  background: rgba(46, 160, 67, .08);
+  border: 1px solid rgba(46, 160, 67, .2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.login-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.login-link {
+  background: none;
+  border: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color .15s;
+}
+.login-link:hover          { color: var(--text); }
+.login-link strong         { color: var(--blue2); font-weight: 600; }
+
+/* ── Light mode ──────────────────────────────── */
+[data-theme="light"] .login-card         { background: #ffffff; border-color: #d0d7de; }
+[data-theme="light"] .login-card-header  { border-bottom-color: #d0d7de; }
+[data-theme="light"] .login-input        { background: #f6f8fa; border-color: #d0d7de; color: #1f2328; }
+[data-theme="light"] .login-input:focus  { border-color: #0969da; }
+[data-theme="light"] .login-links        { border-top-color: #d0d7de; }

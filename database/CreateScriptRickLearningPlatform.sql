@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Sections` (
   `Id` INT NOT NULL,
   `Pages_Id` INT NOT NULL,
   `Title` VARCHAR(45) NOT NULL,
-  `Order` INT NULL,
+  `Order` INT NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_Sections_Pages1_idx` (`Pages_Id` ASC),
   CONSTRAINT `fk_Sections_Pages1`
@@ -95,6 +95,89 @@ CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Sections` (
     REFERENCES `Rick Learning Platform`.`Pages` (`Id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`Components`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Components` (
+  `Id` INT NOT NULL,
+  `TypeName` VARCHAR(45) NULL,
+  PRIMARY KEY (`Id`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`Components`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Components` (
+  `Id` INT NOT NULL,
+  `TypeName` VARCHAR(45) NULL,
+  PRIMARY KEY (`Id`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`Languages`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Languages` (
+  `Id` INT NOT NULL,
+  `LanguageName` VARCHAR(45) NULL,
+  PRIMARY KEY (`Id`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`CodeSnippets`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`CodeSnippets` (
+  `Id` INT NOT NULL,
+  `Components_Id` INT NOT NULL,
+  `Languages_Id` INT NOT NULL,
+  `Code` LONGTEXT NOT NULL,
+  PRIMARY KEY (`Id`),
+  INDEX `fk_CodeSnippets_Components1_idx` (`Components_Id` ASC),
+  INDEX `fk_CodeSnippets_Languages1_idx` (`Languages_Id` ASC),
+  CONSTRAINT `fk_CodeSnippets_Components1`
+    FOREIGN KEY (`Components_Id`)
+    REFERENCES `Rick Learning Platform`.`Components` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_CodeSnippets_Languages1`
+    FOREIGN KEY (`Languages_Id`)
+    REFERENCES `Rick Learning Platform`.`Languages` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`TextBLocks`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`TextBLocks` (
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `Component_Id` INT NOT NULL,
+  `Text` LONGTEXT NOT NULL,
+  INDEX `fk_TextBLocks_Components1_idx` (`Component_Id` ASC),
+  PRIMARY KEY (`Id`),
+  CONSTRAINT `fk_TextBLocks_Components1`
+    FOREIGN KEY (`Component_Id`)
+    REFERENCES `Rick Learning Platform`.`Components` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`Accounts`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Accounts` (
+  `username` INT NOT NULL,
+  `Password` VARCHAR(255) NOT NULL,
+  `Email` VARCHAR(120) NOT NULL,
+  PRIMARY KEY (`username`),
+  UNIQUE INDEX `Email_UNIQUE` (`Email` ASC))
 ENGINE = InnoDB;
 
 

@@ -13,6 +13,7 @@
  */
 
 import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS } from './sidebar.js';
+import { highlight } from './highlighter.js';
 
 
 /* ── Data ────────────────────────────────────── */
@@ -33,17 +34,231 @@ let currentLesson   = null;
 let currentSlides   = [];
 let currentSlideIdx = 0;
 let fullView        = false;
+let prevLesson      = null;
+let nextLesson      = null;
 
 /* ── Init ────────────────────────────────────── */
-document.addEventListener("DOMContentLoaded", async () => {
+let _stopLoginAnim = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  const saved = sessionStorage.getItem("ict_user");
+  if (saved) {
+    STUDENT.name     = saved;
+    STUDENT.initials = initials(saved);
+    bootApp();
+  } else {
+    _stopLoginAnim = startLoginAnimation();
+  }
+});
+
+async function bootApp() {
+  if (_stopLoginAnim) { _stopLoginAnim(); _stopLoginAnim = null; }
+  document.getElementById("login-screen").style.display  = "none";
+  document.getElementById("app-layout").style.display    = "";
   await initSidebar("sidebar-mount", loadLesson);
   COURSES = getCourses();
   updateSidebarUser(STUDENT);
   buildDashboard();
   buildHeatmap();
   showView("dashboard");
-  setTopbar("Dashboard", "Welkom terug! Je bent goed op weg.");
+  setTopbar("Dashboard", "Welkom terug, " + STUDENT.name + "!");
+
+  // Populate avatar menu
+  document.getElementById("avatarMenuName").textContent = STUDENT.name;
+  document.getElementById("avatarMenuSub").textContent  = STUDENT.initials;
+}
+
+function toggleAvatarMenu() {
+  document.getElementById("avatarMenu").classList.toggle("open");
+}
+
+function handleLogout() {
+  sessionStorage.removeItem("ict_user");
+  document.getElementById("avatarMenu").classList.remove("open");
+  document.getElementById("app-layout").style.display   = "none";
+  document.getElementById("login-screen").style.display = "";
+  _stopLoginAnim = startLoginAnimation();
+}
+
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".avatar-wrap");
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById("avatarMenu")?.classList.remove("open");
+  }
 });
+
+function handleLogin(e) {
+  e.preventDefault();
+  const name = document.getElementById("loginName").value.trim();
+  const pass = document.getElementById("loginPass").value.trim();
+  const err  = document.getElementById("loginError");
+
+  if (!name || !pass) {
+    err.textContent = "Vul beide velden in.";
+    return;
+  }
+  err.textContent = "";
+
+  STUDENT.name     = name;
+  STUDENT.initials = initials(name);
+  sessionStorage.setItem("ict_user", name);
+  bootApp();
+}
+
+function showLoginView(view) {
+  document.getElementById("lv-login").style.display    = view === "login"    ? "" : "none";
+  document.getElementById("lv-forgot").style.display   = view === "forgot"   ? "" : "none";
+  document.getElementById("lv-register").style.display = view === "register" ? "" : "none";
+}
+
+// ── Live register validation ──────────────────────────────────────────────────
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function setHint(id, inputId, msg, valid) {
+  const hint  = document.getElementById(id);
+  const input = document.getElementById(inputId);
+  hint.textContent = msg;
+  hint.className   = "field-hint " + (msg ? (valid ? "hint-valid" : "hint-invalid") : "");
+  input.classList.toggle("input-valid",   !!msg && valid);
+  input.classList.toggle("input-invalid", !!msg && !valid);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const elUser  = document.getElementById("regUsername");
+  const elEmail = document.getElementById("regEmail");
+  const elPass  = document.getElementById("regPass");
+  const elPass2 = document.getElementById("regPass2");
+
+  // Password match — instant
+  function checkPassMatch() {
+    const p1 = elPass.value;
+    const p2 = elPass2.value;
+    if (!p2) { setHint("hintPass", "regPass2", "", false); return; }
+    if (p1 === p2) setHint("hintPass", "regPass2", "Wachtwoorden komen overeen ✓", true);
+    else           setHint("hintPass", "regPass2", "Wachtwoorden komen niet overeen", false);
+  }
+  elPass.addEventListener("input",  checkPassMatch);
+  elPass2.addEventListener("input", checkPassMatch);
+
+  // Username — debounced API check
+  const checkUsername = debounce((value) => {
+    if (value.length < 4) {
+      setHint("hintUsername", "regUsername",
+        value.length ? "Minimaal 4 tekens vereist" : "", false);
+      return;
+    }
+    if (/\s/.test(value)) {
+      setHint("hintUsername", "regUsername", "Geen spaties toegestaan", false);
+      return;
+    }
+    fetch(`api/check_availability.php?username=${encodeURIComponent(value)}`)
+      .then(r => r.json())
+      .then(({ available }) => {
+        if (document.getElementById("regUsername").value.trim() !== value) return;
+        if (available === undefined) return;
+        setHint("hintUsername", "regUsername",
+          available ? "Gebruikersnaam beschikbaar ✓" : "Gebruikersnaam al in gebruik",
+          available);
+      })
+      .catch(() => { setHint("hintUsername", "regUsername", "", false); });
+  }, 400);
+
+  elUser.addEventListener("input", (e) => {
+    const v = e.target.value.trim();
+    if (!v) { setHint("hintUsername", "regUsername", "", false); return; }
+    checkUsername(v);
+  });
+
+  // Email — debounced API check
+  const checkEmail = debounce((value) => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setHint("hintEmail", "regEmail", "Voer een geldig e-mailadres in", false);
+      return;
+    }
+    fetch(`api/check_availability.php?email=${encodeURIComponent(value)}`)
+      .then(r => r.json())
+      .then(({ available }) => {
+        if (document.getElementById("regEmail").value.trim() !== value) return;
+        if (available === undefined) return;
+        setHint("hintEmail", "regEmail",
+          available ? "E-mailadres beschikbaar ✓" : "E-mailadres al in gebruik",
+          available);
+      })
+      .catch(() => { setHint("hintEmail", "regEmail", "", false); });
+  }, 400);
+
+  elEmail.addEventListener("input", (e) => {
+    const v = e.target.value.trim();
+    if (!v) { setHint("hintEmail", "regEmail", "", false); return; }
+    checkEmail(v);
+  });
+});
+
+function handleForgot(e) {
+  e.preventDefault();
+  const field = document.getElementById("forgotField").value.trim();
+  const err   = document.getElementById("forgotError");
+  const ok    = document.getElementById("forgotSuccess");
+  const btn   = document.getElementById("forgotBtn");
+
+  if (!field) { err.textContent = "Vul je e-mailadres in."; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(field)) { err.textContent = "Voer een geldig e-mailadres in."; return; }
+  err.textContent = "";
+  ok.style.display = "";
+  btn.disabled     = true;
+  btn.textContent  = "Verstuurd";
+}
+
+function handleRegister(e) {
+  e.preventDefault();
+  const user  = document.getElementById("regUsername").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  const pass  = document.getElementById("regPass").value;
+  const pass2 = document.getElementById("regPass2").value;
+  const err   = document.getElementById("registerError");
+
+  if (!user || !email || !pass || !pass2) {
+    err.textContent = "Vul alle velden in."; return;
+  }
+  if (user.length < 4) {
+    err.textContent = "Gebruikersnaam moet minimaal 4 tekens bevatten."; return;
+  }
+  if (/\s/.test(user)) {
+    err.textContent = "Gebruikersnaam mag geen spaties bevatten."; return;
+  }
+  if (pass.length < 9) {
+    err.textContent = "Wachtwoord moet minimaal 9 tekens bevatten."; return;
+  }
+  if (pass !== pass2) {
+    err.textContent = "Wachtwoorden komen niet overeen."; return;
+  }
+  err.textContent = "";
+
+  fetch("api/register.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: user, email, password: pass }),
+  })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) { err.textContent = data.error; return; }
+      STUDENT.name     = user;
+      STUDENT.initials = initials(user);
+      sessionStorage.setItem("ict_user", user);
+      bootApp();
+    })
+    .catch(() => { err.textContent = "Er ging iets mis. Probeer het opnieuw."; });
+}
+
+function initials(name) {
+  const parts = name.trim().split(/[\s._-]+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
 
 /* ═══════════════════════════════════════════════
    DASHBOARD
@@ -110,7 +325,7 @@ function buildHeatmap() {
 /* ═══════════════════════════════════════════════
    LESSON LOADING
 ═══════════════════════════════════════════════ */
-function loadLesson(courseId, lessonId) {
+function loadLesson(courseId, lessonId, sectionIdx = 0) {
   const course = COURSES.find(c => c.id == courseId);
   if (!course) { console.error("[loadLesson] course not found", courseId, COURSES.map(c=>c.id)); return; }
   const lesson = course.lessons.find(l => l.id == lessonId);
@@ -136,18 +351,14 @@ function loadLesson(courseId, lessonId) {
   document.querySelector(".main").scrollTo(0, 0);
 
   // Prev / next page nav
-  const idx     = course.lessons.indexOf(lesson);
-  const prevLes = course.lessons[idx - 1];
-  const nextLes = course.lessons[idx + 1];
+  const idx  = course.lessons.indexOf(lesson);
+  prevLesson = course.lessons[idx - 1] ?? null;
+  nextLesson = (course.lessons[idx + 1]?.status !== "locked") ? (course.lessons[idx + 1] ?? null) : null;
   const prevBtn = document.getElementById("btnPrev");
-  const nextBtn = document.getElementById("btnNext");
-  prevBtn.disabled = !prevLes;
-  prevBtn.onclick  = prevLes ? () => loadLesson(courseId, prevLes.id) : null;
-  nextBtn.disabled = !nextLes || nextLes.status === "locked";
-  nextBtn.onclick  = nextLes ? () => loadLesson(courseId, nextLes.id) : null;
+  prevBtn.onclick = prevLesson ? () => loadLesson(courseId, prevLesson.id) : null;
 
   // Load & paginate
-  loadLessonContent(course, lesson).then(sections => paginateSections(sections));
+  loadLessonContent(course, lesson).then(sections => paginateSections(sections, sectionIdx));
 }
 
 async function loadLessonContent(course, lesson) {
@@ -161,26 +372,80 @@ async function loadLessonContent(course, lesson) {
   const builtin = BUILTIN_CONTENT[`${course.id}-${lesson.id}`];
   if (builtin) return parseSections(builtin);
 
-  // Fall back to section titles from the database
+  // Load section content from the database
   const dbSections = getSectionsByPage()[lesson.id];
-  if (dbSections && dbSections.length) {
-    return dbSections.map(s => ({
-      title: s.title,
-      html: `<div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;margin-top:8px;">
-               <div style="font-size:28px;margin-bottom:8px;">📝</div>
-               <div style="font-size:13px;color:var(--text2);">Inhoud voor <strong>${s.title}</strong> wordt nog toegevoegd.</div>
-             </div>`
-    }));
+  if (!dbSections || !dbSections.length) {
+    return [{ title: null, html: '<p class="lesson-text">Inhoud voor <strong>' + lesson.title + '</strong> wordt nog toegevoegd.</p>' }];
   }
 
-  return [{
-    title: null,
-    html: `<p class="lesson-text">Inhoud voor <strong>${lesson.title}</strong> — voeg je lesmateriaal toe in <code>${lesson.file}</code>.</p>
-           <div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;margin-top:16px;">
-             <div style="font-size:28px;margin-bottom:8px;">📝</div>
-             <div style="font-size:13px;color:var(--text2);">Lesinhoud nog niet toegevoegd</div>
-           </div>`
-  }];
+  // Fetch components for this page from the API
+  let componentsBySection = {};
+  try {
+    const res = await fetch(`../api/section_content.php?page_id=${lesson.id}`);
+    if (res.ok) {
+      const components = await res.json();
+      components.forEach(c => {
+        if (!componentsBySection[c.section_id]) componentsBySection[c.section_id] = [];
+        componentsBySection[c.section_id].push(c);
+      });
+    }
+  } catch (_) {}
+
+  return dbSections.map(s => ({
+    title: s.title,
+    html:  buildSectionHTML(componentsBySection[s.id] || []),
+  }));
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildSectionHTML(components) {
+  if (!components.length) {
+    return `<div style="border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;margin-top:8px;">
+              <div style="font-size:28px;margin-bottom:8px;">📝</div>
+              <div style="font-size:13px;color:var(--text2);">Inhoud wordt nog toegevoegd.</div>
+            </div>`;
+  }
+  return components.map(renderComponent).join('');
+}
+
+function renderComponent(c) {
+  const text = c.content || '';
+  switch (c.type) {
+    case 'text':
+      return `<p class="lesson-text">${escHtml(text).replace(/\n/g, '<br>')}</p>`;
+
+    case 'code':
+      return `<div class="code-block">${highlight(text, c.language)}</div>`;
+
+    case 'tip':
+      return `<div class="info-box info-box-blue">
+        <div class="info-box-title">💡 Tip</div>
+        <p>${escHtml(text).replace(/\n/g, '<br>')}</p>
+      </div>`;
+
+    case 'warning':
+      return `<div class="info-box info-box-orange">
+        <div class="info-box-title">⚠️ Let op</div>
+        <p>${escHtml(text).replace(/\n/g, '<br>')}</p>
+      </div>`;
+
+    case 'success':
+      return `<div class="info-box info-box-green">
+        <div class="info-box-title">✅ Goed gedaan</div>
+        <p>${escHtml(text).replace(/\n/g, '<br>')}</p>
+      </div>`;
+
+    case 'exercise':
+      return `<div class="exercise-box">${escHtml(text).replace(/\n/g, '<br>')}</div>`;
+
+    default:
+      return `<p class="lesson-text">${escHtml(text).replace(/\n/g, '<br>')}</p>`;
+  }
 }
 
 /**
@@ -222,14 +487,36 @@ function parseSections(html) {
 /* ═══════════════════════════════════════════════
    SECTION PAGINATION
 ═══════════════════════════════════════════════ */
-function paginateSections(sections) {
+function updatePrevVisibility() {
+  const btn = document.getElementById("btnPrev");
+  if (!btn) return;
+  btn.style.display = (prevLesson && (fullView || currentSlideIdx === 0)) ? "" : "none";
+}
+
+function updateNextPageNav() {
+  const nav = document.getElementById("nextPageNav");
+  if (!nav) return;
+  if (nextLesson) {
+    nav.innerHTML = `<div class="next-page-wrap">
+      <button class="btn btn-primary next-page-btn" id="btnNext">Ga naar volgend onderdeel →</button>
+    </div>`;
+    document.getElementById("btnNext").addEventListener("click", () => {
+      loadLesson(currentCourse.id, nextLesson.id);
+    });
+  } else {
+    nav.innerHTML = `<div class="next-page-wrap">
+      <button class="btn btn-ghost next-page-btn" onclick="showDashboard()">← Terug naar dashboard</button>
+    </div>`;
+  }
+}
+function paginateSections(sections, startIdx = 0) {
   currentSlideIdx = 0;
   fullView = false;
   const btn = document.getElementById("viewToggleBtn");
   if (btn) btn.textContent = "Switch to full view";
   // One section per slide
   currentSlides = sections.map(s => [s]);
-  renderSlide(0);
+  renderSlide(Math.min(startIdx, sections.length - 1));
 }
 
 function toggleView() {
@@ -257,12 +544,17 @@ function renderFullView() {
       ${s.html}
     </div>`;
   }).join("");
-  document.getElementById("lessonContent").innerHTML = sectionsHTML;
+  const el = document.getElementById("lessonContent");
+  el.classList.add("full-view");
+  el.innerHTML = sectionsHTML;
   wireReportButtons();
+  updateNextPageNav();
+  updatePrevVisibility();
 }
 
 function renderSlide(idx) {
   currentSlideIdx = Math.max(0, Math.min(idx, currentSlides.length - 1));
+  document.getElementById("lessonContent")?.classList.remove("full-view");
   const slide  = currentSlides[currentSlideIdx];
   const total  = currentSlides.length;
   const isLast = currentSlideIdx === total - 1;
@@ -290,6 +582,8 @@ function renderSlide(idx) {
     document.getElementById("lessonContent").innerHTML = sectionsHTML;
     wireReportButtons();
     updateSlideCounter(0, 1);
+    updateNextPageNav();
+    updatePrevVisibility();
     return;
   }
 
@@ -329,7 +623,6 @@ function renderSlide(idx) {
              </button>`
         }
       </div>
-      ${isLast ? `<div class="slide-complete-label">Pagina voltooid</div>` : ""}
     </div>`;
 
   wireReportButtons();
@@ -346,14 +639,14 @@ function renderSlide(idx) {
   });
 
   updateSlideCounter(currentSlideIdx, total);
+  if (isLast) updateNextPageNav();
+  else document.getElementById("nextPageNav").innerHTML = "";
+  updatePrevVisibility();
 }
 
 function updateSlideCounter(idx, total) {
   const counter = document.getElementById("slideCounter");
-  if (!counter) return;
-  if (total <= 1) { counter.style.display = "none"; return; }
-  counter.style.display  = "block";
-  counter.textContent    = `Sectie ${idx + 1} van ${total}`;
+  if (counter) counter.style.display = "none";
 }
 
 /* ═══════════════════════════════════════════════
@@ -778,6 +1071,101 @@ namen = [<span class="st">"Anna"</span>, <span class="st">"Boris"</span>, <span 
 };
 
 /* ═══════════════════════════════════════════════
+   LOGIN CANVAS ANIMATION
+   Floating syntax tokens drift upward at low
+   opacity using the platform's code-highlight colors.
+═══════════════════════════════════════════════ */
+function startLoginAnimation() {
+  const canvas = document.getElementById("loginCanvas");
+  if (!canvas) return null;
+  const ctx = canvas.getContext("2d");
+
+  const TOKENS = [
+    { text: "def",      dark: "#ff7b72", light: "#cf222e" },
+    { text: "class",    dark: "#ffa657", light: "#953800" },
+    { text: "return",   dark: "#ff7b72", light: "#cf222e" },
+    { text: "for",      dark: "#ff7b72", light: "#cf222e" },
+    { text: "if",       dark: "#ff7b72", light: "#cf222e" },
+    { text: "import",   dark: "#ff7b72", light: "#cf222e" },
+    { text: "print()",  dark: "#d2a8ff", light: "#8250df" },
+    { text: "range()",  dark: "#d2a8ff", light: "#8250df" },
+    { text: "const",    dark: "#ff7b72", light: "#cf222e" },
+    { text: "let",      dark: "#ff7b72", light: "#cf222e" },
+    { text: "async",    dark: "#ff7b72", light: "#cf222e" },
+    { text: "=>",       dark: "#58a6ff", light: "#0550ae" },
+    { text: "{ }",      dark: "#58a6ff", light: "#0550ae" },
+    { text: "[ ]",      dark: "#58a6ff", light: "#0550ae" },
+    { text: "public",   dark: "#ff7b72", light: "#cf222e" },
+    { text: "void",     dark: "#ff7b72", light: "#cf222e" },
+    { text: "new",      dark: "#ff7b72", light: "#cf222e" },
+    { text: "using",    dark: "#ff7b72", light: "#cf222e" },
+    { text: "//",       dark: "#8b949e", light: "#57606a" },
+    { text: "#",        dark: "#8b949e", light: "#57606a" },
+    { text: "true",     dark: "#ffa657", light: "#953800" },
+    { text: "null",     dark: "#ffa657", light: "#953800" },
+    { text: "while",    dark: "#ff7b72", light: "#cf222e" },
+  ];
+
+  function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+
+  function makeParticle(fromBottom = true) {
+    const t = TOKENS[Math.floor(Math.random() * TOKENS.length)];
+    return {
+      x:          Math.random() * canvas.width,
+      y:          fromBottom ? canvas.height + 20 : Math.random() * canvas.height,
+      vy:         -(0.15 + Math.random() * 0.35),
+      opacity:    fromBottom ? 0 : Math.random() * 0.18,
+      maxOpacity: 0.12 + Math.random() * 0.10,
+      text:       t.text,
+      darkColor:  t.dark,
+      lightColor: t.light,
+      size:       12 + Math.random() * 5,
+      fadingIn:   true,
+    };
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  const particles = Array.from({ length: 35 }, () => makeParticle(false));
+
+  let rafId;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of particles) {
+      p.y += p.vy;
+
+      if (p.fadingIn) {
+        p.opacity += 0.0015;
+        if (p.opacity >= p.maxOpacity) p.fadingIn = false;
+      }
+
+      if (p.y < -30) Object.assign(p, makeParticle(true));
+
+      const isLight = document.documentElement.dataset.theme === 'light';
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle   = isLight ? p.lightColor : p.darkColor;
+      ctx.font        = `500 ${p.size}px 'JetBrains Mono', monospace`;
+      ctx.fillText(p.text, p.x, p.y);
+    }
+
+    ctx.globalAlpha = 1;
+    rafId = requestAnimationFrame(draw);
+  }
+
+  draw();
+
+  return function stop() {
+    cancelAnimationFrame(rafId);
+    window.removeEventListener("resize", resize);
+  };
+}
+
+/* ═══════════════════════════════════════════════
    GLOBAL EXPORTS
    ES modules are scoped — functions called from
    HTML onclick="" attributes must be on window.
@@ -788,3 +1176,9 @@ window.toggleView       = toggleView;
 window.closeReportModal = closeReportModal;
 window.submitReport     = submitReport;
 window.resolveReport    = resolveReport;
+window.handleLogin      = handleLogin;
+window.handleForgot     = handleForgot;
+window.handleRegister   = handleRegister;
+window.showLoginView    = showLoginView;
+window.toggleAvatarMenu = toggleAvatarMenu;
+window.handleLogout     = handleLogout;
