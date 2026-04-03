@@ -22,6 +22,7 @@ let COURSES = [];
 const STUDENT = {
   name:    "Student",
   initials:"ST",
+  email:   "",
   xp:      1240,
   xpNext:  1500,
   level:   7,
@@ -45,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (saved) {
     STUDENT.name     = saved;
     STUDENT.initials = initials(saved);
+    STUDENT.email    = sessionStorage.getItem("ict_email") || "";
     bootApp();
   } else {
     _stopLoginAnim = startLoginAnimation();
@@ -53,6 +55,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function bootApp() {
   if (_stopLoginAnim) { _stopLoginAnim(); _stopLoginAnim = null; }
+
+  // Refresh user data from DB — validates the account still exists
+  try {
+    const res  = await fetch(`api/me.php?username=${encodeURIComponent(STUDENT.name)}`);
+    if (!res.ok) {
+      // Account gone or invalid — back to login
+      sessionStorage.removeItem("ict_user");
+      sessionStorage.removeItem("ict_email");
+      document.getElementById("login-screen").style.display = "";
+      _stopLoginAnim = startLoginAnimation();
+      return;
+    }
+    const data     = await res.json();
+    STUDENT.email  = data.email || STUDENT.email;
+  } catch {
+    // Offline / API unavailable — continue with cached data
+  }
+
   document.getElementById("login-screen").style.display  = "none";
   document.getElementById("app-layout").style.display    = "";
   await initSidebar("sidebar-mount", loadLesson, showCourse);
@@ -60,6 +80,7 @@ async function bootApp() {
   updateSidebarUser(STUDENT);
   buildDashboard();
   buildHeatmap();
+  buildTips();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug, " + STUDENT.name + "!");
 
@@ -74,6 +95,7 @@ function toggleAvatarMenu() {
 
 function handleLogout() {
   sessionStorage.removeItem("ict_user");
+  sessionStorage.removeItem("ict_email");
   document.getElementById("avatarMenu").classList.remove("open");
   document.getElementById("app-layout").style.display   = "none";
   document.getElementById("login-screen").style.display = "";
@@ -142,6 +164,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   elPass.addEventListener("input",  checkPassMatch);
   elPass2.addEventListener("input", checkPassMatch);
+
+  elPass.addEventListener("blur", () => {
+    const v = elPass.value;
+    if (!v) { setHint("hintPassLen", "regPass", "", false); return; }
+    if (v.length < 9) setHint("hintPassLen", "regPass", `Wachtwoord is te kort (${v.length}/9 tekens)`, false);
+    else              setHint("hintPassLen", "regPass", "Wachtwoord lang genoeg ✓", true);
+  });
 
   // Username — debounced API check
   const checkUsername = debounce((value) => {
@@ -247,7 +276,9 @@ function handleRegister(e) {
       if (!ok) { err.textContent = data.error; return; }
       STUDENT.name     = user;
       STUDENT.initials = initials(user);
+      STUDENT.email    = email;
       sessionStorage.setItem("ict_user", user);
+      sessionStorage.setItem("ict_email", email);
       bootApp();
     })
     .catch(() => { err.textContent = "Er ging iets mis. Probeer het opnieuw."; });
@@ -292,6 +323,15 @@ function buildDashboard() {
   }
 }
 
+function showAccount() {
+  document.getElementById("avatarMenu").classList.remove("open");
+  document.getElementById("accountAvatar").textContent = STUDENT.initials;
+  document.getElementById("accountName").textContent   = STUDENT.name;
+  document.getElementById("accountEmail").textContent  = STUDENT.email || "Geen e-mailadres bekend";
+  setTopbar("Mijn account", STUDENT.name);
+  showView("account");
+}
+
 function showCourse(courseId) {
   const course = COURSES.find(c => c.id == courseId);
   if (!course) return;
@@ -307,24 +347,46 @@ function showCourse(courseId) {
   document.getElementById("courseViewFill").style.width      = course.progress.pct + "%";
   document.getElementById("courseViewFill").style.background = course.progress.color;
 
+  document.getElementById("courseViewDesc").textContent =
+    course.description ||
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.";
+
+  const sectionsByPage = getSectionsByPage();
   const list = document.getElementById("courseViewList");
   list.innerHTML = "";
+
   course.lessons.forEach((lesson, i) => {
-    const tl   = TYPE_LABELS[lesson.type] ?? { label: lesson.type, cls: "type-lesson" };
+    const tl       = TYPE_LABELS[lesson.type] ?? { label: lesson.type, cls: "type-lesson" };
+    const sections = sectionsByPage[lesson.id] || [];
+
+    // Page row — clicking opens the lesson
     const item = el("div", "course-page-item");
     item.addEventListener("click", () => loadLesson(course.id, lesson.id));
 
     const num  = el("div", "course-page-num", String(i + 1));
     const info = el("div", "course-page-info");
-    info.appendChild(el("div", "course-page-title", lesson.title));
-
-    const meta = el("div", "course-page-meta");
-    const tag  = el("span", "lesson-tag " + tl.cls, tl.label);
-    meta.appendChild(tag);
-    info.appendChild(meta);
-
+    const titleRow = el("div", "course-page-title-row");
+    titleRow.appendChild(el("div", "course-page-title", lesson.title));
+    titleRow.appendChild(el("span", "lesson-tag " + tl.cls, tl.label));
+    info.appendChild(titleRow);
+    if (sections.length) {
+      info.appendChild(el("div", "course-page-meta", `${sections.length} onderdelen`));
+    }
     item.append(num, info);
     list.appendChild(item);
+
+    // Section rows beneath the page
+    if (sections.length) {
+      const secList = el("div", "course-section-list");
+      sections.forEach((s, idx) => {
+        const row = el("div", "course-section-row");
+        row.addEventListener("click", () => loadLesson(course.id, lesson.id, idx));
+        row.appendChild(el("div", "course-section-dot"));
+        row.appendChild(el("div", "course-section-name", s.title));
+        secList.appendChild(row);
+      });
+      list.appendChild(secList);
+    }
   });
 
   setTopbar(course.name, course.section);
@@ -356,6 +418,56 @@ function buildCourseCard(course) {
 /* ═══════════════════════════════════════════════
    HEATMAP
 ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   TIPS
+═══════════════════════════════════════════════ */
+const TIPS = [
+  "Je kunt op het icoontje van een cursus in de sidebar klikken om een overzicht van alle onderdelen te zien.",
+  "De knop 'Verder leren' brengt je terug naar precies het onderdeel waar je gebleven was — ook na opnieuw inloggen.",
+  "Elke les heeft meerdere onderdelen. Je navigeert er doorheen met de pijltjes onderaan.",
+  "In de volledige weergave zie je alle onderdelen van een les op één pagina.",
+  "Je kunt direct naar een specifiek onderdeel springen door erop te klikken in de sidebar.",
+  "Het ICT Leerlijn logo linksboven brengt je altijd terug naar het dashboard.",
+  "Klik op je avatar rechtsboven om uit te loggen.",
+];
+
+let _tipIdx      = 0;
+let _tipInterval = null;
+
+function buildTips() {
+  const textEl = document.getElementById("dashTipText");
+  const dotsEl = document.getElementById("dashTipDots");
+  if (!textEl || !dotsEl) return;
+
+  dotsEl.innerHTML = "";
+  TIPS.forEach((_, i) => {
+    const d = el("div", "dash-tip-dot" + (i === 0 ? " active" : ""));
+    d.addEventListener("click", () => showTip(i));
+    dotsEl.appendChild(d);
+  });
+
+  showTip(0);
+
+  if (_tipInterval) clearInterval(_tipInterval);
+  _tipInterval = setInterval(() => showTip((_tipIdx + 1) % TIPS.length), 6000);
+}
+
+function showTip(idx) {
+  _tipIdx = idx;
+  const textEl = document.getElementById("dashTipText");
+  if (!textEl) return;
+
+  textEl.style.opacity = "0";
+  setTimeout(() => {
+    textEl.textContent   = TIPS[idx];
+    textEl.style.opacity = "1";
+  }, 200);
+
+  document.querySelectorAll(".dash-tip-dot").forEach((d, i) => {
+    d.classList.toggle("active", i === idx);
+  });
+}
+
 function buildHeatmap() {
   const c = document.getElementById("heatmap");
   c.innerHTML = "";
@@ -1233,3 +1345,4 @@ window.handleRegister   = handleRegister;
 window.showLoginView    = showLoginView;
 window.toggleAvatarMenu = toggleAvatarMenu;
 window.handleLogout     = handleLogout;
+window.showAccount      = showAccount;
