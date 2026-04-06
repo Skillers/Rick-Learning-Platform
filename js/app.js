@@ -12,7 +12,7 @@
  * The sidebar entry stays on the page level.
  */
 
-import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS } from './sidebar.js';
+import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus } from './sidebar.js';
 import { highlight } from './highlighter.js';
 
 
@@ -69,13 +69,14 @@ async function bootApp() {
     }
     const data     = await res.json();
     STUDENT.email  = data.email || STUDENT.email;
+    if (data.email) sessionStorage.setItem("ict_email", data.email);
   } catch {
     // Offline / API unavailable — continue with cached data
   }
 
   document.getElementById("login-screen").style.display  = "none";
   document.getElementById("app-layout").style.display    = "";
-  await initSidebar("sidebar-mount", loadLesson, showCourse);
+  await initSidebar("sidebar-mount", loadLesson, showCourse, STUDENT.name);
   COURSES = getCourses();
   updateSidebarUser(STUDENT);
   buildDashboard();
@@ -147,6 +148,17 @@ function setHint(id, inputId, msg, valid) {
   input.classList.toggle("input-valid",   !!msg && valid);
   input.classList.toggle("input-invalid", !!msg && !valid);
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const emailInput = document.getElementById("accountEmail");
+  emailInput.addEventListener("click",   () => { emailInput.readOnly = false; emailInput.focus(); });
+  emailInput.addEventListener("blur",    () => saveAccountEmail());
+  emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") emailInput.blur(); });
+
+  document.getElementById("emailChangeModal").addEventListener("click", (e) => {
+    if (e.target.id === "emailChangeModal") closeEmailModal();
+  });
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   const elUser  = document.getElementById("regUsername");
@@ -327,9 +339,81 @@ function showAccount() {
   document.getElementById("avatarMenu").classList.remove("open");
   document.getElementById("accountAvatar").textContent = STUDENT.initials;
   document.getElementById("accountName").textContent   = STUDENT.name;
-  document.getElementById("accountEmail").textContent  = STUDENT.email || "Geen e-mailadres bekend";
+  const emailEl = document.getElementById("accountEmail");
+  emailEl.value    = STUDENT.email || "";
+  emailEl.readOnly = true;
   setTopbar("Mijn account", STUDENT.name);
   showView("account");
+}
+
+let _pendingEmail = "";
+
+function saveAccountEmail() {
+  const emailEl  = document.getElementById("accountEmail");
+  const newEmail = emailEl.value.trim();
+  emailEl.readOnly = true;
+  if (!newEmail || newEmail === STUDENT.email) return;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    emailEl.value = STUDENT.email || "";
+    return;
+  }
+  _pendingEmail = newEmail;
+  document.getElementById("emailModalOld").textContent = STUDENT.email || "(geen)";
+  document.getElementById("emailModalNew").textContent = newEmail;
+  document.getElementById("emailModalStep1").style.display = "";
+  document.getElementById("emailModalStep2").style.display = "none";
+  document.getElementById("emailModalPass").value  = "";
+  document.getElementById("emailModalError").textContent = "";
+  document.getElementById("emailChangeModal").classList.add("visible");
+  document.getElementById("emailModalPass").focus;
+}
+
+function closeEmailModal() {
+  document.getElementById("emailChangeModal").classList.remove("visible");
+  const emailEl = document.getElementById("accountEmail");
+  emailEl.value    = STUDENT.email || "";
+  emailEl.readOnly = true;
+  _pendingEmail    = "";
+}
+
+function emailModalNext() {
+  document.getElementById("emailModalStep1").style.display = "none";
+  document.getElementById("emailModalStep2").style.display = "";
+  setTimeout(() => document.getElementById("emailModalPass").focus(), 50);
+}
+
+async function emailModalConfirm() {
+  const pass    = document.getElementById("emailModalPass").value;
+  const errEl   = document.getElementById("emailModalError");
+  const saveBtn = document.getElementById("emailModalSaveBtn");
+  if (!pass) { errEl.textContent = "Vul je wachtwoord in."; return; }
+
+  saveBtn.disabled     = true;
+  saveBtn.textContent  = "Opslaan…";
+  errEl.textContent    = "";
+
+  try {
+    const res  = await fetch("api/update_email.php", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ username: STUDENT.name, email: _pendingEmail, password: pass }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      STUDENT.email = _pendingEmail;
+      sessionStorage.setItem("ict_email", _pendingEmail);
+      document.getElementById("accountEmail").value = _pendingEmail;
+      document.getElementById("emailChangeModal").classList.remove("visible");
+      _pendingEmail = "";
+    } else {
+      errEl.textContent = data.error || "Er ging iets mis.";
+    }
+  } catch {
+    errEl.textContent = "Geen verbinding. Probeer het opnieuw.";
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = "Opslaan";
+  }
 }
 
 function showCourse(courseId) {
@@ -491,6 +575,14 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
 
   // Sync sidebar highlight via the sidebar module
   syncSidebarActive(courseId, lessonId);
+
+  // Record page open and mark in-progress (INSERT IGNORE keeps existing Completed value)
+  fetch("api/open_page.php", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ username: STUDENT.name, page_id: lessonId }),
+  }).catch(() => {});
+  updatePageStatus(lessonId, 'in-progress');
 
   document.getElementById("lessonBreadcrumb").innerHTML = `${course.name} <span>›</span> ${TYPE_LABELS[lesson.type].label}`;
   document.getElementById("lessonTitle").textContent    = lesson.title;
@@ -1343,6 +1435,9 @@ window.handleLogin      = handleLogin;
 window.handleForgot     = handleForgot;
 window.handleRegister   = handleRegister;
 window.showLoginView    = showLoginView;
-window.toggleAvatarMenu = toggleAvatarMenu;
-window.handleLogout     = handleLogout;
-window.showAccount      = showAccount;
+window.toggleAvatarMenu  = toggleAvatarMenu;
+window.handleLogout      = handleLogout;
+window.showAccount       = showAccount;
+window.closeEmailModal   = closeEmailModal;
+window.emailModalNext    = emailModalNext;
+window.emailModalConfirm = emailModalConfirm;

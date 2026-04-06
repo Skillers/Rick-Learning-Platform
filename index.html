@@ -286,7 +286,11 @@
         <div class="account-card">
           <div class="account-avatar" id="accountAvatar"></div>
           <div class="account-name"   id="accountName"></div>
-          <div class="account-email"  id="accountEmail"></div>
+          <div class="account-email-field">
+            <label class="account-email-label">E-mail</label>
+            <input class="account-email-input" id="accountEmail" type="email"
+                   placeholder="Klik om in te stellen" readonly>
+          </div>
         </div>
       </div><!-- /view-account -->
 
@@ -413,6 +417,36 @@
 
 <script type="module" src="js/app.js"></script>
 
+<!-- ── Email change modal ─────────────────────── -->
+<div class="email-modal-overlay" id="emailChangeModal">
+  <!-- Step 1: confirm old → new -->
+  <div class="email-modal-box" id="emailModalStep1">
+    <div class="email-modal-title">E-mailadres wijzigen?</div>
+    <div class="email-modal-sub">Controleer de wijziging hieronder.</div>
+    <div class="email-modal-change">
+      <span class="email-modal-old" id="emailModalOld"></span>
+      <span class="email-modal-arrow">→</span>
+      <span class="email-modal-new" id="emailModalNew"></span>
+    </div>
+    <div class="email-modal-actions">
+      <button class="btn btn-ghost" onclick="closeEmailModal()">Annuleren</button>
+      <button class="btn btn-primary" onclick="emailModalNext()">Bevestigen →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: password confirm -->
+  <div class="email-modal-box" id="emailModalStep2" style="display:none">
+    <div class="email-modal-title">Bevestig met je wachtwoord</div>
+    <div class="email-modal-sub">Voer je wachtwoord in om de wijziging op te slaan.</div>
+    <input class="email-modal-pass" id="emailModalPass" type="password"
+           placeholder="Wachtwoord" onkeydown="if(event.key==='Enter')emailModalConfirm()">
+    <div class="email-modal-error" id="emailModalError"></div>
+    <div class="email-modal-actions">
+      <button class="btn btn-ghost" onclick="closeEmailModal()">Annuleren</button>
+      <button class="btn btn-primary" id="emailModalSaveBtn" onclick="emailModalConfirm()">Opslaan</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

@@ -171,7 +171,14 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   font-size: 9px; flex-shrink: 0;
 }
 .lesson-status.done        { background: var(--accent); border-color: var(--accent); color: #fff; }
-.lesson-status.in-progress { border-color: var(--blue); background: rgba(56,139,253,.12); }
+.lesson-status.in-progress {
+  border-color: var(--blue); background: transparent; position: relative;
+}
+.lesson-status.in-progress::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--blue);
+}
 .lesson-status.locked      { border-color: var(--border); opacity: .5; }
 
 .lesson-name { font-size: 14px; color: var(--text2); flex: 1; }
@@ -230,6 +237,12 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   flex-shrink: 0; opacity: .6;
 }
 .section-status.done { background: var(--accent); border-color: var(--accent); opacity: 1; }
+
+.section-arrow {
+  width: 12px; flex-shrink: 0;
+  font-size: 13px; color: var(--text3); opacity: .5;
+  text-align: center; line-height: 1;
+}
 
 /* ── Topbar ──────────────────────────────────── */
 .topbar {
@@ -442,11 +455,14 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .heatmap-cell.l4 { background: var(--accent); }
 
 /* ── Account view ───────────────────────────── */
+#view-account {
+  display: flex; justify-content: center; align-items: center; min-height: 70vh;
+}
 .account-card {
   display: flex; flex-direction: column; align-items: center;
-  gap: 12px; padding: 40px 24px;
+  gap: 12px; padding: 40px 32px;
   background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius2); max-width: 400px;
+  border-radius: var(--radius2); width: 360px;
 }
 .account-avatar {
   width: 80px; height: 80px; border-radius: 50%;
@@ -455,7 +471,22 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   font-size: 28px; font-weight: 700; color: #fff;
 }
 .account-name  { font-size: 20px; font-weight: 700; color: var(--text); }
-.account-email { font-size: 13px; color: var(--text3); }
+.account-email-field {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%;
+}
+.account-email-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text3);
+}
+.account-email-input {
+  font-size: 13px; color: var(--text2); font-family: inherit;
+  background: transparent; border: none; outline: none;
+  border-bottom: 1.5px solid var(--border2); text-align: center;
+  padding: 3px 8px; width: 100%; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.account-email-input:hover { border-bottom-color: var(--text3); }
+.account-email-input:focus { border-bottom-color: var(--accent); color: var(--text); cursor: text; }
 
 /* ── Course view ─────────────────────────────── */
 .course-view-header {
@@ -1256,6 +1287,48 @@ code {
 [data-theme="light"] .report-toast { background: #fff; border-color: #2da44e; }
 [data-theme="light"] .report-item { border-bottom-color: #d0d7de; }
 [data-theme="light"] .report-item-note { border-left-color: #b1bac4; }
+
+/* ── Email change modal ───────────────────────── */
+.email-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.email-modal-overlay.visible { display: flex; }
+.email-modal-box {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius2); padding: 28px 28px 24px;
+  width: 100%; max-width: 400px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+  display: flex; flex-direction: column; gap: 16px;
+  animation: modalSlideIn .18s ease;
+}
+@keyframes modalSlideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.email-modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.email-modal-sub   { font-size: 13px; color: var(--text3); margin-top: -8px; }
+.email-modal-change {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+}
+.email-modal-old   { font-size: 13px; color: var(--text3); text-decoration: line-through; }
+.email-modal-arrow { font-size: 14px; color: var(--text3); flex-shrink: 0; }
+.email-modal-new   { font-size: 13px; color: var(--accent); font-weight: 600; }
+.email-modal-pass {
+  width: 100%; padding: 9px 12px; font-size: 14px; font-family: inherit;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); outline: none;
+  transition: border-color .15s;
+}
+.email-modal-pass:focus { border-color: var(--accent); }
+.email-modal-error { font-size: 12px; color: #f78166; min-height: 16px; margin-top: -8px; }
+.email-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+[data-theme="light"] .email-modal-box { background: #fff; border-color: #b1bac4; }
+[data-theme="light"] .email-modal-change { background: #f6f8fa; border-color: #d0d7de; }
+[data-theme="light"] .email-modal-pass { background: #f6f8fa; border-color: #d0d7de; }
 
 /* ═══════════════════════════════════════════════
    LOGIN SCREEN
