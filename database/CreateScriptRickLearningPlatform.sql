@@ -173,11 +173,34 @@ ENGINE = InnoDB;
 -- Table `Rick Learning Platform`.`Accounts`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Accounts` (
-  `username` INT NOT NULL,
+  `username` VARCHAR(25) NOT NULL,
   `Password` VARCHAR(255) NOT NULL,
   `Email` VARCHAR(120) NOT NULL,
   PRIMARY KEY (`username`),
   UNIQUE INDEX `Email_UNIQUE` (`Email` ASC))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `Rick Learning Platform`.`Accounts_opened_Pages`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `Rick Learning Platform`.`Accounts_opened_Pages` (
+  `Accounts_username` VARCHAR(25) NOT NULL,
+  `Pages_Id` INT NOT NULL,
+  `Completed` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Accounts_username`, `Pages_Id`),
+  INDEX `fk_Accounts_has_Pages_Pages1_idx` (`Pages_Id` ASC),
+  INDEX `fk_Accounts_has_Pages_Accounts1_idx` (`Accounts_username` ASC),
+  CONSTRAINT `fk_Accounts_has_Pages_Accounts1`
+    FOREIGN KEY (`Accounts_username`)
+    REFERENCES `Rick Learning Platform`.`Accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Accounts_has_Pages_Pages1`
+    FOREIGN KEY (`Pages_Id`)
+    REFERENCES `Rick Learning Platform`.`Pages` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 

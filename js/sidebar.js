@@ -10,6 +10,7 @@ let _courseRows    = [];
 let _pageRows      = [];
 let _courses       = [];
 let _sectionsByPage = {};
+let _progressMap   = {}; // pageId -> 'in-progress' | 'done'
 
 export function getCourses()        { return _courses; }
 export function getSectionsByPage() { return _sectionsByPage; }
@@ -24,7 +25,7 @@ async function fetchJSON(path) {
   return res.json();
 }
 
-export async function initSidebar(mountId, onLessonClick, onCourseClick) {
+export async function initSidebar(mountId, onLessonClick, onCourseClick, username = "") {
   const mount = document.getElementById(mountId);
   if (!mount) {
     console.error(`[Sidebar] Mount element #${mountId} not found`);
@@ -91,6 +92,21 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick) {
     });
   } catch (err) {
     console.error("[Sidebar] Failed to load pages:", err);
+  }
+
+  // Layer 3.5 — Progress
+  if (username) {
+    try {
+      const rows = await fetchJSON(`../api/progress.php?username=${encodeURIComponent(username)}`);
+      rows.forEach(r => {
+        const status = r.completed == 1 ? 'done' : 'in-progress';
+        _progressMap[r.page_id] = status;
+        _applyPageStatus(r.page_id, status);
+      });
+      _refreshCourseBars();
+    } catch (err) {
+      console.error("[Sidebar] Failed to load progress:", err);
+    }
   }
 
   // Layer 4 — Sections
@@ -192,6 +208,7 @@ function buildLessonItem(page, onLessonClick) {
 
   const item = mkEl("div", "lesson-item");
   item.id = `nav-${page.course_id}-${page.id}`;
+  item.dataset.pageId = page.id;
   item.addEventListener("click", () => onLessonClick(page.course_id, page.id));
 
   const typeInfo = TYPE_LABELS[page.type] ?? { label: page.type, cls: "type-lesson" };
@@ -215,10 +232,10 @@ function buildSectionItem(section, idx, courseId, pageId, onSectionClick) {
     e.stopPropagation();
     onSectionClick(courseId, pageId, idx);
   });
-  item.append(
-    mkEl("div", "section-status"),
-    mkEl("div", "section-name", section.title)
-  );
+  const indicator = section.has_interaction == 1
+    ? mkEl("div", "section-status")
+    : mkEl("div", "section-arrow", "›");
+  item.append(indicator, mkEl("div", "section-name", section.title));
   return item;
 }
 
@@ -241,6 +258,38 @@ export function updateSidebarUser(student) {
   set("userLevel",    `Niveau ${student.level} · ${student.xp} XP`);
   const fill = document.getElementById("xpMiniFill");
   if (fill) fill.style.width = xpPct + "%";
+}
+
+function _applyPageStatus(pageId, status) {
+  const item = document.querySelector(`.lesson-item[data-page-id="${pageId}"]`);
+  if (!item) return;
+  const dot = item.querySelector('.lesson-status');
+  if (!dot) return;
+  dot.classList.remove('done', 'in-progress', 'locked');
+  if (status === 'done') {
+    dot.classList.add('done');
+    dot.textContent = '✓';
+  } else if (status === 'in-progress') {
+    dot.classList.add('in-progress');
+    dot.textContent = '';
+  }
+}
+
+function _refreshCourseBars() {
+  _courseRows.forEach(c => {
+    const pages = _pageRows.filter(p => p.course_id === c.id);
+    const done  = pages.filter(p => _progressMap[p.id] === 'done').length;
+    const fill  = document.querySelector(`#group-${c.id} .course-progress-fill`);
+    if (fill && pages.length) fill.style.width = Math.round(done / pages.length * 100) + '%';
+  });
+}
+
+export function updatePageStatus(pageId, status) {
+  // Don't downgrade a completed page back to in-progress
+  if (status === 'in-progress' && _progressMap[pageId] === 'done') return;
+  _progressMap[pageId] = status;
+  _applyPageStatus(pageId, status);
+  _refreshCourseBars();
 }
 
 function mkEl(tag, className = "", text = "") {
