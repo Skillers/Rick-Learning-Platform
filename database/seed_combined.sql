@@ -504,20 +504,31 @@ INSERT INTO `Languages` (`Id`, `LanguageName`) VALUES
 (7, 'SQL');
 
 -- -------------------------------------------------------------
--- Schema extension: link Components → Sections
--- (alter_section_content.sql covers existing installs;
---  included inline here so this file stays self-contained)
+-- ComponentType
 -- -------------------------------------------------------------
-ALTER TABLE `Components`
-  ADD COLUMN `TypeName`   VARCHAR(45) NULL AFTER `Id`,
-  ADD COLUMN `Order`      INT NULL         AFTER `section_Id`;
+INSERT INTO `ComponentType` (`ComponentTypeText`) VALUES
+('text'),
+('code'),
+('quiz'),
+('tip'),
+('warning'),
+('image'),
+('assignment');
+
+-- -------------------------------------------------------------
+-- QuestionContext
+-- -------------------------------------------------------------
+INSERT INTO `QuestionContext` (`ContextType`) VALUES
+('section'),
+('mind_trainer'),
+('refresher');
 
 -- -------------------------------------------------------------
 -- Components
 -- Only 'text' and 'code' — the two types with backing tables.
 -- Columns: Id, TypeName, Section_Id, Order
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `TypeName`, `Section_Id`, `Order`) VALUES
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
 
 -- Python — page 1 (Introductie Python)
 (1,  'text', 1,  1),   -- Wat is Python?       — intro tekst
@@ -747,13 +758,13 @@ public class BeweegScript : MonoBehaviour
 -- InfoBox components (tip / warning)
 -- Component IDs 32–35
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `TypeName`, `Section_Id`, `Order`) VALUES
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
 (32, 'tip',     1,  2),   -- Python p1 s1: tip na "Wat is Python?" tekst
 (33, 'warning', 9,  3),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
 (34, 'tip',     34, 3),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
 (35, 'warning', 41, 2);   -- JS p13 s41: DOM waarschuwing
 
-INSERT INTO `mydb`.`InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
+INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 (1, 32, 'Python is een van de meest populaire talen om mee te beginnen. De syntax lijkt op gewoon Engels, waardoor het makkelijker te lezen is dan veel andere talen.', 0),
 (2, 33, 'Vergeet niet de teller te verhogen in een while-loop! Als de conditie altijd waar blijft, loopt je programma oneindig door en moet je het geforceerd stoppen (Ctrl+C).', 1),
 (3, 34, 'Je kunt JavaScript direct uitproberen in de console van je browser. Druk op F12 en klik op het tabblad "Console" om te beginnen.', 0),
@@ -763,19 +774,20 @@ INSERT INTO `mydb`.`InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALU
 -- PubQuiz components (quiz)
 -- Component IDs 36–39
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `TypeName`, `Section_Id`, `Order`) VALUES
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
 (36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes
 (37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting
 (38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops
 (39, 'quiz', 36, 1);   -- JS p11 s36: MC over datatypes & operators
 
-INSERT INTO `mydb`.`PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
+INSERT INTO `PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
 (1, 'Welk datatype gebruik je in Python voor een geheel getal?', 0, 36),
 (2, 'Wat is het resultaat van int("3.5") in Python?', 0, 37),
 (3, 'Leg in je eigen woorden uit: wat is het verschil tussen een for-loop en een while-loop?', 1, 38),
-(4, 'Wat is het resultaat van typeof 42 in JavaScript?', 0, 39);
+(4, 'Wat is het resultaat van typeof 42 in JavaScript?', 0, 39),
+(5, 'Welke van de volgende zijn geldige Python datatypes?', 0, 36);
 
-INSERT INTO `mydb`.`PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
+INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
 -- Q1: datatypes
 (1, 'int',    1),
 (1, 'str',    0),
@@ -786,8 +798,17 @@ INSERT INTO `mydb`.`PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VAL
 (2, 'Het getal 3.5',     0),
 (2, 'Een foutmelding',   1),
 (2, 'De string "3"',     0),
+-- Q3: open vraag over loops (meerdere geaccepteerde antwoorden)
+(3, 'Een for-loop gebruik je als je weet hoe vaak je wilt herhalen, een while-loop als je dat niet weet.', 1),
+(3, 'Een for-loop telt een vast aantal keer, een while-loop herhaalt zolang een conditie waar is.', 1),
 -- Q4: typeof in JS
 (4, '"number"',   1),
 (4, '"integer"',  0),
 (4, '"string"',   0),
-(4, '"object"',   0);
+(4, '"object"',   0),
+-- Q5: MC met meerdere goede antwoorden
+(5, 'int',    1),
+(5, 'float',  1),
+(5, 'str',    1),
+(5, 'array',  0),
+(5, 'char',   0);

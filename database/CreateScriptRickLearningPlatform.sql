@@ -5,14 +5,6 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- -----------------------------------------------------
--- Schema mydb
--- -----------------------------------------------------
-
--- -----------------------------------------------------
--- Schema mydb
--- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8 ;
--- -----------------------------------------------------
 -- Schema rick learning platform
 -- -----------------------------------------------------
 
@@ -20,7 +12,7 @@ CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8 ;
 -- Schema rick learning platform
 -- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `rick learning platform` DEFAULT CHARACTER SET utf8mb4 ;
-USE `mydb` ;
+USE `rick learning platform` ;
 
 -- -----------------------------------------------------
 -- Table `rick learning platform`.`subjects`
@@ -112,16 +104,33 @@ DEFAULT CHARACTER SET = utf8mb4;
 
 
 -- -----------------------------------------------------
+-- Table `rick learning platform`.`ComponentType`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`ComponentType` (
+  `ComponentTypeText` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`ComponentTypeText`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `rick learning platform`.`components`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
   `Id` INT(11) NOT NULL,
   `section_Id` INT(11) NOT NULL,
+  `Order` INT NOT NULL,
+  `ComponentType_ComponentTypeText` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_components_sections1_idx` (`section_Id` ASC),
+  INDEX `fk_components_ComponentType1_idx` (`ComponentType_ComponentTypeText` ASC),
   CONSTRAINT `fk_components_sections1`
     FOREIGN KEY (`section_Id`)
     REFERENCES `rick learning platform`.`sections` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_components_ComponentType1`
+    FOREIGN KEY (`ComponentType_ComponentTypeText`)
+    REFERENCES `rick learning platform`.`ComponentType` (`ComponentTypeText`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
@@ -129,13 +138,12 @@ DEFAULT CHARACTER SET = utf8mb4;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`PQQuestion`
+-- Table `rick learning platform`.`PQQuestion`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`PQQuestion` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`PQQuestion` (
   `Id` INT NOT NULL,
-  `PQQuestioncol` VARCHAR(45) NULL,
   `Question` VARCHAR(255) NOT NULL,
-  `Image` VARCHAR(255) NULL,
+  `Image` VARCHAR(255) NULL DEFAULT NULL,
   `OpenQuestion` TINYINT NOT NULL,
   `component_Id` INT(11) NOT NULL,
   PRIMARY KEY (`Id`),
@@ -149,25 +157,27 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`PQAnswer`
+-- Table `rick learning platform`.`PQAnswer`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`PQAnswer` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`PQAnswer` (
   `PQQuestion_Id` INT NOT NULL,
   `AnswerOption` VARCHAR(255) NOT NULL,
   `IsCorrect` TINYINT NOT NULL,
+  `Id` INT NOT NULL AUTO_INCREMENT,
   INDEX `fk_PQAnswer_PQQuestion_idx` (`PQQuestion_Id` ASC),
+  PRIMARY KEY (`Id`),
   CONSTRAINT `fk_PQAnswer_PQQuestion`
     FOREIGN KEY (`PQQuestion_Id`)
-    REFERENCES `mydb`.`PQQuestion` (`Id`)
+    REFERENCES `rick learning platform`.`PQQuestion` (`Id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`InfoBoxes`
+-- Table `rick learning platform`.`InfoBoxes`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`InfoBoxes` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`InfoBoxes` (
   `Id` INT NOT NULL,
   `components_Id` INT(11) NOT NULL,
   `Text` LONGTEXT NOT NULL,
@@ -183,12 +193,13 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`MultiMedia`
+-- Table `rick learning platform`.`MultiMedia`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`MultiMedia` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`MultiMedia` (
   `Id` INT NOT NULL,
   `URL` VARCHAR(255) NOT NULL,
   `components_Id` INT(11) NOT NULL,
+  `Uploaded` TINYINT NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_MultiMedia_components1_idx` (`components_Id` ASC),
   CONSTRAINT `fk_MultiMedia_components1`
@@ -200,9 +211,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Assigments`
+-- Table `rick learning platform`.`Assigments`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Assigments` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Assigments` (
   `component_Id` INT(11) NOT NULL,
   `Id` INT NOT NULL,
   `FileRequired` TINYINT NOT NULL,
@@ -216,7 +227,6 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Assigments` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
-USE `rick learning platform` ;
 
 -- -----------------------------------------------------
 -- Table `rick learning platform`.`accounts`
@@ -315,10 +325,10 @@ DEFAULT CHARACTER SET = utf8mb4;
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`Accounts_have_assignments` (
   `account_username` VARCHAR(25) NOT NULL,
   `Assigment_Id` INT NOT NULL,
-  `SubmittedTextAnswer` LONGTEXT NULL,
-  `FileName` VARCHAR(255) NULL,
-  `FilePath` VARCHAR(255) NULL,
-  `SubmittedOn` DATETIME NULL,
+  `SubmittedTextAnswer` LONGTEXT NULL DEFAULT NULL,
+  `FileName` VARCHAR(255) NULL DEFAULT NULL,
+  `FilePath` VARCHAR(255) NULL DEFAULT NULL,
+  `SubmittedOn` DATETIME NULL DEFAULT NULL,
   PRIMARY KEY (`account_username`, `Assigment_Id`),
   INDEX `fk_accounts_has_Assigments_Assigments1_idx` (`Assigment_Id` ASC),
   INDEX `fk_accounts_has_Assigments_accounts1_idx` (`account_username` ASC),
@@ -329,7 +339,76 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`Accounts_have_assignments` 
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_accounts_has_Assigments_Assigments1`
     FOREIGN KEY (`Assigment_Id`)
-    REFERENCES `mydb`.`Assigments` (`Id`)
+    REFERENCES `rick learning platform`.`Assigments` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`QuestionContext`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`QuestionContext` (
+  `ContextType` VARCHAR(125) NOT NULL,
+  PRIMARY KEY (`ContextType`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`AC_Did_Question`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Did_Question` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `PQQuestion_Id` INT NOT NULL,
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `QuestionContext_ContextType` VARCHAR(125) NOT NULL,
+  `AttemptDate` DATETIME NOT NULL,
+  `ReviewedBy` VARCHAR(45) NULL,
+  `ReviewedAt` DATETIME NULL,
+  `OpenAnswer` VARCHAR(45) NULL,
+  `ReviewFeedback` VARCHAR(45) NULL,
+  INDEX `fk_accounts_has_PQQuestion_PQQuestion1_idx` (`PQQuestion_Id` ASC),
+  INDEX `fk_accounts_has_PQQuestion_accounts1_idx` (`accounts_username` ASC),
+  PRIMARY KEY (`Id`),
+  INDEX `fk_accounts_has_PQQuestion_QuestionContext1_idx` (`QuestionContext_ContextType` ASC),
+  CONSTRAINT `fk_accounts_has_PQQuestion_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_accounts_has_PQQuestion_PQQuestion1`
+    FOREIGN KEY (`PQQuestion_Id`)
+    REFERENCES `rick learning platform`.`PQQuestion` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_accounts_has_PQQuestion_QuestionContext1`
+    FOREIGN KEY (`QuestionContext_ContextType`)
+    REFERENCES `rick learning platform`.`QuestionContext` (`ContextType`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`AC_Picked_Answer`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Picked_Answer` (
+  `AC_Did_Question_Id` INT NOT NULL,
+  `PQAnswer_Id` INT NOT NULL,
+  `Correct` INT NOT NULL,
+  PRIMARY KEY (`AC_Did_Question_Id`, `PQAnswer_Id`),
+  INDEX `fk_AC_Did_Question_has_PQAnswer_PQAnswer1_idx` (`PQAnswer_Id` ASC),
+  INDEX `fk_AC_Did_Question_has_PQAnswer_AC_Did_Question1_idx` (`AC_Did_Question_Id` ASC),
+  CONSTRAINT `fk_AC_Did_Question_has_PQAnswer_AC_Did_Question1`
+    FOREIGN KEY (`AC_Did_Question_Id`)
+    REFERENCES `rick learning platform`.`AC_Did_Question` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_AC_Did_Question_has_PQAnswer_PQAnswer1`
+    FOREIGN KEY (`PQAnswer_Id`)
+    REFERENCES `rick learning platform`.`PQAnswer` (`Id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB

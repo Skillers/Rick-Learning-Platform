@@ -21,7 +21,7 @@ $stmt = $pdo->prepare("
     LEFT JOIN CodeSnippets  cs  ON cs.Components_Id = c.Id
     LEFT JOIN Languages     l   ON l.Id             = cs.Languages_Id
     LEFT JOIN TextBLocks    tb  ON tb.Component_Id  = c.Id
-    LEFT JOIN `mydb`.`InfoBoxes` ib ON ib.components_Id = c.Id
+    LEFT JOIN InfoBoxes ib ON ib.components_Id = c.Id
     WHERE s.Pages_Id = ?
       AND c.TypeName != 'quiz'
     ORDER BY c.Section_Id, c.`Order`
@@ -50,7 +50,7 @@ $stmtQ = $pdo->prepare("
         q.OpenQuestion  AS open_question
     FROM Components c
     JOIN  Sections s ON s.Id = c.Section_Id
-    JOIN  `mydb`.`PQQuestion` q ON q.component_Id = c.Id
+    JOIN  PQQuestion q ON q.component_Id = c.Id
     WHERE s.Pages_Id = ?
       AND c.TypeName = 'quiz'
     ORDER BY c.Section_Id, c.`Order`
@@ -64,7 +64,7 @@ if ($questions) {
     $placeholders = implode(',', array_fill(0, count($qIds), '?'));
     $stmtA = $pdo->prepare("
         SELECT PQQuestion_Id AS question_id, AnswerOption AS answer, IsCorrect AS is_correct
-        FROM `mydb`.`PQAnswer`
+        FROM PQAnswer
         WHERE PQQuestion_Id IN ($placeholders)
     ");
     $stmtA->execute($qIds);
