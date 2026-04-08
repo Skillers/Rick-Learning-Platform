@@ -12,7 +12,7 @@ $rows = $pdo->query("
         EXISTS (
             SELECT 1 FROM `Components` c
             WHERE c.`Section_Id` = s.`Id`
-            AND c.`TypeName` NOT IN ('text', 'code')
+            AND c.`TypeName` = 'quiz'
         ) AS `has_interaction`
     FROM `Sections` s
     ORDER BY s.`Pages_Id`, s.`Order`

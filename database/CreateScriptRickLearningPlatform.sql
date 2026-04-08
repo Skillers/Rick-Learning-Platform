@@ -170,7 +170,8 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mydb`.`InfoBoxes` (
   `Id` INT NOT NULL,
   `components_Id` INT(11) NOT NULL,
-  `Text` LONGTEXT NULL,
+  `Text` LONGTEXT NOT NULL,
+  `IsWarning` TINYINT NOT NULL,
   INDEX `fk_InfoBoxes_components1_idx` (`components_Id` ASC),
   PRIMARY KEY (`Id`),
   CONSTRAINT `fk_InfoBoxes_components1`
@@ -309,9 +310,9 @@ DEFAULT CHARACTER SET = utf8mb4;
 
 
 -- -----------------------------------------------------
--- Table `rick learning platform`.``
+-- Table `rick learning platform`.`Accounts_have_assignments`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `rick learning platform`.`` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Accounts_have_assignments` (
   `account_username` VARCHAR(25) NOT NULL,
   `Assigment_Id` INT NOT NULL,
   `SubmittedTextAnswer` LONGTEXT NULL,

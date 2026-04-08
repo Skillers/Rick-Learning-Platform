@@ -509,14 +509,8 @@ INSERT INTO `Languages` (`Id`, `LanguageName`) VALUES
 --  included inline here so this file stays self-contained)
 -- -------------------------------------------------------------
 ALTER TABLE `Components`
-  ADD COLUMN `Section_Id` INT NULL         AFTER `TypeName`,
-  ADD COLUMN `Order`      INT NULL         AFTER `Section_Id`,
-  ADD INDEX  `fk_Components_Sections_idx` (`Section_Id` ASC),
-  ADD CONSTRAINT `fk_Components_Sections`
-    FOREIGN KEY (`Section_Id`)
-    REFERENCES `Sections` (`Id`)
-    ON DELETE SET NULL
-    ON UPDATE NO ACTION;
+  ADD COLUMN `TypeName`   VARCHAR(45) NULL AFTER `Id`,
+  ADD COLUMN `Order`      INT NULL         AFTER `section_Id`;
 
 -- -------------------------------------------------------------
 -- Components
@@ -748,3 +742,52 @@ public class BeweegScript : MonoBehaviour
                             v * snelheid * Time.deltaTime);
     }
 }');
+
+-- -------------------------------------------------------------
+-- InfoBox components (tip / warning)
+-- Component IDs 32–35
+-- -------------------------------------------------------------
+INSERT INTO `Components` (`Id`, `TypeName`, `Section_Id`, `Order`) VALUES
+(32, 'tip',     1,  2),   -- Python p1 s1: tip na "Wat is Python?" tekst
+(33, 'warning', 9,  3),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
+(34, 'tip',     34, 3),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
+(35, 'warning', 41, 2);   -- JS p13 s41: DOM waarschuwing
+
+INSERT INTO `mydb`.`InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
+(1, 32, 'Python is een van de meest populaire talen om mee te beginnen. De syntax lijkt op gewoon Engels, waardoor het makkelijker te lezen is dan veel andere talen.', 0),
+(2, 33, 'Vergeet niet de teller te verhogen in een while-loop! Als de conditie altijd waar blijft, loopt je programma oneindig door en moet je het geforceerd stoppen (Ctrl+C).', 1),
+(3, 34, 'Je kunt JavaScript direct uitproberen in de console van je browser. Druk op F12 en klik op het tabblad "Console" om te beginnen.', 0),
+(4, 35, 'Pas op met innerHTML: als je gebruikersinvoer direct in innerHTML plaatst, kan dat een beveiligingsrisico zijn (XSS). Gebruik liever textContent voor platte tekst.', 1);
+
+-- -------------------------------------------------------------
+-- PubQuiz components (quiz)
+-- Component IDs 36–39
+-- -------------------------------------------------------------
+INSERT INTO `Components` (`Id`, `TypeName`, `Section_Id`, `Order`) VALUES
+(36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes
+(37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting
+(38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops
+(39, 'quiz', 36, 1);   -- JS p11 s36: MC over datatypes & operators
+
+INSERT INTO `mydb`.`PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
+(1, 'Welk datatype gebruik je in Python voor een geheel getal?', 0, 36),
+(2, 'Wat is het resultaat van int("3.5") in Python?', 0, 37),
+(3, 'Leg in je eigen woorden uit: wat is het verschil tussen een for-loop en een while-loop?', 1, 38),
+(4, 'Wat is het resultaat van typeof 42 in JavaScript?', 0, 39);
+
+INSERT INTO `mydb`.`PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
+-- Q1: datatypes
+(1, 'int',    1),
+(1, 'str',    0),
+(1, 'float',  0),
+(1, 'bool',   0),
+-- Q2: type casting
+(2, 'Het getal 3',       0),
+(2, 'Het getal 3.5',     0),
+(2, 'Een foutmelding',   1),
+(2, 'De string "3"',     0),
+-- Q4: typeof in JS
+(4, '"number"',   1),
+(4, '"integer"',  0),
+(4, '"string"',   0),
+(4, '"object"',   0);

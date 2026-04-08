@@ -690,9 +690,76 @@ function renderComponent(c) {
     case 'exercise':
       return `<div class="exercise-box">${escHtml(text).replace(/\n/g, '<br>')}</div>`;
 
+    case 'quiz':
+      return renderQuiz(text, c.id);
+
     default:
       return `<p class="lesson-text">${escHtml(text).replace(/\n/g, '<br>')}</p>`;
   }
+}
+
+function renderQuiz(jsonStr, componentId) {
+  let data;
+  try { data = JSON.parse(jsonStr); } catch { return ''; }
+  const qId = `quiz-${componentId}`;
+
+  if (data.open_question) {
+    return `<div class="quiz-box" id="${qId}">
+      <div class="quiz-question">${escHtml(data.question)}</div>
+      ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
+      <input class="quiz-input" type="text" placeholder="Typ je antwoord..." id="${qId}-input">
+      <button class="quiz-check-btn" onclick="checkOpenQuiz('${qId}')">Controleer →</button>
+      <div class="quiz-feedback" id="${qId}-feedback"></div>
+    </div>`;
+  }
+
+  const opts = (data.answers || []).map((a, i) => {
+    const optId = `${qId}-opt-${i}`;
+    return `<label class="quiz-option" id="${optId}" data-correct="${a.is_correct}">
+      <input type="radio" name="${qId}" value="${i}">
+      <span>${escHtml(a.text)}</span>
+    </label>`;
+  }).join('');
+
+  return `<div class="quiz-box" id="${qId}">
+    <div class="quiz-question">${escHtml(data.question)}</div>
+    ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
+    <div class="quiz-options">${opts}</div>
+    <button class="quiz-check-btn" onclick="checkMcQuiz('${qId}')">Controleer →</button>
+    <div class="quiz-feedback" id="${qId}-feedback"></div>
+  </div>`;
+}
+
+function checkMcQuiz(qId) {
+  const box = document.getElementById(qId);
+  if (!box) return;
+  const selected = box.querySelector('input[type="radio"]:checked');
+  const fb = document.getElementById(qId + '-feedback');
+  if (!selected) { fb.textContent = 'Selecteer een antwoord.'; fb.className = 'quiz-feedback'; return; }
+  const label = selected.closest('.quiz-option');
+  // Disable further changes
+  box.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = true);
+  box.querySelector('.quiz-check-btn').disabled = true;
+  // Highlight all options
+  box.querySelectorAll('.quiz-option').forEach(opt => {
+    if (opt.dataset.correct === '1') opt.classList.add('correct');
+    else if (opt === label) opt.classList.add('wrong');
+  });
+  if (label.dataset.correct === '1') {
+    fb.textContent = 'Goed gedaan!'; fb.className = 'quiz-feedback correct';
+  } else {
+    fb.textContent = 'Helaas, dat is niet juist.'; fb.className = 'quiz-feedback wrong';
+  }
+}
+
+function checkOpenQuiz(qId) {
+  const input = document.getElementById(qId + '-input');
+  const fb = document.getElementById(qId + '-feedback');
+  if (!input.value.trim()) { fb.textContent = 'Typ een antwoord.'; fb.className = 'quiz-feedback'; return; }
+  input.disabled = true;
+  document.querySelector(`#${qId} .quiz-check-btn`).disabled = true;
+  fb.textContent = 'Antwoord ingeleverd!';
+  fb.className = 'quiz-feedback correct';
 }
 
 /**
@@ -1441,3 +1508,5 @@ window.showAccount       = showAccount;
 window.closeEmailModal   = closeEmailModal;
 window.emailModalNext    = emailModalNext;
 window.emailModalConfirm = emailModalConfirm;
+window.checkMcQuiz       = checkMcQuiz;
+window.checkOpenQuiz     = checkOpenQuiz;
