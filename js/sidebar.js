@@ -135,13 +135,33 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
 
       arrow.addEventListener("click", e => {
         e.stopPropagation();
-        wrap.classList.toggle("open");
+        const isActive = !!wrap.querySelector(".lesson-item.active");
+
+        if (isActive) {
+          // Active page: toggle open, but re-open after 0.5s if closed
+          if (wrap.classList.contains("open")) {
+            wrap.classList.remove("open");
+            setTimeout(() => {
+              // Only re-open if still the active page
+              if (wrap.querySelector(".lesson-item.active") && !wrap.classList.contains("open")) {
+                wrap.classList.add("open");
+              }
+            }, 500);
+          } else {
+            wrap.classList.add("open");
+          }
+        } else {
+          // Non-active: toggle peek
+          wrap.classList.toggle("peek");
+        }
       });
 
       wrap.addEventListener("mouseleave", () => {
-        wrap.classList.remove("open");
+        // Don't close if this is the active page
+        if (wrap.querySelector(".lesson-item.active")) return;
+        wrap.classList.remove("peek");
         arrow.classList.add("arrow-closing");
-        setTimeout(() => arrow.classList.remove("arrow-closing"), 400);
+        setTimeout(() => arrow.classList.remove("arrow-closing"), 200);
       });
     });
   } catch (err) {
@@ -243,11 +263,47 @@ export function toggleGroup(id) {
   document.getElementById("group-" + id)?.classList.toggle("open");
 }
 
-export function syncSidebarActive(courseId, lessonId) {
+export function syncSidebarActive(courseId, lessonId, sectionIdx) {
+  // Find the previously active wrap (if any)
+  const prevActive = document.querySelector(".lesson-item.active");
+  const prevWrap   = prevActive?.closest(".lesson-wrap");
+  const target     = document.getElementById(`nav-${courseId}-${lessonId}`);
+  const newWrap    = target?.closest(".lesson-wrap");
+
+  // Clear all active states
   document.querySelectorAll(".lesson-item").forEach(el => el.classList.remove("active"));
-  const target = document.getElementById(`nav-${courseId}-${lessonId}`);
-  if (target) target.classList.add("active");
-  document.getElementById("group-" + courseId)?.classList.add("open");
+  document.querySelectorAll(".section-item").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".lesson-wrap.peek").forEach(w => w.classList.remove("peek"));
+
+  // If there's an old wrap that's different from the new one, close it first then open new
+  if (prevWrap && prevWrap !== newWrap && (prevWrap.classList.contains("open"))) {
+    prevWrap.classList.remove("open");
+
+    setTimeout(() => {
+      if (target) {
+        target.classList.add("active");
+        if (newWrap) newWrap.classList.add("open");
+      }
+      document.getElementById("group-" + courseId)?.classList.add("open");
+      if (sectionIdx != null) syncSidebarSection(lessonId, sectionIdx);
+    }, 350); // wait for close animation to fully finish
+  } else {
+    // No previous or same wrap — open immediately
+    if (target) {
+      target.classList.add("active");
+      if (newWrap) newWrap.classList.add("open");
+    }
+    document.getElementById("group-" + courseId)?.classList.add("open");
+    if (sectionIdx != null) syncSidebarSection(lessonId, sectionIdx);
+  }
+}
+
+export function syncSidebarSection(lessonId, sectionIdx) {
+  const sectionList = document.getElementById("section-list-" + lessonId);
+  if (!sectionList) return;
+  sectionList.querySelectorAll(".section-item").forEach(s => s.classList.remove("active"));
+  const items = sectionList.querySelectorAll(".section-item");
+  if (items[sectionIdx]) items[sectionIdx].classList.add("active");
 }
 
 export function updateSidebarUser(student) {
