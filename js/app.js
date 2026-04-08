@@ -512,7 +512,8 @@ function buildCourseCard(course) {
   const pct = el("div", "progress-pct", course.progress.pct + "%");
   pct.style.color = course.progress.color;
   footer.append(pct, el("div", "lesson-count", `${course.progress.done} van ${course.progress.total} lessen`));
-  card.append(header, bar, footer);
+  const action = el("div", "course-card-action", "Bekijk cursus →");
+  card.append(header, bar, footer, action);
   return card;
 }
 
@@ -1278,6 +1279,8 @@ function showDashboard() {
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug! Je bent goed op weg.");
   document.querySelectorAll(".lesson-item").forEach(e => e.classList.remove("active"));
+  document.querySelectorAll(".lesson-wrap.open").forEach(w => w.classList.remove("open"));
+  document.querySelectorAll(".lesson-wrap.peek").forEach(w => w.classList.remove("peek"));
 }
 function el(tag, className = "", text = "") {
   const e = document.createElement(tag);
