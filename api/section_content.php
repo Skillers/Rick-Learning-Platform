@@ -10,7 +10,7 @@ if (!$page_id) { echo '[]'; exit; }
 $stmt = $pdo->prepare("
     SELECT
         c.Id            AS id,
-        c.TypeName      AS type,
+        c.ComponentType_ComponentTypeText      AS type,
         c.Section_Id    AS section_id,
         c.`Order`       AS `order`,
         COALESCE(cs.Code, tb.Text, ib.Text) AS content,
@@ -23,7 +23,7 @@ $stmt = $pdo->prepare("
     LEFT JOIN TextBLocks    tb  ON tb.Component_Id  = c.Id
     LEFT JOIN InfoBoxes ib ON ib.components_Id = c.Id
     WHERE s.Pages_Id = ?
-      AND c.TypeName != 'quiz'
+      AND c.ComponentType_ComponentTypeText != 'quiz'
     ORDER BY c.Section_Id, c.`Order`
 ");
 $stmt->execute([$page_id]);
@@ -52,7 +52,7 @@ $stmtQ = $pdo->prepare("
     JOIN  Sections s ON s.Id = c.Section_Id
     JOIN  PQQuestion q ON q.component_Id = c.Id
     WHERE s.Pages_Id = ?
-      AND c.TypeName = 'quiz'
+      AND c.ComponentType_ComponentTypeText = 'quiz'
     ORDER BY c.Section_Id, c.`Order`
 ");
 $stmtQ->execute([$page_id]);
