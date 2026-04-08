@@ -702,26 +702,41 @@ function renderQuiz(jsonStr, componentId) {
   let data;
   try { data = JSON.parse(jsonStr); } catch { return ''; }
   const qId = `quiz-${componentId}`;
+  const letters = ['A', 'B', 'C', 'D'];
+  const letterCls = ['quiz-letter-a', 'quiz-letter-b', 'quiz-letter-c', 'quiz-letter-d'];
 
   if (data.open_question) {
     return `<div class="quiz-box" id="${qId}">
+      <span class="quiz-label">Vraag</span>
       <div class="quiz-question">${escHtml(data.question)}</div>
       ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
-      <input class="quiz-input" type="text" placeholder="Typ je antwoord..." id="${qId}-input">
-      <button class="quiz-check-btn" onclick="checkOpenQuiz('${qId}')">Controleer →</button>
+      <label class="quiz-input-label">Jouw antwoord</label>
+      <input class="quiz-input" type="text" placeholder="Typ je antwoord hier..." id="${qId}-input">
+      <button class="quiz-check-btn" onclick="checkOpenQuiz('${qId}')">Lever in</button>
       <div class="quiz-feedback" id="${qId}-feedback"></div>
     </div>`;
   }
 
-  const opts = (data.answers || []).map((a, i) => {
+  const answers = data.answers || [];
+  const correctCount = answers.filter(a => a.is_correct).length;
+  const isMulti = correctCount > 1;
+  const inputType = isMulti ? 'checkbox' : 'radio';
+
+  const opts = answers.map((a, i) => {
     const optId = `${qId}-opt-${i}`;
+    const letter = letters[i] || String.fromCharCode(65 + i);
+    const cls = letterCls[i] || letterCls[0];
     return `<label class="quiz-option" id="${optId}" data-correct="${a.is_correct}">
-      <input type="radio" name="${qId}" value="${i}">
-      <span>${escHtml(a.text)}</span>
+      <span class="quiz-letter ${cls}">${letter}</span>
+      <input type="${inputType}" name="${qId}" value="${i}">
+      <span class="quiz-option-text">${escHtml(a.text)}</span>
+      <span class="quiz-radio${isMulti ? ' quiz-check' : ''}"></span>
     </label>`;
   }).join('');
 
-  return `<div class="quiz-box" id="${qId}">
+  return `<div class="quiz-box" id="${qId}" data-multi="${isMulti ? '1' : '0'}">
+    <span class="quiz-label">Vraag</span>
+    ${isMulti ? '<div class="quiz-hint">Meerdere antwoorden zijn juist</div>' : ''}
     <div class="quiz-question">${escHtml(data.question)}</div>
     ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
     <div class="quiz-options">${opts}</div>
@@ -733,19 +748,30 @@ function renderQuiz(jsonStr, componentId) {
 function checkMcQuiz(qId) {
   const box = document.getElementById(qId);
   if (!box) return;
-  const selected = box.querySelector('input[type="radio"]:checked');
+  const isMulti = box.dataset.multi === '1';
+  const inputType = isMulti ? 'checkbox' : 'radio';
+  const checked = Array.from(box.querySelectorAll(`input[type="${inputType}"]:checked`));
   const fb = document.getElementById(qId + '-feedback');
-  if (!selected) { fb.textContent = 'Selecteer een antwoord.'; fb.className = 'quiz-feedback'; return; }
-  const label = selected.closest('.quiz-option');
+  if (!checked.length) { fb.textContent = 'Selecteer een antwoord.'; fb.className = 'quiz-feedback'; return; }
+
   // Disable further changes
-  box.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = true);
+  box.querySelectorAll(`input[type="${inputType}"]`).forEach(r => r.disabled = true);
   box.querySelector('.quiz-check-btn').disabled = true;
-  // Highlight all options
+
+  // Highlight options
+  const selectedLabels = new Set(checked.map(c => c.closest('.quiz-option')));
   box.querySelectorAll('.quiz-option').forEach(opt => {
     if (opt.dataset.correct === '1') opt.classList.add('correct');
-    else if (opt === label) opt.classList.add('wrong');
+    else if (selectedLabels.has(opt)) opt.classList.add('wrong');
   });
-  if (label.dataset.correct === '1') {
+
+  // Check if all correct answers were selected and no wrong ones
+  const allCorrect = box.querySelectorAll('.quiz-option[data-correct="1"]');
+  const allSelected = checked.map(c => c.closest('.quiz-option'));
+  const gotAllCorrect = Array.from(allCorrect).every(opt => selectedLabels.has(opt));
+  const noWrong = allSelected.every(opt => opt.dataset.correct === '1');
+
+  if (gotAllCorrect && noWrong) {
     fb.textContent = 'Goed gedaan!'; fb.className = 'quiz-feedback correct';
   } else {
     fb.textContent = 'Helaas, dat is niet juist.'; fb.className = 'quiz-feedback wrong';
@@ -760,6 +786,37 @@ function checkOpenQuiz(qId) {
   document.querySelector(`#${qId} .quiz-check-btn`).disabled = true;
   fb.textContent = 'Antwoord ingeleverd!';
   fb.className = 'quiz-feedback correct';
+}
+
+function allQuizzesAnswered() {
+  const quizzes = document.querySelectorAll('.quiz-box');
+  if (!quizzes.length) return true;
+  for (const box of quizzes) {
+    const btn = box.querySelector('.quiz-check-btn');
+    // If button is still enabled, the quiz hasn't been submitted
+    if (btn && !btn.disabled) {
+      showQuizWarning();
+      return false;
+    }
+  }
+  return true;
+}
+
+function showQuizWarning() {
+  // Remove existing warning if present
+  let overlay = document.getElementById('quiz-warning-overlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'quiz-warning-overlay';
+  overlay.className = 'quiz-warning-overlay';
+  overlay.innerHTML = `<div class="quiz-warning-box">
+    <div class="quiz-warning-title">Niet alle vragen beantwoord</div>
+    <p class="quiz-warning-text">Je hebt nog niet alle vragen beantwoord. Beantwoord eerst alle vragen voordat je verder gaat.</p>
+    <button class="btn btn-primary" id="quiz-warning-close">Begrepen</button>
+  </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('quiz-warning-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 /**
@@ -815,6 +872,7 @@ function updateNextPageNav() {
       <button class="btn btn-primary next-page-btn" id="btnNext">Ga naar volgend onderdeel →</button>
     </div>`;
     document.getElementById("btnNext").addEventListener("click", () => {
+      if (!allQuizzesAnswered()) return;
       loadLesson(currentCourse.id, nextLesson.id);
     });
   } else {
@@ -954,6 +1012,8 @@ function renderSlide(idx) {
     const to = parseInt(btn.dataset.slideTo, 10);
     if (!isNaN(to) && to >= 0 && to < total) {
       btn.addEventListener("click", () => {
+        // Block forward navigation if quizzes on current slide are unanswered
+        if (to > currentSlideIdx && !allQuizzesAnswered()) return;
         renderSlide(to);
         document.querySelector(".main").scrollTo({ top: 0, behavior: "smooth" });
       });
