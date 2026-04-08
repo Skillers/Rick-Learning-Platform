@@ -208,17 +208,22 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 }
 .lesson-item:hover .lesson-arrow         { opacity: 1; }
 .lesson-wrap.open  .lesson-arrow         { opacity: 1; transform: rotate(90deg); color: var(--blue); }
+.lesson-wrap.peek  .lesson-arrow         { opacity: 1; transform: rotate(90deg); color: var(--text2); }
 .lesson-arrow.arrow-closing              { transition: opacity .15s .2s, transform .2s; }
 
 /* ── Section list ────────────────────────────── */
 .lesson-sections {
   overflow: hidden;
   max-height: 0;
-  transition: max-height .2s ease-out;
+  transition: max-height .25s ease-out;
 }
 .lesson-wrap.open .lesson-sections {
   max-height: 500px;
-  transition: max-height .25s ease-in;
+  transition: max-height .35s ease-in;
+}
+.lesson-wrap.peek .lesson-sections {
+  max-height: 500px;
+  transition: max-height .2s ease-in;
 }
 
 .section-item {
@@ -230,6 +235,8 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   transition: background .15s, color .15s;
 }
 .section-item:hover { background: var(--bg3); color: var(--text); }
+.section-item.active { background: var(--bg4); }
+.section-item.active .section-name { color: var(--text); font-weight: 500; }
 .section-name { font-size: 14px; color: var(--text2); flex: 1; }
 
 .section-status {
@@ -342,11 +349,21 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; align-items: stretch;
 }
 .dash-welcome {
-  background: linear-gradient(135deg, rgba(56,139,253,.08) 0%, rgba(188,140,255,.05) 100%);
+  background: linear-gradient(90deg,
+    rgba(56,139,253,.06) 0%,
+    rgba(56,139,253,.18) 50%,
+    rgba(56,139,253,.06) 100%);
+  background-size: 200% 100%;
+  animation: welcomeShimmer 4s ease-in-out infinite;
   border: 1px solid rgba(56,139,253,.2);
   border-radius: var(--radius2); padding: 20px 24px;
   display: flex; align-items: center; gap: 16px;
   flex: 1 1 100%;
+}
+@keyframes welcomeShimmer {
+  0%   { background-position: 100% 0; }
+  50%  { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
 }
 .dash-tip-card {
   flex: 0 0 50%;
@@ -395,9 +412,16 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .section-title span { font-size: 11px; color: var(--text3); font-weight: 400; }
 
 .courses-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px; margin-bottom: 20px;
+  display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px;
+}
+.courses-section-title {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.courses-section-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
 }
 .course-card {
   background: var(--bg2); border: 1px solid var(--border);
@@ -566,13 +590,19 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .lesson-breadcrumb { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
 .lesson-breadcrumb span { color: var(--text3); }
 .lesson-title { font-size: 20px; font-weight: 700; }
+
+.lesson-view-header.c-python { background: rgba(56,139,253,.08);  border-color: rgba(56,139,253,.2); }
+.lesson-view-header.c-js     { background: rgba(227,179,65,.08);  border-color: rgba(227,179,65,.2); }
+.lesson-view-header.c-java   { background: rgba(247,129,102,.08); border-color: rgba(247,129,102,.2); }
+.lesson-view-header.c-unity  { background: rgba(188,140,255,.08); border-color: rgba(188,140,255,.2); }
+.lesson-view-header.c-vr     { background: rgba(63,185,80,.08);   border-color: rgba(63,185,80,.2); }
+.lesson-view-header.c-math   { background: rgba(139,148,158,.08); border-color: rgba(139,148,158,.2); }
 .lesson-meta  { display: flex; gap: 12px; margin-top: 6px; align-items: center; }
 .lesson-tag   { font-size: 11px; padding: 3px 8px; border-radius: 4px; }
 
 .lesson-body {
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 16px;
+  display: flex;
+  justify-content: center;
 }
 .lesson-content {
   background: var(--bg2); border: 1px solid var(--border);
@@ -617,7 +647,8 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-width: 0;
+  width: 100%;
+  max-width: 1010px;
 }
 
 /* ── Next page button (below last section) ───── */
@@ -632,7 +663,7 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .next-page-btn { font-size: 14px; padding: 10px 20px; }
 
 /* ── Lesson content typography ───────────────── */
-.lesson-text { font-size: 14px; color: var(--text2); line-height: 1.7; margin: 10px 0; }
+.lesson-text { font-size: 14px; color: var(--text2); line-height: 1.7; margin: 10px 0; max-width: 65ch; }
 .lesson-text strong { color: var(--text); }
 
 .lesson-content h3 {
@@ -829,13 +860,13 @@ code {
 
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 1100px) {
-  .courses-grid { grid-template-columns: repeat(2, 1fr); }
+  .courses-section-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid   { grid-template-columns: repeat(2, 1fr); }
   .lesson-body  { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
   .sidebar { width: 240px; min-width: 240px; }
-  .courses-grid  { grid-template-columns: 1fr; }
+  .courses-section-grid { grid-template-columns: 1fr; }
   .activity-grid { grid-template-columns: 1fr; }
   .content { padding: 16px; }
   .topbar  { padding: 12px 16px; }
@@ -1076,6 +1107,12 @@ code {
   background: #ffffff;
   border-color: #d0d7de;
 }
+[data-theme="light"] .lesson-view-header.c-python { background: rgba(56,139,253,.1);  border-color: rgba(56,139,253,.25); }
+[data-theme="light"] .lesson-view-header.c-js     { background: rgba(201,155,30,.1);  border-color: rgba(201,155,30,.25); }
+[data-theme="light"] .lesson-view-header.c-java   { background: rgba(220,100,70,.1);  border-color: rgba(220,100,70,.25); }
+[data-theme="light"] .lesson-view-header.c-unity  { background: rgba(150,100,230,.1); border-color: rgba(150,100,230,.25); }
+[data-theme="light"] .lesson-view-header.c-vr     { background: rgba(40,160,60,.1);   border-color: rgba(40,160,60,.25); }
+[data-theme="light"] .lesson-view-header.c-math   { background: rgba(100,110,120,.1); border-color: rgba(100,110,120,.25); }
 [data-theme="light"] .lesson-content.full-view {
   background: transparent; border-color: transparent;
 }

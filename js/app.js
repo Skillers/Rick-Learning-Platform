@@ -12,7 +12,7 @@
  * The sidebar entry stays on the page level.
  */
 
-import { initSidebar, syncSidebarActive, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus } from './sidebar.js';
+import { initSidebar, syncSidebarActive, syncSidebarSection, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus } from './sidebar.js';
 import { highlight } from './highlighter.js';
 
 
@@ -37,6 +37,7 @@ let currentSlideIdx = 0;
 let fullView        = false;
 let prevLesson      = null;
 let nextLesson      = null;
+let _fullViewObserver = null;
 
 /* ── Init ────────────────────────────────────── */
 let _stopLoginAnim = null;
@@ -316,7 +317,23 @@ function buildDashboard() {
 
   const grid = document.getElementById("coursesGrid");
   grid.innerHTML = "";
-  COURSES.forEach(course => grid.appendChild(buildCourseCard(course)));
+
+  // Group courses by subject/section
+  const grouped = {};
+  COURSES.forEach(course => {
+    const key = course.section || "Overig";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(course);
+  });
+
+  Object.entries(grouped).forEach(([sectionName, courses]) => {
+    const sectionEl = el("div", "courses-section");
+    const title = el("div", "courses-section-title", sectionName);
+    const sectionGrid = el("div", "courses-section-grid");
+    courses.forEach(course => sectionGrid.appendChild(buildCourseCard(course)));
+    sectionEl.append(title, sectionGrid);
+    grid.appendChild(sectionEl);
+  });
 
   const saved = JSON.parse(sessionStorage.getItem("ict_last") || "null");
   const resumeCourse = saved ? COURSES.find(c => c.id == saved.courseId) : null;
@@ -574,7 +591,7 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   currentLesson = lesson;
 
   // Sync sidebar highlight via the sidebar module
-  syncSidebarActive(courseId, lessonId);
+  syncSidebarActive(courseId, lessonId, 0);
 
   // Record page open and mark in-progress (INSERT IGNORE keeps existing Completed value)
   fetch("api/open_page.php", {
@@ -585,7 +602,9 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   updatePageStatus(lessonId, 'in-progress');
 
   document.getElementById("lessonBreadcrumb").innerHTML = `${course.name} <span>›</span> ${TYPE_LABELS[lesson.type].label}`;
-  document.getElementById("lessonTitle").textContent    = lesson.title;
+  document.getElementById("lessonTitle").textContent = lesson.title;
+  const header = document.querySelector(".lesson-view-header");
+  header.className = "lesson-view-header " + course.color;
   const tag = document.getElementById("lessonTypeTag");
   const tl  = TYPE_LABELS[lesson.type];
   tag.textContent = tl.label.charAt(0).toUpperCase() + tl.label.slice(1);
@@ -922,6 +941,19 @@ function renderFullView() {
   wireReportButtons();
   updateNextPageNav();
   updatePrevVisibility();
+
+  // Highlight sidebar section on scroll
+  if (_fullViewObserver) _fullViewObserver.disconnect();
+  const sections = el.querySelectorAll(".page-section");
+  _fullViewObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(sections).indexOf(entry.target);
+        if (idx >= 0 && currentLesson) syncSidebarSection(currentLesson.id, idx);
+      }
+    });
+  }, { root: document.querySelector(".main"), threshold: 0.3 });
+  sections.forEach(s => _fullViewObserver.observe(s));
 }
 
 function renderSlide(idx) {
@@ -935,6 +967,7 @@ function renderSlide(idx) {
   }
 
   document.getElementById("lessonContent")?.classList.remove("full-view");
+  if (currentLesson) syncSidebarSection(currentLesson.id, currentSlideIdx);
   const slide  = currentSlides[currentSlideIdx];
   const total  = currentSlides.length;
   const isLast = currentSlideIdx === total - 1;
@@ -1226,34 +1259,7 @@ function resolveReport(id) {
    LESSON PANEL
 ═══════════════════════════════════════════════ */
 function buildLessonPanel(course, lesson) {
-  buildTaskList(lesson);
-}
-
-function buildTaskList(lesson) {
-  const tasks = generateTasks(lesson);
-  const list  = document.getElementById("tasksList"); list.innerHTML = "";
-  tasks.forEach(task => {
-    const item   = el("div", "task-item");
-    const check  = el("div", "task-check" + (task.done ? " done" : ""), task.done ? "✓" : "");
-    const textEl = el("div", "task-text"  + (task.done ? " done" : ""), task.label);
-    check.addEventListener("click", () => {
-      task.done = !task.done;
-      check.classList.toggle("done", task.done); check.textContent = task.done ? "✓" : "";
-      textEl.classList.toggle("done", task.done);
-    });
-    item.append(check, textEl); list.appendChild(item);
-  });
-}
-
-function generateTasks(lesson) {
-  const base = [
-    { label: "Lees de theorie door",   done: lesson.status === "done" },
-    { label: "Bekijk de voorbeelden",  done: lesson.status === "done" },
-  ];
-  if (lesson.type === "exercise") { base.push({ label: "Maak de opdrachten", done: false }); base.push({ label: "Test je code", done: false }); }
-  if (lesson.type === "quiz")    { base.length=0; base.push({ label:"Lees de instructies",done:false},{label:"Beantwoord alle vragen",done:false},{label:"Controleer je score",done:false}); }
-  if (lesson.type === "project") { base.push({label:"Plan je aanpak",done:false},{label:"Bouw de basis",done:false},{label:"Voeg features toe",done:false},{label:"Lever in via portal",done:false}); }
-  return base;
+  // Panel removed — no-op
 }
 
 /* ═══════════════════════════════════════════════
