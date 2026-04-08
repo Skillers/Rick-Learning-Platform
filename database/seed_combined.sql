@@ -26,13 +26,13 @@ INSERT INTO `Subjects` (`Name`) VALUES
 -- Courses
 -- -------------------------------------------------------------
 INSERT INTO `Courses` (`Name`, `Icon`, `Color`, `Subject_Id`) VALUES
-('Python',                 '🐍', 'c-python', 1),  -- id 1
-('JavaScript (Processing)','⚡', 'c-js',     1),  -- id 2
-('Java',                   '☕', 'c-java',   1),  -- id 3
-('Unity 6',                '🎮', 'c-unity',  2),  -- id 4
-('Unity 6 OpenXR / VR',    '🥽', 'c-vr',     2),  -- id 5
-('Rekenen voor N4',        '🔢', 'c-math',   3),  -- id 6
-('Rekenen voor N3',        '📐', 'c-math',   3);  -- id 7
+('Python',                 'PY', 'c-python', 1),  -- id 1
+('JavaScript (Processing)','JS', 'c-js',     1),  -- id 2
+('Java',                   'JA', 'c-java',   1),  -- id 3
+('Unity 6',                'U6', 'c-unity',  2),  -- id 4
+('Unity 6 OpenXR / VR',    'VR', 'c-vr',     2),  -- id 5
+('Rekenen voor N4',        'N4', 'c-math',   3),  -- id 6
+('Rekenen voor N3',        'N3', 'c-math',   3);  -- id 7
 
 -- -------------------------------------------------------------
 -- Pages  (71 rows; IDs assigned in insertion order)

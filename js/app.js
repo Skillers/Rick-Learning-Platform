@@ -1226,21 +1226,7 @@ function resolveReport(id) {
    LESSON PANEL
 ═══════════════════════════════════════════════ */
 function buildLessonPanel(course, lesson) {
-  const miniProg = document.getElementById("miniProgress");
-  const label = el("div"); label.style.cssText = "font-size:12px;color:var(--text2);margin-bottom:8px;"; label.textContent = course.name;
-  const bar   = el("div", "progress-bar"); bar.style.height = "6px";
-  const fill  = el("div", "progress-fill"); fill.style.cssText = `width:${course.progress.pct}%;background:${course.progress.color};height:6px;`;
-  bar.appendChild(fill);
-  const sub = el("div"); sub.style.cssText = "font-size:11px;color:var(--text3);margin-top:4px;"; sub.textContent = `${course.progress.pct}% · ${course.progress.done}/${course.progress.total} lessen`;
-  miniProg.innerHTML = ""; miniProg.append(label, bar, sub);
-
-  const xpPct = Math.round((STUDENT.xp / STUDENT.xpNext) * 100);
-  document.getElementById("xpFill").style.width    = xpPct + "%";
-  document.getElementById("xpCurrent").textContent = STUDENT.xp;
-  document.getElementById("xpNext").textContent    = `Level ${STUDENT.level + 1} bij ${STUDENT.xpNext}`;
-  document.getElementById("xpLevel").textContent   = `Level ${STUDENT.level}`;
   buildTaskList(lesson);
-  buildReportPanel();
 }
 
 function buildTaskList(lesson) {
