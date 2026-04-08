@@ -525,8 +525,6 @@ INSERT INTO `QuestionContext` (`ContextType`) VALUES
 
 -- -------------------------------------------------------------
 -- Components
--- Only 'text' and 'code' — the two types with backing tables.
--- Columns: Id, TypeName, Section_Id, Order
 -- -------------------------------------------------------------
 INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
 
@@ -762,13 +760,15 @@ INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`,
 (32, 'tip',     1,  2),   -- Python p1 s1: tip na "Wat is Python?" tekst
 (33, 'warning', 9,  3),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
 (34, 'tip',     34, 3),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
-(35, 'warning', 41, 2);   -- JS p13 s41: DOM waarschuwing
+(35, 'warning', 41, 2),   -- JS p13 s41: DOM waarschuwing
+(40, 'warning', 5,  2);   -- Python p2 s5: waarschuwing bij datatypes quiz
 
 INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 (1, 32, 'Python is een van de meest populaire talen om mee te beginnen. De syntax lijkt op gewoon Engels, waardoor het makkelijker te lezen is dan veel andere talen.', 0),
 (2, 33, 'Vergeet niet de teller te verhogen in een while-loop! Als de conditie altijd waar blijft, loopt je programma oneindig door en moet je het geforceerd stoppen (Ctrl+C).', 1),
 (3, 34, 'Je kunt JavaScript direct uitproberen in de console van je browser. Druk op F12 en klik op het tabblad "Console" om te beginnen.', 0),
-(4, 35, 'Pas op met innerHTML: als je gebruikersinvoer direct in innerHTML plaatst, kan dat een beveiligingsrisico zijn (XSS). Gebruik liever textContent voor platte tekst.', 1);
+(4, 35, 'Pas op met innerHTML: als je gebruikersinvoer direct in innerHTML plaatst, kan dat een beveiligingsrisico zijn (XSS). Gebruik liever textContent voor platte tekst.', 1),
+(5, 40, 'Let op: Python maakt onderscheid tussen int en float. Als je 3 / 2 doet krijg je 1.5 (float), niet 1. Gebruik // voor integer-deling.', 1);
 
 -- -------------------------------------------------------------
 -- PubQuiz components (quiz)

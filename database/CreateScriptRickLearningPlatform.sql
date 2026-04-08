@@ -119,14 +119,14 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
   `Id` INT(11) NOT NULL,
   `section_Id` INT(11) NOT NULL,
   `Order` INT NOT NULL,
-  `ComponentType_ComponentTypeText` VARCHAR(45) NOT NULL,
+  `ComponentType_ComponentTypeText` VARCHAR(45) NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_components_sections1_idx` (`section_Id` ASC),
   INDEX `fk_components_ComponentType1_idx` (`ComponentType_ComponentTypeText` ASC),
   CONSTRAINT `fk_components_sections1`
     FOREIGN KEY (`section_Id`)
     REFERENCES `rick learning platform`.`sections` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_components_ComponentType1`
     FOREIGN KEY (`ComponentType_ComponentTypeText`)
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`InfoBoxes` (
   CONSTRAINT `fk_InfoBoxes_components1`
     FOREIGN KEY (`components_Id`)
     REFERENCES `rick learning platform`.`components` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`MultiMedia` (
   CONSTRAINT `fk_MultiMedia_components1`
     FOREIGN KEY (`components_Id`)
     REFERENCES `rick learning platform`.`components` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -295,7 +295,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`codesnippets` (
   CONSTRAINT `fk_CodeSnippets_Languages1`
     FOREIGN KEY (`Languages_Id`)
     REFERENCES `rick learning platform`.`languages` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
