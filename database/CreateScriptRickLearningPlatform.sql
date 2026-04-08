@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`PQQuestion` (
   CONSTRAINT `fk_PQQuestion_components1`
     FOREIGN KEY (`component_Id`)
     REFERENCES `rick learning platform`.`components` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -375,17 +375,17 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Did_Question` (
   CONSTRAINT `fk_accounts_has_PQQuestion_accounts1`
     FOREIGN KEY (`accounts_username`)
     REFERENCES `rick learning platform`.`accounts` (`username`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_accounts_has_PQQuestion_PQQuestion1`
     FOREIGN KEY (`PQQuestion_Id`)
     REFERENCES `rick learning platform`.`PQQuestion` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_accounts_has_PQQuestion_QuestionContext1`
     FOREIGN KEY (`QuestionContext_ContextType`)
     REFERENCES `rick learning platform`.`QuestionContext` (`ContextType`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
@@ -404,12 +404,12 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Picked_Answer` (
   CONSTRAINT `fk_AC_Did_Question_has_PQAnswer_AC_Did_Question1`
     FOREIGN KEY (`AC_Did_Question_Id`)
     REFERENCES `rick learning platform`.`AC_Did_Question` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_AC_Did_Question_has_PQAnswer_PQAnswer1`
     FOREIGN KEY (`PQAnswer_Id`)
     REFERENCES `rick learning platform`.`PQAnswer` (`Id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;

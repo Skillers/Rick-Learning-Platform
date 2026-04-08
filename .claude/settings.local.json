@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find 'C:\\\\Repos\\\\Rick Learning Platform' -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx -o -name *.css -o -name *.html -o -name *.sql \\\\\\))"
+      "Bash(find 'C:\\\\Repos\\\\Rick Learning Platform' -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx -o -name *.css -o -name *.html -o -name *.sql \\\\\\))",
+      "WebFetch(domain:www.uidesign.tips)"
     ]
   }
 }
