@@ -113,6 +113,33 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `rick learning platform`.`table1`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`table1` (
+  `LineType` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`LineType`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`EmptySpace`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`EmptySpace` (
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `BeforeLineSpace` INT NOT NULL,
+  `AfterLineSpace` INT NULL,
+  `table1_LineType` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`Id`),
+  INDEX `fk_EmptySpace_table11_idx` (`table1_LineType` ASC),
+  CONSTRAINT `fk_EmptySpace_table11`
+    FOREIGN KEY (`table1_LineType`)
+    REFERENCES `rick learning platform`.`table1` (`LineType`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `rick learning platform`.`components`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
@@ -120,9 +147,11 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
   `section_Id` INT(11) NOT NULL,
   `Order` INT NOT NULL,
   `ComponentType_ComponentTypeText` VARCHAR(45) NULL,
+  `EmptySpace_Id` INT NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_components_sections1_idx` (`section_Id` ASC),
   INDEX `fk_components_ComponentType1_idx` (`ComponentType_ComponentTypeText` ASC),
+  INDEX `fk_components_EmptySpace1_idx` (`EmptySpace_Id` ASC),
   CONSTRAINT `fk_components_sections1`
     FOREIGN KEY (`section_Id`)
     REFERENCES `rick learning platform`.`sections` (`Id`)
@@ -131,6 +160,11 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
   CONSTRAINT `fk_components_ComponentType1`
     FOREIGN KEY (`ComponentType_ComponentTypeText`)
     REFERENCES `rick learning platform`.`ComponentType` (`ComponentTypeText`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_components_EmptySpace1`
+    FOREIGN KEY (`EmptySpace_Id`)
+    REFERENCES `rick learning platform`.`EmptySpace` (`Id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB

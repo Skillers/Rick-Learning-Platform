@@ -684,7 +684,26 @@ function buildSectionHTML(components) {
               <div style="font-size:13px;color:var(--text2);">Inhoud wordt nog toegevoegd.</div>
             </div>`;
   }
-  return components.map(renderComponent).join('');
+  return components.map(c => renderComponent(c) + renderEmptySpace(c)).join('');
+}
+
+function renderEmptySpace(c) {
+  const es = c.emptyspace;
+  if (!es) return '';
+  const before = es.before || 0;
+  const after  = es.after  || 0;
+  const type   = es.type   || 'nothing';
+  if (type === 'nothing' && before === 0) return '';
+
+  if (type === 'nothing') {
+    return `<div class="spacer-block" style="height:${before}px;"></div>`;
+  }
+
+  return `<div class="spacer-block">
+    <div style="height:${before}px;"></div>
+    <hr class="spacer-line spacer-${type}">
+    ${after ? `<div style="height:${after}px;"></div>` : ''}
+  </div>`;
 }
 
 function renderComponent(c) {
@@ -719,6 +738,9 @@ function renderComponent(c) {
 
     case 'quiz':
       return renderQuiz(text, c.id);
+
+    case 'multimedia':
+      return renderMultimedia(text);
 
     default:
       return `<p class="lesson-text">${escHtml(text).replace(/\n/g, '<br>')}</p>`;
@@ -770,6 +792,40 @@ function renderQuiz(jsonStr, componentId) {
     <button class="quiz-check-btn" onclick="checkMcQuiz('${qId}')">Controleer →</button>
     <div class="quiz-feedback" id="${qId}-feedback"></div>
   </div>`;
+}
+
+function renderMultimedia(jsonStr) {
+  let data;
+  try { data = JSON.parse(jsonStr); } catch { return ''; }
+
+  const url = data.url || '';
+  const type = data.media_type || '';
+
+  if (type === 'image') {
+    return `<div class="media-block media-image">
+      <img src="${escHtml(url)}" alt="" loading="lazy">
+    </div>`;
+  }
+
+  if (type === 'video') {
+    // Convert YouTube watch URLs to embed
+    let embedUrl = url;
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (ytMatch) {
+      embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+    }
+    return `<div class="media-block media-video">
+      <iframe src="${escHtml(embedUrl)}" allowfullscreen loading="lazy"></iframe>
+    </div>`;
+  }
+
+  if (type === 'audio') {
+    return `<div class="media-block media-audio">
+      <audio controls src="${escHtml(url)}"></audio>
+    </div>`;
+  }
+
+  return '';
 }
 
 function checkMcQuiz(qId) {

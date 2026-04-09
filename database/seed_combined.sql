@@ -513,7 +513,33 @@ INSERT INTO `ComponentType` (`ComponentTypeText`) VALUES
 ('tip'),
 ('warning'),
 ('multimedia'),
-('assignment');
+('assignment'),
+('emptyspace');
+
+-- -------------------------------------------------------------
+-- LineType  (line style lookup table)
+-- -------------------------------------------------------------
+INSERT INTO `table1` (`LineType`) VALUES
+('nothing'),
+('dotted'),
+('double_dotted'),
+('dashed'),
+('double_dashed'),
+('line'),
+('double_line');
+
+-- -------------------------------------------------------------
+-- EmptySpace  (reusable spacing / line definitions)
+-- -------------------------------------------------------------
+INSERT INTO `EmptySpace` (`Id`, `BeforeLineSpace`, `AfterLineSpace`, `table1_LineType`) VALUES
+(1,  0,    NULL, 'nothing'),        -- default: no spacing, no line
+(2,  16,   16,   'dotted'),         -- dotted line with 16px padding
+(3,  16,   16,   'double_line'),    -- double line with 16px padding
+(4,  16,   16,   'dashed'),         -- dashed line
+(5,  16,   16,   'double_dotted'),  -- double dotted
+(6,  16,   16,   'double_dashed'),  -- double dashed
+(7,  16,   16,   'line'),           -- solid line
+(8,  24,   NULL, 'nothing');        -- just empty space (24px)
 
 -- -------------------------------------------------------------
 -- QuestionContext
@@ -526,64 +552,64 @@ INSERT INTO `QuestionContext` (`ContextType`) VALUES
 -- -------------------------------------------------------------
 -- Components
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`, `EmptySpace_Id`) VALUES
 
 -- Python — page 1 (Introductie Python)
-(1,  'text', 1,  1),   -- Wat is Python?       — intro tekst
-(2,  'code', 3,  1),   -- Je eerste programma  — print()
-(3,  'text', 2,  1),   -- Installatie & setup  — uitleg
+(1,  'text', 1,  1, 1),   -- Wat is Python?       — intro tekst
+(2,  'code', 3,  1, 1),   -- Je eerste programma  — print()
+(3,  'text', 2,  1, 1),   -- Installatie & setup  — uitleg
 
 -- Python — page 2 (Variabelen & types)
-(4,  'text', 4,  1),   -- Wat zijn variabelen? — uitleg
-(5,  'code', 4,  2),   -- Wat zijn variabelen? — voorbeeld
+(4,  'text', 4,  1, 1),   -- Wat zijn variabelen? — uitleg
+(5,  'code', 4,  2, 1),   -- Wat zijn variabelen? — voorbeeld
 
 -- Python — page 3 (Loops & iteratie)
-(6,  'text', 7,  1),   -- Wat is een loop?     — uitleg
-(7,  'code', 8,  1),   -- De for-loop          — voorbeeld
-(8,  'code', 9,  2),   -- De while-loop        — voorbeeld (after text)
+(6,  'text', 7,  1, 1),   -- Wat is een loop?     — uitleg
+(7,  'code', 8,  1, 1),   -- De for-loop          — voorbeeld
+(8,  'code', 9,  2, 1),   -- De while-loop        — voorbeeld (after text)
 
 -- JavaScript — page 11 (JS Basics)
-(9,  'text', 34, 1),   -- Wat is JavaScript?   — intro tekst
-(10, 'code', 34, 2),   -- Wat is JavaScript?   — console.log
-(11, 'code', 35, 1),   -- Variabelen           — let/const voorbeeld
+(9,  'text', 34, 1, 1),   -- Wat is JavaScript?   — intro tekst
+(10, 'code', 34, 2, 1),   -- Wat is JavaScript?   — console.log
+(11, 'code', 35, 1, 1),   -- Variabelen           — let/const voorbeeld
 
 -- JavaScript — page 13 (DOM manipulatie)
-(12, 'text', 41, 1),   -- Wat is de DOM?       — uitleg
-(13, 'code', 42, 2),   -- Elementen selecteren — querySelector (after text)
-(14, 'code', 43, 1),   -- Inhoud aanpassen     — textContent
+(12, 'text', 41, 1, 1),   -- Wat is de DOM?       — uitleg
+(13, 'code', 42, 2, 1),   -- Elementen selecteren — querySelector (after text)
+(14, 'code', 43, 1, 1),   -- Inhoud aanpassen     — textContent
 
 -- Java — page 21 (Java Introductie)
-(15, 'text', 66, 1),   -- Wat is Java?         — intro tekst
-(16, 'code', 68, 1),   -- Hello World          — voorbeeld
+(15, 'text', 66, 1, 1),   -- Wat is Java?         — intro tekst
+(16, 'code', 68, 1, 1),   -- Hello World          — voorbeeld
 
 -- Java — page 25 (OOP & Classes)
-(17, 'text', 78, 1),   -- Klassen & objecten   — uitleg
-(18, 'code', 78, 2),   -- Klassen & objecten   — klasse voorbeeld
-(19, 'code', 79, 1),   -- Constructor          — voorbeeld
+(17, 'text', 78, 1, 1),   -- Klassen & objecten   — uitleg
+(18, 'code', 78, 2, 1),   -- Klassen & objecten   — klasse voorbeeld
+(19, 'code', 79, 1, 1),   -- Constructor          — voorbeeld
 
 -- C# / Unity — page 36 (C# Basis in Unity)
-(20, 'text', 112, 1),  -- C# syntax basis      — intro tekst
-(21, 'code', 112, 2),  -- C# syntax basis      — MonoBehaviour
-(22, 'code', 113, 1),  -- Variabelen in Unity  — voorbeeld
-(23, 'code', 114, 2),  -- Je eerste script     — Input voorbeeld (after text)
+(20, 'text', 112, 1, 1),  -- C# syntax basis      — intro tekst
+(21, 'code', 112, 2, 1),  -- C# syntax basis      — MonoBehaviour
+(22, 'code', 113, 1, 1),  -- Variabelen in Unity  — voorbeeld
+(23, 'code', 114, 2, 1),  -- Je eerste script     — Input voorbeeld (after text)
 
 -- Rekenen N4 — page 53 (Procenten)
-(24, 'text', 164, 1),  -- Wat is een procent?  — uitleg
-(25, 'text', 165, 1),  -- Berekenen            — uitleg stappenplan
+(24, 'text', 164, 1, 1),  -- Wat is een procent?  — uitleg
+(25, 'text', 165, 1, 1),  -- Berekenen            — uitleg stappenplan
 
 -- Rekenen N4 — page 54 (Breuken)
-(26, 'text', 167, 1),  -- Breuken vereenvoudigen — uitleg
-(27, 'text', 168, 1),  -- Optellen & aftrekken   — uitleg
+(26, 'text', 167, 1, 1),  -- Breuken vereenvoudigen — uitleg
+(27, 'text', 168, 1, 1),  -- Optellen & aftrekken   — uitleg
 
 -- Extra text+code combos
 -- Python p3: while-loop gets an explanation before the code
-(28, 'text', 9,  1),   -- De while-loop        — uitleg (order 1, code becomes order 2)
+(28, 'text', 9,  1, 1),   -- De while-loop        — uitleg (order 1, code becomes order 2)
 -- JS p13: DOM uitleg gevolgd door code
-(29, 'text', 42, 1),   -- Elementen selecteren — uitleg (querySelector)
+(29, 'text', 42, 1, 1),   -- Elementen selecteren — uitleg (querySelector)
 -- Java p21: JDK uitleg
-(30, 'text', 67, 1),   -- JDK installeren      — uitleg
+(30, 'text', 67, 1, 1),   -- JDK installeren      — uitleg
 -- C# p36: Je eerste script uitleg
-(31, 'text', 114, 1);  -- Je eerste script     — uitleg (code becomes order 2)
+(31, 'text', 114, 1, 1);  -- Je eerste script     — uitleg (code becomes order 2)
 
 -- -------------------------------------------------------------
 -- TextBLocks  (content for 'text' type components)
@@ -756,12 +782,12 @@ public class BeweegScript : MonoBehaviour
 -- InfoBox components (tip / warning)
 -- Component IDs 32–35
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(32, 'tip',     1,  2),   -- Python p1 s1: tip na "Wat is Python?" tekst
-(33, 'warning', 9,  3),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
-(34, 'tip',     34, 3),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
-(35, 'warning', 41, 2),   -- JS p13 s41: DOM waarschuwing
-(40, 'warning', 5,  2);   -- Python p2 s5: waarschuwing bij datatypes quiz
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`, `EmptySpace_Id`) VALUES
+(32, 'tip',     1,  2, 1),   -- Python p1 s1: tip na "Wat is Python?" tekst
+(33, 'warning', 9,  3, 1),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
+(34, 'tip',     34, 3, 1),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
+(35, 'warning', 41, 2, 1),   -- JS p13 s41: DOM waarschuwing
+(40, 'warning', 5,  2, 3);   -- Python p2 s5: waarschuwing bij datatypes — double line before
 
 INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 (1, 32, 'Python is een van de meest populaire talen om mee te beginnen. De syntax lijkt op gewoon Engels, waardoor het makkelijker te lezen is dan veel andere talen.', 0),
@@ -774,11 +800,11 @@ INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 -- PubQuiz components (quiz)
 -- Component IDs 36–39
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes
-(37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting
-(38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops
-(39, 'quiz', 36, 1);   -- JS p11 s36: MC over datatypes & operators
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`, `EmptySpace_Id`) VALUES
+(36, 'quiz', 5, 1, 3),    -- Python p2 s5: MC over datatypes — double line after
+(37, 'quiz', 6, 1, 1),    -- Python p2 s6: MC over type casting
+(38, 'quiz', 7, 2, 1),    -- Python p3 s7: open vraag over loops
+(39, 'quiz', 36, 1, 1);   -- JS p11 s36: MC over datatypes & operators
 
 INSERT INTO `PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
 (1, 'Welk datatype gebruik je in Python voor een geheel getal?', 0, 36),
@@ -825,9 +851,9 @@ INSERT INTO `MultiMediaType` (`MultiMediaType`) VALUES
 -- MultiMedia components
 -- Component IDs 41–42
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(41, 'multimedia', 5, 3),   -- Python p2 s5: image bij datatypes
-(42, 'multimedia', 5, 4);   -- Python p2 s5: video bij datatypes
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`, `EmptySpace_Id`) VALUES
+(41, 'multimedia', 5, 3, 2),   -- Python p2 s5: image bij datatypes — dotted line after
+(42, 'multimedia', 5, 4, 1);   -- Python p2 s5: video bij datatypes
 
 INSERT INTO `MultiMedia` (`Id`, `URL`, `components_Id`, `Uploaded`, `MultiMediaType_MultiMediaType`) VALUES
 (1, 'https://deadlock.wiki/images/b/b8/Shiv_card.png?20250819031257', 41, 0, 'image'),
