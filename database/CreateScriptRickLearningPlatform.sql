@@ -193,6 +193,15 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `rick learning platform`.`MultiMediaType`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`MultiMediaType` (
+  `MultiMediaType` VARCHAR(45) NOT NULL,
+  PRIMARY KEY (`MultiMediaType`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `rick learning platform`.`MultiMedia`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`MultiMedia` (
@@ -200,12 +209,19 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`MultiMedia` (
   `URL` VARCHAR(255) NOT NULL,
   `components_Id` INT(11) NOT NULL,
   `Uploaded` TINYINT NOT NULL,
+  `MultiMediaType_MultiMediaType` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_MultiMedia_components1_idx` (`components_Id` ASC),
+  INDEX `fk_MultiMedia_MultiMediaType1_idx` (`MultiMediaType_MultiMediaType` ASC),
   CONSTRAINT `fk_MultiMedia_components1`
     FOREIGN KEY (`components_Id`)
     REFERENCES `rick learning platform`.`components` (`Id`)
     ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_MultiMedia_MultiMediaType1`
+    FOREIGN KEY (`MultiMediaType_MultiMediaType`)
+    REFERENCES `rick learning platform`.`MultiMediaType` (`MultiMediaType`)
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 

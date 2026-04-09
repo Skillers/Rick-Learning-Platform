@@ -339,15 +339,22 @@ function buildDashboard() {
   const resumeCourse = saved ? COURSES.find(c => c.id == saved.courseId) : null;
   const resumeLesson = resumeCourse ? resumeCourse.lessons.find(l => l.id == saved.lessonId) : null;
 
+  const destEl = document.getElementById("continueDest");
+  const labelEl = document.querySelector(".continue-label");
+
   if (resumeCourse && resumeLesson) {
     document.getElementById("continueBtn").onclick = () => loadLesson(resumeCourse.id, resumeLesson.id, saved.sectionIdx ?? 0);
-    document.getElementById("welcomeSub").textContent = `Je bent bezig met "${resumeLesson.title}" in ${resumeCourse.name}`;
+    document.getElementById("welcomeSub").textContent = `Je was bezig met ${resumeCourse.name}`;
+    labelEl.textContent = "Verder leren";
+    destEl.textContent = resumeLesson.title;
   } else {
     const firstCourse = COURSES[0];
     const firstLesson = firstCourse?.lessons[0];
     if (firstCourse && firstLesson) {
       document.getElementById("continueBtn").onclick = () => loadLesson(firstCourse.id, firstLesson.id);
       document.getElementById("welcomeSub").textContent = `Kies een cursus hieronder om te beginnen.`;
+      labelEl.textContent = "Start leren";
+      destEl.textContent = "";
     }
   }
 }
