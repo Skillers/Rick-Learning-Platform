@@ -25,7 +25,7 @@ $stmt = $pdo->prepare("
     LEFT JOIN Languages     l   ON l.Id             = cs.Languages_Id
     LEFT JOIN TextBLocks    tb  ON tb.Component_Id  = c.Id
     LEFT JOIN InfoBoxes ib ON ib.components_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.Id           = c.EmptySpace_Id
+    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
     WHERE s.Pages_Id = ?
       AND c.ComponentType_ComponentTypeText NOT IN ('quiz','multimedia')
     ORDER BY c.Section_Id, c.`Order`
@@ -73,7 +73,7 @@ $stmtM = $pdo->prepare("
     FROM Components c
     JOIN  Sections  s ON s.Id = c.Section_Id
     JOIN  MultiMedia m ON m.components_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.Id = c.EmptySpace_Id
+    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
     WHERE s.Pages_Id = ?
       AND c.ComponentType_ComponentTypeText = 'multimedia'
     ORDER BY c.Section_Id, c.`Order`
@@ -119,7 +119,7 @@ $stmtQ = $pdo->prepare("
     FROM Components c
     JOIN  Sections s ON s.Id = c.Section_Id
     JOIN  PQQuestion q ON q.component_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.Id = c.EmptySpace_Id
+    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
     WHERE s.Pages_Id = ?
       AND c.ComponentType_ComponentTypeText = 'quiz'
     ORDER BY c.Section_Id, c.`Order`

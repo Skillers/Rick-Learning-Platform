@@ -11,6 +11,13 @@ AddType text/css               .css
 # ── only needed if you ever load from a CDN or subdomain)                    ──
 # Header set Access-Control-Allow-Origin "*"
 
+# ── Clean URLs (no .html extension) ────────────────────────────────────────
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+)$ $1.html [L]
+
 # ── Prevent directory listing ────────────────────────────────────────────────
 Options -Indexes
 
