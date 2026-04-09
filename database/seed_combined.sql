@@ -512,7 +512,7 @@ INSERT INTO `ComponentType` (`ComponentTypeText`) VALUES
 ('quiz'),
 ('tip'),
 ('warning'),
-('image'),
+('multimedia'),
 ('assignment');
 
 -- -------------------------------------------------------------
@@ -812,3 +812,29 @@ INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
 (5, 'str',    1),
 (5, 'array',  0),
 (5, 'char',   0);
+
+-- -------------------------------------------------------------
+-- MultiMediaType
+-- -------------------------------------------------------------
+INSERT INTO `MultiMediaType` (`MultiMediaType`) VALUES
+('video'),
+('image'),
+('audio');
+
+-- -------------------------------------------------------------
+-- MultiMedia components
+-- Component IDs 41–42
+-- -------------------------------------------------------------
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
+(41, 'multimedia', 5, 3),   -- Python p2 s5: image bij datatypes
+(42, 'multimedia', 5, 4);   -- Python p2 s5: video bij datatypes
+
+INSERT INTO `MultiMedia` (`Id`, `URL`, `components_Id`, `Uploaded`, `MultiMediaType_MultiMediaType`) VALUES
+(1, 'https://deadlock.wiki/images/b/b8/Shiv_card.png?20250819031257', 41, 0, 'image'),
+(2, 'https://www.youtube.com/watch?v=YonS9_QJbp8', 42, 0, 'video');
+
+-- -------------------------------------------------------------
+-- Accounts (test user)
+-- -------------------------------------------------------------
+INSERT INTO `accounts` (`username`, `Password`, `Email`) VALUES
+('Rick', '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'Rick.nl@hotmail.com');

@@ -171,16 +171,16 @@
 
           <!-- Welcome banner -->
           <div class="dash-welcome">
-            <div>
-              <div style="font-size:22px;margin-bottom:6px;">👋</div>
-              <div class="welcome-text">
-                <h2>Verder gaan waar je gebleven bent?</h2>
-                <p id="welcomeSub">Kies een cursus hieronder om te beginnen.</p>
-              </div>
+            <div class="welcome-left">
+              <h2 class="welcome-title">Verder gaan waar je gebleven bent?</h2>
+              <p class="welcome-sub" id="welcomeSub">Kies een cursus hieronder om te beginnen.</p>
             </div>
-            <div class="welcome-actions">
-              <button class="btn btn-primary" id="continueBtn">▶ Verder leren</button>
-              <button class="btn btn-ghost"   onclick="showDashboard()">Overzicht</button>
+            <div class="welcome-right">
+              <button class="btn btn-primary btn-continue" id="continueBtn">
+                <span class="continue-label">Verder leren</span>
+                <span class="continue-detail" id="continueDest"></span>
+                <span class="continue-arrow">→</span>
+              </button>
             </div>
           </div>
 
