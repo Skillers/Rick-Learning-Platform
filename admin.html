@@ -178,7 +178,50 @@
       cursor:grab;
     }
     .section-card-header:active { cursor:grabbing; }
-    .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; }
+    .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; user-select:none; }
+    .section-drag-handle:active { cursor:grabbing; }
+    .dragging { opacity: 0.35; }
+    body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
+    .drag-placeholder {
+      background: rgba(9,105,218,.08);
+      border: 2px dashed rgba(9,105,218,.45);
+      border-radius: var(--radius);
+      margin: 8px 0;
+      transition: height .12s ease;
+      pointer-events: none;
+    }
+    .ph-section   { height: 72px; }
+    .ph-component { height: 48px; }
+
+    /* Auto-scroll zones shown while dragging */
+    .editor-main-wrap {
+      position: relative; flex: 1; min-width: 0; min-height: 0;
+      display: flex; flex-direction: column;
+    }
+    .editor-main-wrap > .editor-main {
+      flex: 1 1 auto; min-height: 0;
+    }
+    .scroll-zone {
+      position: fixed;
+      z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(9,105,218,.22);
+      color: rgba(9,105,218,.95);
+      pointer-events: auto;
+    }
+    .scroll-zone.top    { border-bottom: 3px dashed rgba(9,105,218,.85); }
+    .scroll-zone.bottom { border-top:    3px dashed rgba(9,105,218,.85); }
+    .scroll-zone .arrow {
+      font-size: 72px; line-height: 1; font-weight: 900;
+      animation: scrollArrowBounce 1s ease-in-out infinite;
+      display: inline-block;
+      text-shadow: 0 2px 6px rgba(9,105,218,.35);
+    }
+    .scroll-zone.top .arrow { animation-direction: reverse; }
+    @keyframes scrollArrowBounce {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(10px); }
+    }
     .section-title-input {
       flex:0 1 50%; background:var(--bg2); border:1px solid var(--border); border-radius:6px;
       outline:none; color:var(--text); font-size:14px; font-weight:600;
@@ -226,6 +269,32 @@
       resize:vertical; min-height:100px;
     }
     .comp-input { margin-bottom:6px; font-family:'Space Grotesk',sans-serif; }
+
+    .media-upload-divider {
+      display:flex; align-items:center; gap:10px; margin:6px 0;
+      color:var(--text3); font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+    }
+    .media-upload-divider::before, .media-upload-divider::after {
+      content:""; flex:1; height:1px; background:var(--border);
+    }
+    .media-upload-btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:8px 14px; width:100%;
+      background:var(--bg2); border:1px dashed var(--border2); border-radius:6px;
+      color:var(--text2); font-size:13px; cursor:pointer;
+      transition:border-color .15s, color .15s, background .15s;
+    }
+    .media-upload-btn:hover {
+      border-color:var(--blue); color:var(--blue); background:rgba(9,105,218,.06);
+    }
+    .media-uploaded-row { display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+    .media-uploaded-row .comp-input { margin-bottom:0; flex:1; }
+    .media-remove-btn { color:var(--red); font-size:14px; }
+    .media-uploaded-path {
+      font-size:11px; color:var(--text3); font-family:'JetBrains Mono',monospace;
+      padding:4px 8px; background:var(--bg2); border-radius:4px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
 
     .comp-meta-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
     .comp-meta-label { font-size:11px; color:var(--text3); white-space:nowrap; }
@@ -361,12 +430,14 @@
 
     <!-- Editor only, no preview -->
     <div style="display:flex;flex:1;overflow:hidden;">
+      <div class="editor-main-wrap" id="editorMainWrap">
       <div class="editor-main" id="editorMain">
         <div class="empty-state">
           <div class="empty-icon">✏️</div>
           <div class="empty-title">Selecteer een pagina</div>
           <div class="empty-sub">Kies een les links in de structuurpaneel om hem te bewerken, of maak een nieuwe pagina aan.</div>
         </div>
+      </div>
       </div>
 
     </div>
@@ -662,9 +733,16 @@ async function openPageFromDb(pageId, keepFocus) {
     if (type === 'multimedia') {
       try {
         const mData = JSON.parse(content);
-        type = mData.media_type === 'video' ? 'video' : 'image';
-        content = mData.url || '';
-        meta.media_type = mData.media_type;
+        meta.media_type = mData.media_type || 'image';
+        if (mData.uploaded) {
+          meta.source = 'upload';
+          meta.uploaded = mData.uploaded;
+          meta.title = mData.title || '';
+          content = '';
+        } else {
+          meta.source = 'url';
+          content = mData.url || '';
+        }
       } catch(e) { console.error("Media parse error:", e); }
     }
 
@@ -758,7 +836,7 @@ function renderEditor() {
 function renderSectionCard(section, si) {
   return `
   <div class="section-card" data-section-id="${section.id}">
-    <div class="section-card-header" draggable="true">
+    <div class="section-card-header">
       <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
       <input class="section-title-input" value="${esc(section.title)}"
         placeholder="Sectienaam (bijv. For-loop, Opdrachten...)"
@@ -834,7 +912,44 @@ function renderCompCard(comp, sectionId, ci) {
   }
 
   if (comp.type === "multimedia" || comp.type === "video" || comp.type === "image") {
-    const mediaType = comp.meta?.media_type || (comp.type === "image" ? "image" : "video");
+    const mediaType  = comp.meta?.media_type || (comp.type === "image" ? "image" : "video");
+    const hasUrl     = !!(comp.content && comp.content.trim());
+    const hasUpload  = !!comp.meta?.uploaded;
+    const title      = comp.meta?.title || "";
+    const typeWord   = mediaType === "video" ? "video" : "afbeelding";
+
+    let inputsHtml = "";
+    if (hasUpload) {
+      // Uploaded state: show title field + remove button, no URL input
+      inputsHtml = `
+        <div class="media-uploaded-row">
+          <input class="comp-input" value="${esc(title)}"
+            data-comp-id="${comp.id}" data-field="meta.title"
+            oninput="updateCompMeta(this)" placeholder="Titel van bestand..." />
+          <button class="icon-btn media-remove-btn" onclick="removeUploadedMedia('${comp.id}')" title="Bestand verwijderen">✕</button>
+        </div>
+        <div class="media-uploaded-path">📎 ${esc(comp.meta.uploaded)}</div>`;
+    } else if (hasUrl) {
+      // URL-only state: no upload button
+      inputsHtml = `
+        <input class="comp-input" value="${esc(comp.content)}"
+          data-comp-id="${comp.id}" data-field="content"
+          oninput="updateComp(this)" placeholder="${mediaType==='video'?'Video URL (YouTube, etc.)':'Afbeelding URL'}" />
+        ${mediaType==='image' ? `<img src="${esc(comp.content)}" style="max-width:100%;max-height:200px;border-radius:var(--radius);margin-top:6px;" alt="" onerror="this.style.display='none'">` : ''}`;
+    } else {
+      // Empty state: show both URL field and upload button
+      inputsHtml = `
+        <input class="comp-input" value=""
+          data-comp-id="${comp.id}" data-field="content"
+          oninput="updateComp(this)" placeholder="${mediaType==='video'?'Video URL (YouTube, etc.)':'Afbeelding URL'}" />
+        <div class="media-upload-divider"><span>of</span></div>
+        <label class="media-upload-btn">
+          <span>📤 Upload ${typeWord}</span>
+          <input type="file" accept="${mediaType==='video'?'video/*':'image/*'}" style="display:none"
+            onchange="uploadMediaFile(this,'${comp.id}')" />
+        </label>`;
+    }
+
     body = `
       <div class="comp-meta-row">
         <span class="comp-meta-label">Type:</span>
@@ -843,10 +958,7 @@ function renderCompCard(comp, sectionId, ci) {
           <option value="image" ${mediaType==="image"?"selected":""}>Afbeelding</option>
         </select>
       </div>
-      <input class="comp-input" value="${esc(comp.content)}"
-        data-comp-id="${comp.id}" data-field="content"
-        oninput="updateComp(this)" placeholder="${mediaType==='video'?'YouTube URL of video-ID...':'Afbeelding URL...'}" />
-      ${mediaType==='image' && comp.content ? `<img src="${esc(comp.content)}" style="max-width:100%;max-height:200px;border-radius:var(--radius);margin-top:6px;" alt="">` : ''}`;
+      ${inputsHtml}`;
   }
 
   if (comp.type === "quiz") {
@@ -886,6 +998,7 @@ function renderCompCard(comp, sectionId, ci) {
   return `
   <div class="component-card" data-comp-id="${comp.id}">
     <div class="component-header">
+      <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
       <span class="component-type-badge ${typeMeta.cls}">${typeMeta.label}</span>
       <div style="flex:1"></div>
       <button class="icon-btn" onclick="moveComp('${sectionId}','${comp.id}',-1)" title="Omhoog">↑</button>
@@ -896,9 +1009,376 @@ function renderCompCard(comp, sectionId, ci) {
   </div>`;
 }
 
+let dragState = null;
+let dragPlaceholder = null;
+let autoScrollTimer = null;
+let autoScrollDir = 0; // -1 up, +1 down, 0 stop
+
 function wireEditorEvents() {
-  // Drag-to-reorder sections (simplified: just use move buttons for now,
-  // visual drag is wired for future enhancement)
+  // Enable draggable on card only when mousedown starts on a drag handle
+  document.querySelectorAll('.section-drag-handle').forEach(handle => {
+    handle.addEventListener('mousedown', () => {
+      const card = handle.closest('.section-card, .component-card');
+      if (card) card.setAttribute('draggable', 'true');
+    });
+  });
+
+  // Section cards
+  document.querySelectorAll('.section-card').forEach(card => {
+    card.addEventListener('dragstart', onCardDragStart);
+    card.addEventListener('dragend', onCardDragEnd);
+  });
+
+  // Component cards
+  document.querySelectorAll('.component-card').forEach(card => {
+    card.addEventListener('dragstart', onCardDragStart);
+    card.addEventListener('dragend', onCardDragEnd);
+  });
+
+  // Sections container
+  const sectionsArea = document.getElementById('sectionsArea');
+  if (sectionsArea) {
+    sectionsArea.addEventListener('dragover', onSectionsDragOver);
+    sectionsArea.addEventListener('drop', onSectionsDrop);
+  }
+
+  // Component lists (one per section)
+  document.querySelectorAll('.components-list').forEach(list => {
+    list.addEventListener('dragover', onComponentsDragOver);
+    list.addEventListener('drop', onComponentsDrop);
+  });
+
+  // Keep zone visibility in sync with scroll position during drag
+  const main = document.getElementById('editorMain');
+  if (main && !main.dataset.scrollWired) {
+    main.dataset.scrollWired = '1';
+    main.addEventListener('scroll', () => {
+      if (document.body.classList.contains('is-dragging')) updateScrollZonesVisibility();
+    });
+  }
+}
+
+// Clear accidental draggable if mouseup happens without a drag
+document.addEventListener('mouseup', () => {
+  document.querySelectorAll('[draggable="true"]').forEach(el => {
+    if (!el.classList.contains('dragging')) el.removeAttribute('draggable');
+  });
+});
+
+function onCardDragStart(e) {
+  const card = e.currentTarget;
+  console.log('[DRAG] ➜ dragstart fired on', card.className, '| draggable attr =', card.getAttribute('draggable'));
+  // Only start drag if the card was explicitly made draggable (via handle mousedown)
+  if (card.getAttribute('draggable') !== 'true') {
+    console.log('[DRAG] ✗ aborted — card is not marked draggable (user did not mousedown on handle)');
+    e.preventDefault(); return;
+  }
+  e.stopPropagation();
+
+  if (card.classList.contains('section-card')) {
+    dragState = { type: 'section', id: card.dataset.sectionId };
+    console.log('[DRAG] 🟦 SECTION drag started:', dragState);
+  } else {
+    const parentSection = card.closest('.section-card');
+    dragState = {
+      type: 'component',
+      id: card.dataset.compId,
+      fromSectionId: parentSection?.dataset.sectionId,
+    };
+    console.log('[DRAG] 🟩 COMPONENT drag started:', dragState);
+  }
+
+  dragPlaceholder = document.createElement('div');
+  dragPlaceholder.className = 'drag-placeholder ' +
+    (dragState.type === 'section' ? 'ph-section' : 'ph-component');
+
+  // Defer adding class so the drag ghost image captures the full card
+  setTimeout(() => card.classList.add('dragging'), 0);
+  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); } catch(_) {}
+
+  document.body.classList.add('is-dragging');
+  console.log('[DRAG] body.is-dragging added →', document.body.classList.contains('is-dragging'));
+  console.log('[DRAG] typeof createScrollZones =', typeof createScrollZones);
+  console.log('[DRAG] calling createScrollZones()...');
+  try {
+    createScrollZones();
+    console.log('[DRAG] createScrollZones() returned normally');
+  } catch (err) {
+    console.error('[DRAG] ✗ createScrollZones() THREW:', err);
+  }
+
+  // Attach a global dragover on document to drive auto-scroll from mouse Y
+  document.addEventListener('dragover', onGlobalDragOver);
+}
+
+function onGlobalDragOver(e) {
+  if (!dragState) return;
+  e.preventDefault();
+  try { e.dataTransfer.dropEffect = 'move'; } catch(_) {}
+
+  const zoneH = 80;
+  const y = e.clientY;
+  const st = getScrollState();
+
+  if (!st.atTop && y < zoneH) {
+    startAutoScroll(-1);
+  } else if (!st.atBottom && y > window.innerHeight - zoneH) {
+    startAutoScroll(+1);
+  } else {
+    stopAutoScroll();
+  }
+}
+
+function onCardDragEnd(e) {
+  console.log('[DRAG] ➜ dragend fired');
+  e.currentTarget.classList.remove('dragging');
+  e.currentTarget.removeAttribute('draggable');
+  if (dragPlaceholder?.parentNode) dragPlaceholder.remove();
+  dragPlaceholder = null;
+  dragState = null;
+
+  document.body.classList.remove('is-dragging');
+  removeScrollZones();
+  stopAutoScroll();
+  document.removeEventListener('dragover', onGlobalDragOver);
+  console.log('[DRAG] cleanup done');
+}
+
+function getScrollContainer() {
+  let el = document.getElementById('editorMain');
+  while (el && el !== document.body) {
+    const cs = getComputedStyle(el);
+    const oy = cs.overflowY;
+    const scrollable = (oy === 'auto' || oy === 'scroll' || oy === 'overlay');
+    if (scrollable && el.scrollHeight > el.clientHeight + 1) return el;
+    el = el.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
+function getScrollState() {
+  const c = getScrollContainer();
+  const isWindow = (c === document.scrollingElement || c === document.documentElement || c === document.body);
+  const scrollTop    = isWindow ? window.scrollY : c.scrollTop;
+  const clientHeight = isWindow ? window.innerHeight : c.clientHeight;
+  const scrollHeight = isWindow ? document.documentElement.scrollHeight : c.scrollHeight;
+  return {
+    container: c, isWindow, scrollTop, clientHeight, scrollHeight,
+    atTop:    scrollTop <= 0,
+    atBottom: scrollTop + clientHeight >= scrollHeight - 1,
+  };
+}
+
+function createScrollZones() {
+  console.log('[ZONE] createScrollZones() called');
+  removeScrollZones();
+
+  const st = getScrollState();
+  console.log('[ZONE] scroll container is window?', st.isWindow, '| scrollTop=', st.scrollTop, 'clientH=', st.clientHeight, 'scrollH=', st.scrollHeight, 'atTop=', st.atTop, 'atBottom=', st.atBottom);
+
+  const main = document.getElementById('editorMain');
+  const rect = main ? main.getBoundingClientRect() : null;
+  // Clamp horizontal placement to viewport
+  const left  = rect ? Math.max(0, rect.left) : 0;
+  const width = rect ? Math.min(window.innerWidth - left, rect.width) : window.innerWidth;
+  console.log('[ZONE] placing zones at left=', left, 'width=', width);
+
+  const zoneH = 80;
+
+  const top = document.createElement('div');
+  top.id = 'scrollZoneTop';
+  top.className = 'scroll-zone top';
+  Object.assign(top.style, {
+    left: left + 'px',
+    top:  '0px',               // viewport top
+    width: width + 'px',
+    height: zoneH + 'px',
+  });
+  top.innerHTML = '<span class="arrow">▲</span>';
+  document.body.appendChild(top);
+
+  const bot = document.createElement('div');
+  bot.id = 'scrollZoneBottom';
+  bot.className = 'scroll-zone bottom';
+  Object.assign(bot.style, {
+    left: left + 'px',
+    top:  (window.innerHeight - zoneH) + 'px',  // viewport bottom
+    width: width + 'px',
+    height: zoneH + 'px',
+  });
+  bot.innerHTML = '<span class="arrow">▼</span>';
+  document.body.appendChild(bot);
+
+  [top, bot].forEach(z => {
+    z.addEventListener('dragover', e => e.preventDefault());
+    z.addEventListener('drop',     e => e.preventDefault());
+  });
+
+  updateScrollZonesVisibility();
+  console.log('[ZONE] after visibility: top.display=', top.style.display, 'bot.display=', bot.style.display);
+}
+
+function removeScrollZones() {
+  document.getElementById('scrollZoneTop')?.remove();
+  document.getElementById('scrollZoneBottom')?.remove();
+}
+
+function updateScrollZonesVisibility() {
+  const zt = document.getElementById('scrollZoneTop');
+  const zb = document.getElementById('scrollZoneBottom');
+  const st = getScrollState();
+  if (zt) zt.style.display = st.atTop    ? 'none' : 'flex';
+  if (zb) zb.style.display = st.atBottom ? 'none' : 'flex';
+}
+
+function startAutoScroll(dir) {
+  if (autoScrollDir === dir) return;
+  autoScrollDir = dir;
+  if (autoScrollTimer) { clearInterval(autoScrollTimer); autoScrollTimer = null; }
+  if (dir === 0) return;
+  autoScrollTimer = setInterval(() => {
+    const st = getScrollState();
+    if (st.isWindow) {
+      window.scrollBy(0, dir * 14);
+    } else {
+      st.container.scrollTop += dir * 14;
+    }
+    updateScrollZonesVisibility();
+    const st2 = getScrollState();
+    if (dir < 0 && st2.atTop)    stopAutoScroll();
+    if (dir > 0 && st2.atBottom) stopAutoScroll();
+  }, 16);
+}
+
+function stopAutoScroll() {
+  autoScrollDir = 0;
+  if (autoScrollTimer) { clearInterval(autoScrollTimer); autoScrollTimer = null; }
+}
+
+function onSectionsDragOver(e) {
+  if (!dragState || dragState.type !== 'section' || !dragPlaceholder) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+
+  const area = e.currentTarget;
+  const draggingCard = area.querySelector(':scope > .section-card.dragging');
+  const siblings = [...area.querySelectorAll(':scope > .section-card:not(.dragging)')];
+  const y = e.clientY;
+  const next = siblings.find(s => {
+    const box = s.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  });
+
+  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
+
+  if (next) area.insertBefore(dragPlaceholder, next);
+  else {
+    const addBtn = area.querySelector(':scope > .add-section-btn');
+    if (addBtn) area.insertBefore(dragPlaceholder, addBtn);
+    else area.appendChild(dragPlaceholder);
+  }
+
+  // Hide placeholder if it would drop into its own spot (right above/below)
+  if (draggingCard) {
+    const prev = dragPlaceholder.previousElementSibling;
+    const nxt  = dragPlaceholder.nextElementSibling;
+    if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
+  }
+}
+
+function onSectionsDrop(e) {
+  if (!dragState || dragState.type !== 'section' || !dragPlaceholder) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (!dragPlaceholder.parentNode) return; // hidden placeholder = no-op drop
+
+  // Determine target index: find section immediately after placeholder
+  const area = e.currentTarget;
+  const children = [...area.children];
+  const phIdx = children.indexOf(dragPlaceholder);
+  let targetId = null;
+  for (let i = phIdx + 1; i < children.length; i++) {
+    const c = children[i];
+    if (c.classList.contains('section-card') && !c.classList.contains('dragging')) {
+      targetId = c.dataset.sectionId; break;
+    }
+  }
+
+  const srcIdx = activePage.sections.findIndex(s => s.id === dragState.id);
+  if (srcIdx === -1) return;
+  const [moved] = activePage.sections.splice(srcIdx, 1);
+  if (targetId) {
+    const ti = activePage.sections.findIndex(s => s.id === targetId);
+    activePage.sections.splice(ti, 0, moved);
+  } else {
+    activePage.sections.push(moved);
+  }
+  markUnsaved(); debounceSave();
+  renderEditor();
+}
+
+function onComponentsDragOver(e) {
+  if (!dragState || dragState.type !== 'component' || !dragPlaceholder) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+
+  const list = e.currentTarget;
+  // Only hide if we're hovering over the same list the item was dragged from
+  const draggingCard = document.querySelector('.component-card.dragging');
+  const isSameList = draggingCard && draggingCard.parentElement === list;
+
+  const siblings = [...list.querySelectorAll(':scope > .component-card:not(.dragging)')];
+  const y = e.clientY;
+  const next = siblings.find(s => {
+    const box = s.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  });
+
+  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
+
+  if (next) list.insertBefore(dragPlaceholder, next);
+  else list.appendChild(dragPlaceholder);
+
+  if (isSameList) {
+    const prev = dragPlaceholder.previousElementSibling;
+    const nxt  = dragPlaceholder.nextElementSibling;
+    if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
+  }
+}
+
+function onComponentsDrop(e) {
+  if (!dragState || dragState.type !== 'component' || !dragPlaceholder) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (!dragPlaceholder.parentNode) return; // hidden placeholder = no-op drop
+
+  const list = e.currentTarget;
+  const toSectionId = list.dataset.sectionId;
+  const children = [...list.children];
+  const phIdx = children.indexOf(dragPlaceholder);
+  let targetCompId = null;
+  for (let i = phIdx + 1; i < children.length; i++) {
+    const c = children[i];
+    if (c.classList.contains('component-card') && !c.classList.contains('dragging')) {
+      targetCompId = c.dataset.compId; break;
+    }
+  }
+
+  const fromSection = activePage.sections.find(s => s.id === dragState.fromSectionId);
+  const toSection   = activePage.sections.find(s => s.id === toSectionId);
+  if (!fromSection || !toSection) return;
+
+  const srcIdx = fromSection.components.findIndex(c => c.id === dragState.id);
+  if (srcIdx === -1) return;
+  const [moved] = fromSection.components.splice(srcIdx, 1);
+  if (targetCompId) {
+    const ti = toSection.components.findIndex(c => c.id === targetCompId);
+    toSection.components.splice(ti, 0, moved);
+  } else {
+    toSection.components.push(moved);
+  }
+  markUnsaved(); debounceSave();
+  renderEditor();
 }
 
 /* ═══ MUTATIONS ═══ */
@@ -917,9 +1397,33 @@ function updateMeta(field, value) {
   }
   if (field === "type") {
     const tl = TYPE_LABELS[value]||TYPE_LABELS.theory;
-    document.getElementById("topbarSub").textContent = (COURSES.find(c=>c.id===activePage.courseId)?.name||"") + " › " + tl.label;
+    document.getElementById("topbarSub").textContent = (COURSES.find(c=>c.id==activePage.courseId)?.name||"") + " › " + tl.label;
     const badge = document.querySelector(`.tree-page-item[data-page-id="${activePage.id}"] .tree-page-type`);
     if (badge) { badge.textContent = tl.label; badge.className = "tree-page-type " + tl.cls; }
+  }
+  if (field === "courseId") {
+    const course = COURSES.find(c => c.id == value);
+    const tl = TYPE_LABELS[activePage.type] || TYPE_LABELS.theory;
+    document.getElementById("topbarSub").textContent = (course?.name||"") + " › " + tl.label;
+    buildCourseSidebar();
+  }
+}
+
+function updateMetaSubject(subjectId) {
+  if (!activePage) return;
+  // Pick first course in that subject, default to current if still valid
+  const currentCourse = COURSES.find(c => c.id == activePage.courseId);
+  if (currentCourse && currentCourse.subject_id == subjectId) return;
+  const firstCourse = COURSES.find(c => c.subject_id == subjectId);
+  if (!firstCourse) return;
+  updateMeta("courseId", firstCourse.id);
+  // Rebuild course select with filtered options
+  const courseSel = document.getElementById("metaCourse");
+  if (courseSel) {
+    courseSel.innerHTML = COURSES
+      .filter(c => c.subject_id == subjectId)
+      .map(c => `<option value="${c.id}" ${c.id==firstCourse.id?'selected':''}>${esc(c.name)}</option>`)
+      .join("");
   }
 }
 
@@ -930,7 +1434,18 @@ function updateSectionTitle(input) {
 
 function updateComp(textarea) {
   const comp = findComp(textarea.dataset.compId);
-  if (comp) { comp.content = textarea.value; markUnsaved(); debounceSave(); }
+  if (!comp) return;
+  const prev = comp.content;
+  comp.content = textarea.value;
+  markUnsaved(); debounceSave();
+
+  // For multimedia: if URL cleared → re-render so upload button reappears
+  // if URL freshly added → re-render so upload button disappears
+  if (comp.type === "multimedia" || comp.type === "video" || comp.type === "image") {
+    const hadUrl = !!(prev && prev.trim());
+    const hasUrl = !!(comp.content && comp.content.trim());
+    if (hadUrl !== hasUrl) renderEditor();
+  }
 }
 
 function updateCompMeta(input) {
@@ -956,6 +1471,41 @@ function updateCompMeta(input) {
   }
 }
 
+async function uploadMediaFile(input, compId) {
+  const comp = findComp(compId);
+  if (!comp || !input.files?.[0]) return;
+  const file = input.files[0];
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch("api/upload_media.php", { method: "POST", body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Upload failed" }));
+      alert("Upload mislukt: " + (err.error || res.status));
+      return;
+    }
+    const data = await res.json();
+    comp.meta = comp.meta || {};
+    comp.meta.uploaded = data.path;
+    comp.meta.title = data.original_name || file.name;
+    comp.content = ""; // clear URL mode
+    markUnsaved(); debounceSave();
+    renderEditor();
+  } catch (e) {
+    alert("Upload mislukt: " + e.message);
+  }
+}
+
+function removeUploadedMedia(compId) {
+  const comp = findComp(compId);
+  if (!comp) return;
+  comp.meta = comp.meta || {};
+  delete comp.meta.uploaded;
+  delete comp.meta.title;
+  markUnsaved(); debounceSave();
+  renderEditor();
+}
+
 function setCalloutStyle(btn, style) {
   const comp = findComp(btn.dataset.compId);
   if (!comp) return;
@@ -977,7 +1527,7 @@ function findComp(compId) {
 
 function addSection() {
   if (!activePage) return;
-  activePage.sections.push(makeSection("Nieuwe sectie", [makeComp("text","")]));
+  activePage.sections.push(makeSection("Nieuwe sectie", []));
   markUnsaved(); debounceSave(); renderEditor();
   // Focus the new section title
   const inputs = document.querySelectorAll(".section-title-input");

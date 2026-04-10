@@ -798,34 +798,63 @@ function renderMultimedia(jsonStr) {
   let data;
   try { data = JSON.parse(jsonStr); } catch { return ''; }
 
-  const url = data.url || '';
+  // Prefer uploaded file path over URL when present
+  const src = data.uploaded || data.url || '';
   const type = data.media_type || '';
+  if (!src) return '';
+
+  const mid = 'media-' + Math.random().toString(36).slice(2, 9);
+  const typeWord = type === 'video' ? 'video' : (type === 'audio' ? 'audio' : 'afbeelding');
+
+  // Broken-media fallback (shown via onerror)
+  const brokenHtml = `
+    <div class="media-broken" id="${mid}-broken" style="display:none">
+      <div class="media-broken-icon">⚠️</div>
+      <div class="media-broken-text">
+        <strong>Oeps!</strong> De ${typeWord} die je zocht bestaat niet meer.
+        <div class="media-broken-sub">Waarschuw een docent door op de rode vlag te klikken!</div>
+      </div>
+      <button class="media-broken-flag" title="Docent waarschuwen" onclick="reportBrokenMedia('${escHtml(src)}','${typeWord}')">🚩</button>
+    </div>`;
 
   if (type === 'image') {
     return `<div class="media-block media-image">
-      <img src="${escHtml(url)}" alt="" loading="lazy">
+      <img id="${mid}" src="${escHtml(src)}" alt="" loading="lazy"
+        onerror="this.style.display='none';document.getElementById('${mid}-broken').style.display='flex';">
+      ${brokenHtml}
     </div>`;
   }
 
   if (type === 'video') {
-    // Convert YouTube watch URLs to embed
-    let embedUrl = url;
-    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    // For YouTube URLs, embed with iframe (can't detect broken via onerror, but URL check below helps)
+    const ytMatch = src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
     if (ytMatch) {
-      embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+      const embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+      return `<div class="media-block media-video">
+        <iframe src="${escHtml(embedUrl)}" allowfullscreen loading="lazy"></iframe>
+      </div>`;
     }
-    return `<div class="media-block media-video">
-      <iframe src="${escHtml(embedUrl)}" allowfullscreen loading="lazy"></iframe>
+    // For direct video files, we can catch errors
+    return `<div class="media-block media-video-direct">
+      <video id="${mid}" controls src="${escHtml(src)}"
+        onerror="this.style.display='none';document.getElementById('${mid}-broken').style.display='flex';"></video>
+      ${brokenHtml}
     </div>`;
   }
 
   if (type === 'audio') {
     return `<div class="media-block media-audio">
-      <audio controls src="${escHtml(url)}"></audio>
+      <audio id="${mid}" controls src="${escHtml(src)}"
+        onerror="this.style.display='none';document.getElementById('${mid}-broken').style.display='flex';"></audio>
+      ${brokenHtml}
     </div>`;
   }
 
   return '';
+}
+
+function reportBrokenMedia(src, typeWord) {
+  alert(`Bedankt! Een docent wordt op de hoogte gebracht dat deze ${typeWord} niet meer werkt.\n\n(${src})`);
 }
 
 function checkMcQuiz(qId) {

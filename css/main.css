@@ -795,6 +795,34 @@ code {
   border-radius: var(--radius);
 }
 .media-audio audio { width: 100%; }
+.media-video-direct video { width: 100%; max-height: 500px; border-radius: var(--radius); }
+
+/* Broken media state */
+.media-broken {
+  flex: 1; display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(248,81,73,.08), rgba(248,81,73,.04));
+  border: 1px solid rgba(248,81,73,.25);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+.media-broken-icon { font-size: 28px; flex-shrink: 0; }
+.media-broken-text { flex: 1; font-size: 14px; line-height: 1.4; }
+.media-broken-text strong { color: #f85149; }
+.media-broken-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.media-broken-flag {
+  flex-shrink: 0; font-size: 22px;
+  background: rgba(248,81,73,.12);
+  border: 1px solid rgba(248,81,73,.35);
+  border-radius: 8px;
+  padding: 8px 12px; cursor: pointer;
+  transition: transform .15s, background .15s, border-color .15s;
+}
+.media-broken-flag:hover {
+  background: rgba(248,81,73,.22);
+  border-color: rgba(248,81,73,.6);
+  transform: scale(1.08);
+}
 
 /* ── Spacer / EmptySpace ────────────────────── */
 .spacer-block { width: 100%; }
