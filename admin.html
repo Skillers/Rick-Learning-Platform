@@ -11,7 +11,7 @@
     input,select,textarea { font-family:'Space Grotesk',sans-serif; }
 
     /* ── Layout ── */
-    .admin-layout { display:flex; min-height:100vh; width:100%; }
+    .admin-layout { display:flex; height:100vh; width:100%; overflow:hidden; }
 
     /* ── Left panel: structure ── */
     .structure-panel {
@@ -132,6 +132,276 @@
     .empty-title { font-size:16px; font-weight:600; margin-bottom:6px; }
     .empty-sub { font-size:13px; color:var(--text2); max-width:300px; }
 
+    /* ── Course selection cards (main landing view) ── */
+    .course-select-card {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius2); padding: 14px 16px;
+      cursor: pointer;
+      transition: transform .14s, border-color .14s, box-shadow .14s, background .14s;
+      position: relative; overflow: hidden;
+    }
+    .course-select-card::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, currentColor, transparent 45%);
+      opacity: 0; transition: opacity .18s;
+      pointer-events: none;
+    }
+    .course-select-card.c-python { color: rgba(56,139,253,.08); }
+    .course-select-card.c-js     { color: rgba(227,179,65,.08); }
+    .course-select-card.c-java   { color: rgba(247,129,102,.08); }
+    .course-select-card.c-unity  { color: rgba(188,140,255,.08); }
+    .course-select-card.c-vr     { color: rgba(63,185,80,.08); }
+    .course-select-card.c-math   { color: rgba(139,148,158,.08); }
+    .course-select-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(0,0,0,.24);
+    }
+    .course-select-card.c-python:hover { border-color: rgba(56,139,253,.6); }
+    .course-select-card.c-js:hover     { border-color: rgba(227,179,65,.6); }
+    .course-select-card.c-java:hover   { border-color: rgba(247,129,102,.6); }
+    .course-select-card.c-unity:hover  { border-color: rgba(188,140,255,.6); }
+    .course-select-card.c-vr:hover     { border-color: rgba(63,185,80,.6); }
+    .course-select-card.c-math:hover   { border-color: rgba(139,148,158,.6); }
+    .course-select-card:hover::before { opacity: 1; }
+
+    .course-select-logo {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .5px;
+      background: var(--bg3); color: var(--text);
+      border: 1px solid var(--border);
+      flex-shrink: 0; position: relative; z-index: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    .course-select-logo.c-python { background: linear-gradient(135deg, #58a6ff, #1f6feb); color: #fff; border-color: rgba(56,139,253,.4); }
+    .course-select-logo.c-js     { background: linear-gradient(135deg, #f2c94c, #d49000); color: #2b1f00; border-color: rgba(227,179,65,.5); }
+    .course-select-logo.c-java   { background: linear-gradient(135deg, #ff9b6b, #d85c2c); color: #fff; border-color: rgba(247,129,102,.4); }
+    .course-select-logo.c-unity  { background: linear-gradient(135deg, #d2a8ff, #8b5cf6); color: #fff; border-color: rgba(188,140,255,.4); }
+    .course-select-logo.c-vr     { background: linear-gradient(135deg, #56d364, #2ea043); color: #fff; border-color: rgba(63,185,80,.4); }
+    .course-select-logo.c-math   { background: linear-gradient(135deg, #a8b3bd, #6e7681); color: #fff; border-color: rgba(139,148,158,.4); }
+
+    .course-select-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
+    .course-select-name {
+      font-size: 14px; font-weight: 600; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .course-select-count {
+      font-size: 11px; color: var(--text3); margin-top: 2px;
+    }
+    .course-select-arrow {
+      font-size: 16px; font-weight: 700;
+      opacity: 0; transform: translateX(-4px);
+      transition: opacity .15s, transform .15s;
+      position: relative; z-index: 1;
+    }
+    .course-select-card:hover .course-select-arrow {
+      opacity: 1; transform: translateX(0);
+    }
+    .course-select-card.c-python:hover .course-select-arrow { color: #58a6ff; }
+    .course-select-card.c-js:hover     .course-select-arrow { color: #e3b341; }
+    .course-select-card.c-java:hover   .course-select-arrow { color: #ff7b48; }
+    .course-select-card.c-unity:hover  .course-select-arrow { color: #bc8cff; }
+    .course-select-card.c-vr:hover     .course-select-arrow { color: #3fb950; }
+    .course-select-card.c-math:hover   .course-select-arrow { color: #8b949e; }
+
+    /* ── Course overview ── */
+    .course-overview { padding: 32px 36px; max-width: 1200px; }
+    .course-overview-header {
+      margin-bottom: 28px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .course-hero-logo {
+      width: 64px; height: 64px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .5px;
+      background: var(--bg3); color: var(--text);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    }
+    .course-hero-logo.c-python { background: linear-gradient(135deg, #58a6ff, #1f6feb); color: #fff; border-color: rgba(56,139,253,.4); }
+    .course-hero-logo.c-js     { background: linear-gradient(135deg, #f2c94c, #d49000); color: #2b1f00; border-color: rgba(227,179,65,.5); }
+    .course-hero-logo.c-java   { background: linear-gradient(135deg, #ff9b6b, #d85c2c); color: #fff; border-color: rgba(247,129,102,.4); }
+    .course-hero-logo.c-unity  { background: linear-gradient(135deg, #d2a8ff, #8b5cf6); color: #fff; border-color: rgba(188,140,255,.4); }
+    .course-hero-logo.c-vr     { background: linear-gradient(135deg, #56d364, #2ea043); color: #fff; border-color: rgba(63,185,80,.4); }
+    .course-hero-logo.c-math   { background: linear-gradient(135deg, #a8b3bd, #6e7681); color: #fff; border-color: rgba(139,148,158,.4); }
+    .course-hero-text { flex: 1; min-width: 0; }
+    .course-overview-eyebrow {
+      font-size: 11px; color: var(--text3); letter-spacing: .6px;
+      text-transform: uppercase; font-weight: 600; margin-bottom: 6px;
+    }
+    .course-overview-title {
+      font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1;
+    }
+    .course-overview-sub { font-size: 13px; color: var(--text2); margin-top: 6px; }
+
+    .page-tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .page-tile {
+      position: relative;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius2); padding: 20px 22px 26px;
+      cursor: pointer;
+      display: flex; flex-direction: column;
+      transition: transform .14s, border-color .14s, box-shadow .14s;
+      min-height: 190px;
+    }
+    .page-tile::after {
+      /* Reserve bottom space for the "Naar pagina →" hint so the tile doesn't grow on hover */
+      content: ""; display: block; height: 26px; flex-shrink: 0;
+    }
+    .page-tile .page-tile-goto {
+      position: absolute; left: 22px; bottom: 14px;
+    }
+    .page-tile:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+    }
+    .page-tile-badge {
+      position: absolute; top: -12px; left: 16px;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 2px 10px rgba(0,0,0,.28);
+      border: 2px solid var(--bg);
+    }
+    /* Course-color variants for the numbered badge */
+    .page-tile.c-python .page-tile-badge { background: #58a6ff; }
+    .page-tile.c-js     .page-tile-badge { background: #e3b341; color: #2b1f00; }
+    .page-tile.c-java   .page-tile-badge { background: #ff7b48; }
+    .page-tile.c-unity  .page-tile-badge { background: #bc8cff; }
+    .page-tile.c-vr     .page-tile-badge { background: #3fb950; }
+    .page-tile.c-math   .page-tile-badge { background: #8b949e; }
+
+    .page-tile-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 10px; margin-bottom: 4px;
+    }
+    .page-tile-title {
+      font-size: 15px; font-weight: 600; color: var(--text);
+      line-height: 1.3;
+      overflow: hidden; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .page-tile-type {
+      font-size: 9px; padding: 3px 8px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .page-tile-sections-label {
+      font-size: 10px; color: var(--text3); text-transform: uppercase;
+      letter-spacing: .5px; font-weight: 600; margin: 10px 0 6px;
+    }
+    .page-tile-sections {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .page-tile-section {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 8px; border-radius: 5px;
+      font-size: 12px; color: var(--text2);
+      background: var(--bg3); border: 1px solid transparent;
+      transition: background .12s, border-color .12s, color .12s;
+      position: relative;
+    }
+    .page-tile-section::after {
+      content: "→";
+      position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%) translateX(-6px);
+      font-size: 12px; font-weight: 700; color: currentColor;
+      opacity: 0;
+      transition: opacity .14s, transform .14s;
+    }
+    .page-tile-section:hover::after {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
+    .page-tile-section:hover .page-tile-sec-name {
+      padding-right: 14px;
+    }
+    .page-tile-section:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.25);
+      color: var(--text);
+    }
+    [data-theme="light"] .page-tile-section:hover {
+      background: #ffffff;
+      border-color: #d0d7de;
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .page-tile-sec-num {
+      display: flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: 4px;
+      background: transparent; border: 1px solid currentColor;
+      font-size: 10px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+    /* Course-color variants for section number pills */
+    .page-tile.c-python .page-tile-sec-num { color: #58a6ff; }
+    .page-tile.c-js     .page-tile-sec-num { color: #e3b341; }
+    .page-tile.c-java   .page-tile-sec-num { color: #ff7b48; }
+    .page-tile.c-unity  .page-tile-sec-num { color: #bc8cff; }
+    .page-tile.c-vr     .page-tile-sec-num { color: #3fb950; }
+    .page-tile.c-math   .page-tile-sec-num { color: #8b949e; }
+    .page-tile-sec-name {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .page-tile-empty {
+      font-size: 11px; color: var(--text3); font-style: italic;
+      padding: 4px 8px;
+    }
+
+    /* "Naar pagina →" hint — only visible on hover so the card is obviously clickable */
+    .page-tile-goto {
+      margin-top: 12px;
+      font-size: 11px; font-weight: 600;
+      color: var(--accent);
+      opacity: 0; transform: translateX(-4px);
+      transition: opacity .15s, transform .15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .page-tile:hover .page-tile-goto {
+      opacity: 1; transform: translateX(0);
+    }
+    /* Hide the "Naar pagina" hint when the user is hovering a section row inside the tile */
+    .page-tile:has(.page-tile-section:hover) .page-tile-goto {
+      opacity: 0; transform: translateX(-4px);
+    }
+    .page-tile.c-python:hover .page-tile-goto { color: #58a6ff; }
+    .page-tile.c-js:hover     .page-tile-goto { color: #e3b341; }
+    .page-tile.c-java:hover   .page-tile-goto { color: #ff7b48; }
+    .page-tile.c-unity:hover  .page-tile-goto { color: #bc8cff; }
+    .page-tile.c-vr:hover     .page-tile-goto { color: #3fb950; }
+    .page-tile.c-math:hover   .page-tile-goto { color: #8b949e; }
+
+    .page-tile-add {
+      background: transparent; border: 2px dashed var(--border);
+      border-radius: var(--radius2);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; min-height: 160px; cursor: pointer;
+      color: var(--text3); transition: all .14s;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .page-tile-add:hover {
+      border-color: var(--accent); color: var(--accent); background: rgba(9,105,218,.04);
+      transform: translateY(-2px);
+    }
+    .page-tile-add-icon { font-size: 32px; font-weight: 300; line-height: 1; }
+    .page-tile-add-text { font-size: 13px; font-weight: 500; }
+
     /* ── Page editor ── */
     .page-editor { padding:24px 28px; }
 
@@ -178,10 +448,11 @@
       cursor:grab;
     }
     .section-card-header:active { cursor:grabbing; }
-    .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; user-select:none; }
+    .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; user-select:none; touch-action:none; }
     .section-drag-handle:active { cursor:grabbing; }
     .dragging { opacity: 0.35; }
-    body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
+    body.is-dragging { cursor: grabbing !important; user-select: none; }
+    body.is-dragging * { cursor: grabbing !important; user-select: none; }
     .drag-placeholder {
       background: rgba(9,105,218,.08);
       border: 2px dashed rgba(9,105,218,.45);
@@ -315,7 +586,7 @@
     .callout-style-btn.warning { color:#ffa657; }
     .callout-style-btn.warning.active { background:rgba(247,129,102,.12); }
 
-    /* ── Add component toolbar ── */
+    /* ── Add component toolbar (compact, per-section) ── */
     .add-component-bar {
       display:flex; align-items:center; gap:6px;
       padding:10px 16px; border-top:1px dashed var(--border);
@@ -329,6 +600,149 @@
       transition:all .12s; font-family:'Space Grotesk',sans-serif;
     }
     .add-comp-btn:hover { background:var(--bg4); border-color:var(--border2); color:var(--text); }
+
+    /* ── Insert mode: banner + slots ── */
+    .insert-banner {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 20px;
+      background: linear-gradient(180deg, rgba(9,105,218,.98), rgba(9,105,218,.92));
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(9,105,218,.25);
+      z-index: 10000;
+      transform: translateY(-100%);
+      transition: transform .22s ease;
+      font-size: 13px;
+    }
+    .insert-banner.visible { transform: translateY(0); }
+    .insert-banner-icon { font-size: 18px; }
+    .insert-banner-text { flex: 1; }
+    .insert-banner-text strong { font-weight: 600; }
+    .insert-banner-cancel {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #ffd4a8;
+      color: #7a3500;
+      border: 1.5px solid #ffb872;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      font-family: inherit; cursor: pointer;
+      transition: background .15s, border-color .15s, transform .12s, box-shadow .15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .insert-banner-cancel::before {
+      content: "✕"; font-weight: 700; font-size: 14px;
+    }
+    .insert-banner-cancel::after {
+      content: "Esc";
+      font-size: 10px; font-weight: 700;
+      background: rgba(122,53,0,.15);
+      padding: 2px 6px; border-radius: 4px;
+      border: 1px solid rgba(122,53,0,.25);
+      letter-spacing: .5px;
+    }
+    .insert-banner-cancel:hover {
+      background: #ffc184;
+      border-color: #ff9f4d;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    }
+    .insert-banner-cancel:active { transform: translateY(0); }
+
+    .insert-indicator {
+      position: fixed; z-index: 9998;
+      display: flex; align-items: center; gap: 10px;
+      height: 28px; pointer-events: none;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .insert-indicator .ii-line {
+      flex: 1; height: 0; border-top: 3px solid #1f6feb;
+      box-shadow: 0 0 8px rgba(31,111,235,.55);
+    }
+    .insert-indicator .ii-arrow {
+      color: #1f6feb; font-size: 22px; line-height: 1;
+      font-weight: 900;
+      text-shadow: 0 0 6px rgba(31,111,235,.6);
+    }
+    .insert-indicator .ii-label {
+      font-size: 11px; font-weight: 700; color: #fff;
+      background: #1f6feb; padding: 4px 10px; border-radius: 14px;
+      letter-spacing: .3px; white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(31,111,235,.4);
+    }
+    body.insert-mode { cursor: crosshair !important; }
+    body.insert-mode * { cursor: crosshair !important; }
+    body.insert-mode .insert-banner, body.insert-mode .insert-banner * { cursor: default !important; }
+    body.insert-mode .add-component-bar { opacity: .4; pointer-events: none; }
+    body.insert-mode #floatingPreview {
+      opacity: .4;
+      transition: opacity .18s ease;
+      pointer-events: auto; /* allow hover detection */
+    }
+    body.insert-mode #floatingPreview:hover { opacity: 1; }
+    body.insert-mode #floatingPreview .add-comp-btn { pointer-events: auto; cursor: pointer !important; }
+    body.insert-mode .structure-panel { opacity: .6; pointer-events: none; }
+    body.insert-mode .topbar { opacity: .6; pointer-events: none; }
+    body.insert-mode .insert-banner, body.insert-mode .insert-banner * { pointer-events: auto; opacity: 1; }
+
+    /* ── Floating preview side-tab (top-right of editor) ── */
+    .floating-preview {
+      position:absolute; top:16px; right:16px;
+      width:340px; max-height:calc(50% - 16px);
+      background:var(--bg2); border:1px solid var(--border2);
+      border-radius:var(--radius2); box-shadow:0 8px 28px rgba(0,0,0,.28);
+      padding:14px 16px;
+      z-index:50;
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    .floating-preview .add-comp-btn { pointer-events:auto; }
+    .fp-header {
+      font-size:10px; font-weight:700; color:var(--text3);
+      letter-spacing:.7px; margin-bottom:10px; flex-shrink:0;
+    }
+    .fp-buttons {
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
+      margin-bottom:12px; flex-shrink:0;
+    }
+    .fp-buttons .add-comp-btn {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:4px; aspect-ratio:1/1; padding:0;
+      border:1px solid var(--border); background:var(--bg3);
+      border-radius:8px; color:var(--text2); font-size:10px; font-weight:500;
+      transition:all .12s; font-family:'Space Grotesk',sans-serif;
+    }
+    .fp-buttons .add-comp-btn > span:first-child {
+      font-size:18px; font-weight:700;
+      font-family:'JetBrains Mono',monospace; line-height:1;
+    }
+    .fp-buttons .add-comp-btn:hover {
+      background:var(--bg4); border-color:var(--border2); color:var(--text);
+      transform:translateY(-1px);
+    }
+    .fp-buttons .add-comp-btn.active {
+      background:rgba(9,105,218,.1); border-color:var(--blue); color:var(--text);
+    }
+    .fp-buttons .add-comp-btn.picked {
+      background: rgba(46,160,67,.14);
+      border-color: #3fb950;
+      color: var(--text);
+      box-shadow: 0 0 0 3px rgba(63,185,80,.18), 0 0 14px rgba(63,185,80,.45);
+      animation: pickedGlow 2.4s ease-in-out infinite;
+    }
+    @keyframes pickedGlow {
+      0%,100% { box-shadow: 0 0 0 3px rgba(63,185,80,.18), 0 0 12px rgba(63,185,80,.4); }
+      50%     { box-shadow: 0 0 0 3px rgba(63,185,80,.28), 0 0 20px rgba(63,185,80,.7); }
+    }
+    .fp-divider {
+      height:1px; background:var(--border); margin:0 -16px 12px; flex-shrink:0;
+    }
+    .fp-title {
+      font-size:10px; font-weight:700; color:var(--text3);
+      letter-spacing:.7px; margin-bottom:8px; flex-shrink:0;
+    }
+    .fp-body {
+      font-size:12px; color:var(--text); overflow:auto;
+      flex:1; min-height:0;
+    }
 
     /* ── Add section btn ── */
     .add-section-btn {
@@ -431,6 +845,16 @@
     <!-- Editor only, no preview -->
     <div style="display:flex;flex:1;overflow:hidden;">
       <div class="editor-main-wrap" id="editorMainWrap">
+      <!-- Floating side-tab preview (lives outside editor-main so it survives re-renders) -->
+      <div class="floating-preview" id="floatingPreview">
+        <div class="fp-header">COMPONENTEN</div>
+        <div class="fp-buttons" id="fpButtons"></div>
+        <div class="fp-divider"></div>
+        <div class="fp-title">VOORBEELD</div>
+        <div class="fp-body">
+          <div style="color:var(--text3);font-size:11px;line-height:1.5;">Beweeg over een knop hierboven om een voorbeeld te zien.</div>
+        </div>
+      </div>
       <div class="editor-main" id="editorMain">
         <div class="empty-state">
           <div class="empty-icon">✏️</div>
@@ -558,10 +982,17 @@ function applyTheme(t) {
 }
 
 /* ═══ COURSE OVERVIEW (main area on load) ═══ */
+function setFloatingPanelVisible(show) {
+  const fp = document.getElementById('floatingPreview');
+  if (fp) fp.style.display = show ? '' : 'none';
+}
+
 function showCourseOverview() {
   activeCourse = null;
   activePageId = null;
   activePage = null;
+
+  setFloatingPanelVisible(false);
 
   // Hide sidebar back button, show title
   document.getElementById("panelBackBtn").style.display = "none";
@@ -593,16 +1024,15 @@ function showCourseOverview() {
 
     courses.forEach(c => {
       const pageCount = PAGES.filter(p => p.course_id == c.id).length;
+      const iconText = c.icon || c.name.slice(0,2).toUpperCase();
       html += `
-        <div class="page-meta-card" style="cursor:pointer;transition:border-color .15s,transform .1s;"
-             onclick="selectCourse(${c.id})"
-             onmouseover="this.style.borderColor='var(--blue)'"
-             onmouseout="this.style.borderColor='var(--border)'">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <span class="tree-course-icon" style="font-size:16px;color:var(--text2);">${esc(c.icon)}</span>
-            <span style="font-size:14px;font-weight:600;">${esc(c.name)}</span>
+        <div class="course-select-card ${c.color || ''}" onclick="selectCourse(${c.id})">
+          <div class="course-select-logo ${c.color || ''}">${esc(iconText)}</div>
+          <div class="course-select-text">
+            <div class="course-select-name">${esc(c.name)}</div>
+            <div class="course-select-count">${pageCount} pagina${pageCount === 1 ? '' : '\'s'}</div>
           </div>
-          <div style="font-size:11px;color:var(--text3);">${pageCount} pagina's</div>
+          <div class="course-select-arrow">→</div>
         </div>`;
     });
     html += '</div></div>';
@@ -625,13 +1055,83 @@ function selectCourse(courseId) {
   document.getElementById("topbarSub").textContent = "Selecteer een pagina";
 
   buildCourseSidebar();
+  renderCourseOverview();
+}
 
-  // Show empty state in editor
-  document.getElementById("editorMain").innerHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">✏️</div>
-      <div class="empty-title">Selecteer een pagina</div>
-      <div class="empty-sub">Kies een pagina links om te bewerken.</div>
+function renderCourseOverview() {
+  if (!activeCourse) return;
+  setFloatingPanelVisible(false);
+  const main = document.getElementById("editorMain");
+  const pages = PAGES
+    .filter(p => p.course_id == activeCourse.id)
+    .slice()
+    .sort((a, b) => (a.order_index ?? a.id) - (b.order_index ?? b.id));
+
+  const subj = SUBJECTS.find(s => s.id == activeCourse.subject_id);
+
+  if (!pages.length) {
+    main.innerHTML = `
+      <div class="course-overview">
+        <div class="course-overview-header">
+          <div class="course-hero-logo ${activeCourse.color || ''}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
+          <div class="course-hero-text">
+            <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
+            <div class="course-overview-title">${esc(activeCourse.name)}</div>
+            <div class="course-overview-sub">Deze cursus heeft nog geen pagina's.</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="prefillNewPage(${activeCourse.id});showNewPageModal()">＋ Eerste pagina aanmaken</button>
+      </div>`;
+    return;
+  }
+
+  const courseColor = activeCourse.color || '';
+  const tileHtml = pages.map((page, idx) => {
+    const tl = TYPE_LABELS[page.type] || TYPE_LABELS.lesson;
+    const pageSections = SECTIONS
+      .filter(s => s.page_id == page.id)
+      .slice()
+      .sort((a, b) => (a.order_index ?? a.id) - (b.order_index ?? b.id));
+
+    const sectionList = pageSections.length
+      ? pageSections.map((sec, si) => `
+          <li class="page-tile-section"
+              onclick="event.stopPropagation();openPageAndScrollToSection(${page.id}, ${sec.id})">
+            <span class="page-tile-sec-num">${si + 1}</span>
+            <span class="page-tile-sec-name">${esc(sec.title)}</span>
+          </li>`).join('')
+      : '<li class="page-tile-empty">Geen secties</li>';
+
+    return `
+      <div class="page-tile ${courseColor}" onclick="openPageFromDb(${page.id})">
+        <div class="page-tile-badge">${idx + 1}</div>
+        <div class="page-tile-head">
+          <div class="page-tile-title">${esc(page.title)}</div>
+          <span class="page-tile-type ${tl.cls}">${tl.label}</span>
+        </div>
+        <div class="page-tile-sections-label">${pageSections.length} sectie${pageSections.length === 1 ? '' : 's'}</div>
+        <ul class="page-tile-sections">${sectionList}</ul>
+        <div class="page-tile-goto">Naar pagina <span>→</span></div>
+      </div>`;
+  }).join('');
+
+  main.innerHTML = `
+    <div class="course-overview">
+      <div class="course-overview-header">
+        <div class="course-hero-logo ${courseColor}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
+        <div class="course-hero-text">
+          <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
+          <div class="course-overview-title">${esc(activeCourse.name)}</div>
+          <div class="course-overview-sub">${pages.length} pagina${pages.length === 1 ? '' : '\'s'} · klik op een tegel om te bewerken</div>
+        </div>
+      </div>
+      <div class="page-tile-grid">
+        ${tileHtml}
+        <button class="page-tile-add" onclick="prefillNewPage(${activeCourse.id});showNewPageModal()">
+          <div class="page-tile-add-icon">＋</div>
+          <div class="page-tile-add-text">Pagina toevoegen</div>
+        </button>
+      </div>
     </div>`;
 }
 
@@ -773,6 +1273,7 @@ async function openPageFromDb(pageId, keepFocus) {
 
 function renderEditor() {
   if (!activePage) return;
+  setFloatingPanelVisible(true);
   const main = document.getElementById("editorMain");
 
   const sectionsToRender = focusedSectionDbId
@@ -835,7 +1336,7 @@ function renderEditor() {
 
 function renderSectionCard(section, si) {
   return `
-  <div class="section-card" data-section-id="${section.id}">
+  <div class="section-card" data-section-id="${section.id}" onmouseenter="lastHoveredSectionId='${section.id}'">
     <div class="section-card-header">
       <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
       <input class="section-title-input" value="${esc(section.title)}"
@@ -851,15 +1352,355 @@ function renderSectionCard(section, si) {
     <div class="components-list" data-section-id="${section.id}">
       ${section.components.map((c,ci) => renderCompCard(c, section.id, ci)).join("")}
     </div>
-
-    <div class="add-component-bar">
-      <span class="add-comp-label">Toevoegen:</span>
-      ${COMP_TYPES.map(ct => `
-        <button class="add-comp-btn" onclick="addComponent('${section.id}','${ct.type}')">
-          <span>${ct.icon}</span>${ct.label}
-        </button>`).join("")}
-    </div>
   </div>`;
+}
+
+let lastHoveredSectionId = null;
+
+function previewCompType(type) {
+  const panel = document.getElementById('floatingPreview');
+  if (!panel) return;
+  panel.classList.add('visible');
+  const titleEl = panel.querySelector('.fp-title');
+  const bodyEl  = panel.querySelector('.fp-body');
+  const label = { text:"Tekst", code:"Code", callout:"Tip / Waarschuwing", multimedia:"Multimedia", quiz:"Vraag", divider:"Divider" }[type] || "Voorbeeld";
+  if (titleEl) titleEl.textContent = 'VOORBEELD — ' + label;
+  if (bodyEl)  bodyEl.innerHTML = renderAddCompPreviewBody(type);
+  // Highlight the matching button in the floating panel (blue hover)
+  // Skip toggling .active on the picked button so its green glow stays pure
+  document.querySelectorAll('#fpButtons .add-comp-btn').forEach(b => {
+    if (b.classList.contains('picked')) { b.classList.remove('active'); return; }
+    b.classList.toggle('active', b.dataset.compType === type);
+  });
+}
+
+function buildFloatingPanelButtons() {
+  const wrap = document.getElementById('fpButtons');
+  if (!wrap) return;
+  wrap.innerHTML = COMP_TYPES.map(ct => `
+    <button class="add-comp-btn"
+      data-comp-type="${ct.type}"
+      onmouseenter="previewCompType('${ct.type}')"
+      onmouseleave="clearHoverHighlight()"
+      onclick="addComponentFromFloating('${ct.type}')">
+      <span>${ct.icon}</span>${ct.label}
+    </button>`).join("");
+}
+
+function clearHoverHighlight() {
+  // Remove .active from buttons that aren't the currently pending (clicked) one
+  document.querySelectorAll('#fpButtons .add-comp-btn').forEach(b => {
+    if (b.dataset.compType !== pendingInsertType) b.classList.remove('active');
+  });
+}
+
+function addComponentFromFloating(type) {
+  if (!activePage) return;
+  if (!activePage.sections.length) {
+    alert("Er is nog geen sectie. Maak eerst een sectie aan.");
+    return;
+  }
+  startInsertMode(type);
+}
+
+/* ═══ INSERT MODE ═══ */
+let pendingInsertType = null;
+let currentInsertTarget = null; // {sectionId, beforeCompId}
+let lastInsertMouseX = null, lastInsertMouseY = null;
+const COMP_TYPE_LABELS = { text:"Tekst", code:"Code", callout:"Tip/Waarschuwing", multimedia:"Multimedia", quiz:"Vraag", divider:"Divider" };
+
+function startInsertMode(type) {
+  pendingInsertType = type;
+  document.body.classList.add('insert-mode');
+  showInsertBanner(type);
+  createInsertIndicator();
+  markPickedButton(type);
+  document.addEventListener('keydown',   onInsertKey);
+  document.addEventListener('mousemove', onInsertMouseMove);
+  document.addEventListener('click',     onInsertClick, true);
+  document.getElementById('editorMain')?.addEventListener('scroll', onInsertScroll);
+}
+
+function markPickedButton(type) {
+  document.querySelectorAll('#fpButtons .add-comp-btn').forEach(b => {
+    const match = b.dataset.compType === type;
+    b.classList.toggle('picked', match);
+    if (match) b.classList.remove('active'); // avoid both classes layering
+  });
+}
+
+function exitInsertMode() {
+  pendingInsertType = null;
+  currentInsertTarget = null;
+  lastInsertMouseX = null; lastInsertMouseY = null;
+  document.body.classList.remove('insert-mode');
+  hideInsertBanner();
+  removeInsertIndicator();
+  // Clear any lingering button highlights in the floating panel
+  document.querySelectorAll('#fpButtons .add-comp-btn').forEach(b => {
+    b.classList.remove('active');
+    b.classList.remove('picked');
+  });
+  document.removeEventListener('keydown',   onInsertKey);
+  document.removeEventListener('mousemove', onInsertMouseMove);
+  document.removeEventListener('click',     onInsertClick, true);
+  document.getElementById('editorMain')?.removeEventListener('scroll', onInsertScroll);
+}
+
+function onInsertKey(e) {
+  if (e.key === 'Escape') exitInsertMode();
+}
+
+function onInsertMouseMove(e) {
+  lastInsertMouseX = e.clientX;
+  lastInsertMouseY = e.clientY;
+  updateInsertIndicator(e.clientX, e.clientY);
+}
+
+function onInsertScroll() {
+  if (lastInsertMouseX != null && lastInsertMouseY != null) {
+    updateInsertIndicator(lastInsertMouseX, lastInsertMouseY);
+  }
+}
+
+function onInsertClick(e) {
+  if (!pendingInsertType) return;
+
+  // Clicking a floating-panel component button switches the selection
+  const fpBtn = e.target.closest('#fpButtons .add-comp-btn');
+  if (fpBtn) {
+    e.preventDefault(); e.stopPropagation();
+    const newType = fpBtn.dataset.compType;
+    if (newType && newType !== pendingInsertType) switchInsertType(newType);
+    return;
+  }
+
+  // Allow clicks on the banner (e.g. cancel button)
+  if (e.target.closest('.insert-banner')) return;
+  // Block clicks outside the editor main area (topbar, sidebar)
+  const main = document.getElementById('editorMain');
+  if (!main || !main.contains(e.target)) return;
+  // Block clicks anywhere else inside the floating preview (not buttons — handled above)
+  if (e.target.closest('#floatingPreview')) return;
+  if (!currentInsertTarget) return;
+
+  e.preventDefault(); e.stopPropagation();
+  insertAtSlot(currentInsertTarget.sectionId, currentInsertTarget.beforeCompId);
+}
+
+function switchInsertType(newType) {
+  pendingInsertType = newType;
+  // Update banner text
+  const banner = document.getElementById('insertBanner');
+  if (banner) {
+    const textEl = banner.querySelector('.insert-banner-text');
+    if (textEl) textEl.innerHTML = 'Kies waar je de <strong>' + (COMP_TYPE_LABELS[newType] || newType) + '</strong> component wilt invoegen';
+  }
+  // Move the green "picked" glow to the newly selected button
+  markPickedButton(newType);
+  // Update the preview body and indicator label
+  previewCompType(newType);
+  if (lastInsertMouseX != null && lastInsertMouseY != null) {
+    updateInsertIndicator(lastInsertMouseX, lastInsertMouseY);
+  }
+}
+
+function createInsertIndicator() {
+  removeInsertIndicator();
+  const ind = document.createElement('div');
+  ind.id = 'insertIndicator';
+  ind.className = 'insert-indicator';
+  ind.innerHTML =
+    '<span class="ii-arrow">▶</span>' +
+    '<span class="ii-line"></span>' +
+    '<span class="ii-label"></span>' +
+    '<span class="ii-line"></span>' +
+    '<span class="ii-arrow">◀</span>';
+  document.body.appendChild(ind);
+}
+
+function removeInsertIndicator() {
+  document.getElementById('insertIndicator')?.remove();
+}
+
+function updateInsertIndicator(mouseX, mouseY) {
+  const ind = document.getElementById('insertIndicator');
+  if (!ind) return;
+  const main = document.getElementById('editorMain');
+  if (!main) return;
+  const mainRect = main.getBoundingClientRect();
+  const inMain = mouseX >= mainRect.left && mouseX <= mainRect.right &&
+                 mouseY >= mainRect.top  && mouseY <= mainRect.bottom;
+
+  // Hide indicator if the cursor is over the floating preview panel
+  const fp = document.getElementById('floatingPreview');
+  if (fp) {
+    const fpRect = fp.getBoundingClientRect();
+    const inFp = mouseX >= fpRect.left && mouseX <= fpRect.right &&
+                 mouseY >= fpRect.top  && mouseY <= fpRect.bottom;
+    if (inFp) {
+      ind.style.display = 'none';
+      currentInsertTarget = null;
+      return;
+    }
+  }
+
+  if (!inMain) {
+    ind.style.display = 'none';
+    currentInsertTarget = null;
+    return;
+  }
+
+  // Build all candidate gaps across all sections, find closest to mouseY
+  const sections = [...main.querySelectorAll('.section-card')];
+  let best = null;
+
+  for (const sectionEl of sections) {
+    const list = sectionEl.querySelector('.components-list');
+    if (!list) continue;
+    const listRect = list.getBoundingClientRect();
+    const comps = [...list.querySelectorAll(':scope > .component-card')];
+
+    const gaps = [];
+    if (comps.length === 0) {
+      // Empty section — one gap in the middle of the list area
+      gaps.push({ y: listRect.top + Math.min(20, listRect.height / 2), beforeCompId: null });
+    } else {
+      // Before each component
+      for (const c of comps) {
+        const r = c.getBoundingClientRect();
+        gaps.push({ y: r.top - 4, beforeCompId: c.dataset.compId });
+      }
+      // After the last component
+      const lastRect = comps[comps.length - 1].getBoundingClientRect();
+      gaps.push({ y: lastRect.bottom + 4, beforeCompId: null });
+    }
+
+    for (const g of gaps) {
+      const dist = Math.abs(g.y - mouseY);
+      if (!best || dist < best.dist) {
+        best = {
+          dist,
+          y: g.y,
+          sectionId: sectionEl.dataset.sectionId,
+          beforeCompId: g.beforeCompId,
+          left: listRect.left,
+          width: listRect.width,
+        };
+      }
+    }
+  }
+
+  if (!best) {
+    ind.style.display = 'none';
+    currentInsertTarget = null;
+    return;
+  }
+
+  ind.style.display = 'flex';
+  ind.style.left  = best.left + 'px';
+  ind.style.top   = (best.y - 14) + 'px';
+  ind.style.width = best.width + 'px';
+  const lbl = ind.querySelector('.ii-label');
+  if (lbl) lbl.textContent = '+ ' + (COMP_TYPE_LABELS[pendingInsertType] || '') + ' hier';
+
+  currentInsertTarget = {
+    sectionId: best.sectionId,
+    beforeCompId: best.beforeCompId,
+  };
+}
+
+function showInsertBanner(type) {
+  let banner = document.getElementById('insertBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'insertBanner';
+    banner.className = 'insert-banner';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML =
+    '<span class="insert-banner-icon">📍</span>' +
+    '<span class="insert-banner-text">Kies waar je de <strong>' + (COMP_TYPE_LABELS[type] || type) + '</strong> component wilt invoegen</span>' +
+    '<button class="insert-banner-cancel" onclick="exitInsertMode()">Annuleren</button>';
+  banner.classList.add('visible');
+}
+
+function hideInsertBanner() {
+  const banner = document.getElementById('insertBanner');
+  if (banner) banner.classList.remove('visible');
+}
+
+function insertAtSlot(sectionId, beforeCompId) {
+  if (!pendingInsertType) return;
+  const section = activePage.sections.find(s => s.id === sectionId);
+  if (!section) return;
+  const newComp = makeComp(pendingInsertType, "");
+  if (beforeCompId) {
+    const idx = section.components.findIndex(c => c.id === beforeCompId);
+    section.components.splice(idx >= 0 ? idx : section.components.length, 0, newComp);
+  } else {
+    section.components.push(newComp);
+  }
+  markUnsaved(); debounceSave();
+  exitInsertMode();
+  renderEditor();
+}
+
+function renderAddCompPreviewBody(type) {
+  switch (type) {
+    case 'text':
+      return `
+        <p style="margin:0 0 6px;line-height:1.45;">Hier komt je uitleg. Gebruik een tekstblok voor theorie of korte toelichtingen.</p>
+        <p style="margin:0;line-height:1.45;color:var(--text2);">Meerdere alineas houden het leesbaar.</p>`;
+    case 'code':
+      return `
+        <div style="background:#0d1117;color:#e6edf3;padding:8px 10px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;border:1px solid #30363d;">
+          <div style="color:#8b949e;font-size:9px;margin-bottom:4px;">voorbeeld.py</div>
+          <div><span style="color:#ff7b72;">def</span> <span style="color:#d2a8ff;">begroet</span>(naam):</div>
+          <div>&nbsp;&nbsp;<span style="color:#ff7b72;">return</span> <span style="color:#a5d6ff;">f"Hallo {naam}!"</span></div>
+        </div>`;
+    case 'callout':
+      return `
+        <div style="display:flex;gap:8px;padding:8px 10px;background:rgba(56,139,253,.08);border-left:3px solid #58a6ff;border-radius:5px;margin-bottom:6px;">
+          <div style="font-size:14px;">💡</div>
+          <div style="font-size:11px;line-height:1.45;">Wijs leerlingen op een handige truc of veelgemaakte fout.</div>
+        </div>
+        <div style="display:flex;gap:8px;padding:8px 10px;background:rgba(247,129,102,.08);border-left:3px solid #ffa657;border-radius:5px;">
+          <div style="font-size:14px;">⚠️</div>
+          <div style="font-size:11px;line-height:1.45;">Waarschuw voor veelgemaakte fouten of belangrijke valkuilen.</div>
+        </div>`;
+    case 'multimedia':
+      return `
+        <div style="display:flex;gap:8px;">
+          <div style="flex:1;aspect-ratio:16/10;background:linear-gradient(135deg,#1f2937,#374151);border-radius:5px;display:flex;align-items:center;justify-content:center;color:#9ca3af;border:1px solid var(--border);">
+            <div style="font-size:20px;line-height:1;">▶</div>
+          </div>
+          <div style="flex:1;aspect-ratio:16/10;background:linear-gradient(135deg,#4a5568,#2d3748);border-radius:5px;display:flex;align-items:center;justify-content:center;color:#9ca3af;border:1px solid var(--border);">
+            <div style="font-size:18px;line-height:1;">🖼</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:9px;color:var(--text3);text-align:center;">
+          <div style="flex:1;">Video</div>
+          <div style="flex:1;">Afbeelding</div>
+        </div>`;
+    case 'quiz':
+      return `
+        <div style="padding:9px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:5px;">
+          <div style="font-size:9px;color:#f85149;margin-bottom:4px;font-weight:600;">OPDRACHT</div>
+          <div style="font-size:11px;margin-bottom:6px;">Wat is <code style="background:var(--bg3);padding:0 4px;border-radius:3px;font-size:10px;">3 + 4 * 2</code>?</div>
+          <div style="display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--text2);">
+            <label><input type="radio" disabled> A) 14</label>
+            <label><input type="radio" disabled> B) 11</label>
+          </div>
+        </div>`;
+    case 'divider':
+      return `
+        <div style="padding:16px 0;">
+          <hr style="border:none;border-top:2px solid var(--border2);border-bottom:2px solid var(--border2);height:6px;margin:0;">
+        </div>`;
+    default:
+      return '';
+  }
 }
 
 function renderCompCard(comp, sectionId, ci) {
@@ -1009,46 +1850,21 @@ function renderCompCard(comp, sectionId, ci) {
   </div>`;
 }
 
-let dragState = null;
+/* ══════════════════ POINTER-EVENT DRAG SYSTEM ══════════════════ */
+let dragState = null;          // null | {type, id, fromSectionId?, card}
+let dragPending = null;        // null | {card, startX, startY}
 let dragPlaceholder = null;
 let autoScrollTimer = null;
-let autoScrollDir = 0; // -1 up, +1 down, 0 stop
+let autoScrollDir = 0;
+const DRAG_THRESHOLD = 5;      // pixels of movement before drag activates
 
 function wireEditorEvents() {
-  // Enable draggable on card only when mousedown starts on a drag handle
+  // Drag handles start a pending drag on pointerdown
   document.querySelectorAll('.section-drag-handle').forEach(handle => {
-    handle.addEventListener('mousedown', () => {
-      const card = handle.closest('.section-card, .component-card');
-      if (card) card.setAttribute('draggable', 'true');
-    });
+    handle.addEventListener('pointerdown', onHandlePointerDown);
   });
 
-  // Section cards
-  document.querySelectorAll('.section-card').forEach(card => {
-    card.addEventListener('dragstart', onCardDragStart);
-    card.addEventListener('dragend', onCardDragEnd);
-  });
-
-  // Component cards
-  document.querySelectorAll('.component-card').forEach(card => {
-    card.addEventListener('dragstart', onCardDragStart);
-    card.addEventListener('dragend', onCardDragEnd);
-  });
-
-  // Sections container
-  const sectionsArea = document.getElementById('sectionsArea');
-  if (sectionsArea) {
-    sectionsArea.addEventListener('dragover', onSectionsDragOver);
-    sectionsArea.addEventListener('drop', onSectionsDrop);
-  }
-
-  // Component lists (one per section)
-  document.querySelectorAll('.components-list').forEach(list => {
-    list.addEventListener('dragover', onComponentsDragOver);
-    list.addEventListener('drop', onComponentsDrop);
-  });
-
-  // Keep zone visibility in sync with scroll position during drag
+  // Keep scroll-zone visibility in sync with scroll position during drag
   const main = document.getElementById('editorMain');
   if (main && !main.dataset.scrollWired) {
     main.dataset.scrollWired = '1';
@@ -1058,81 +1874,224 @@ function wireEditorEvents() {
   }
 }
 
-// Clear accidental draggable if mouseup happens without a drag
-document.addEventListener('mouseup', () => {
-  document.querySelectorAll('[draggable="true"]').forEach(el => {
-    if (!el.classList.contains('dragging')) el.removeAttribute('draggable');
-  });
-});
+function onHandlePointerDown(e) {
+  // Only left button
+  if (e.button !== 0) return;
+  const card = e.currentTarget.closest('.section-card, .component-card');
+  if (!card) return;
 
-function onCardDragStart(e) {
-  const card = e.currentTarget;
-  console.log('[DRAG] ➜ dragstart fired on', card.className, '| draggable attr =', card.getAttribute('draggable'));
-  // Only start drag if the card was explicitly made draggable (via handle mousedown)
-  if (card.getAttribute('draggable') !== 'true') {
-    console.log('[DRAG] ✗ aborted — card is not marked draggable (user did not mousedown on handle)');
-    e.preventDefault(); return;
+  e.preventDefault();
+  dragPending = { card, startX: e.clientX, startY: e.clientY };
+
+  document.addEventListener('pointermove', onDocPointerMove);
+  document.addEventListener('pointerup',   onDocPointerUp);
+  document.addEventListener('keydown',     onDocKeyDown);
+}
+
+function onDocPointerMove(e) {
+  // Start drag when movement exceeds threshold
+  if (dragPending && !dragState) {
+    const dx = e.clientX - dragPending.startX;
+    const dy = e.clientY - dragPending.startY;
+    if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) {
+      activateDrag();
+    } else {
+      return;
+    }
   }
-  e.stopPropagation();
+  if (!dragState) return;
 
+  // Position the placeholder based on mouse location
+  positionPlaceholder(e.clientX, e.clientY);
+  // Drive auto-scroll from mouse Y
+  handleAutoScroll(e.clientX, e.clientY);
+}
+
+function activateDrag() {
+  const card = dragPending.card;
   if (card.classList.contains('section-card')) {
-    dragState = { type: 'section', id: card.dataset.sectionId };
-    console.log('[DRAG] 🟦 SECTION drag started:', dragState);
+    dragState = { type: 'section', id: card.dataset.sectionId, card };
   } else {
     const parentSection = card.closest('.section-card');
     dragState = {
       type: 'component',
       id: card.dataset.compId,
       fromSectionId: parentSection?.dataset.sectionId,
+      card,
     };
-    console.log('[DRAG] 🟩 COMPONENT drag started:', dragState);
   }
 
   dragPlaceholder = document.createElement('div');
   dragPlaceholder.className = 'drag-placeholder ' +
     (dragState.type === 'section' ? 'ph-section' : 'ph-component');
 
-  // Defer adding class so the drag ghost image captures the full card
-  setTimeout(() => card.classList.add('dragging'), 0);
-  try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); } catch(_) {}
-
+  card.classList.add('dragging');
   document.body.classList.add('is-dragging');
-  console.log('[DRAG] body.is-dragging added →', document.body.classList.contains('is-dragging'));
-  console.log('[DRAG] typeof createScrollZones =', typeof createScrollZones);
-  console.log('[DRAG] calling createScrollZones()...');
-  try {
-    createScrollZones();
-    console.log('[DRAG] createScrollZones() returned normally');
-  } catch (err) {
-    console.error('[DRAG] ✗ createScrollZones() THREW:', err);
-  }
-
-  // Attach a global dragover on document to drive auto-scroll from mouse Y
-  document.addEventListener('dragover', onGlobalDragOver);
+  createScrollZones();
 }
 
-function onGlobalDragOver(e) {
-  if (!dragState) return;
-  e.preventDefault();
-  try { e.dataTransfer.dropEffect = 'move'; } catch(_) {}
+function positionPlaceholder(clientX, clientY) {
+  // Temporarily hide our own card so elementFromPoint doesn't hit it
+  const card = dragState.card;
+  const prevPE = card.style.pointerEvents;
+  card.style.pointerEvents = 'none';
+  const elUnder = document.elementFromPoint(clientX, clientY);
+  card.style.pointerEvents = prevPE;
 
+  if (!elUnder) return;
+
+  if (dragState.type === 'section') {
+    const area = elUnder.closest('#sectionsArea');
+    if (!area) return;
+    positionSectionPlaceholder(area, clientY);
+  } else {
+    const list = elUnder.closest('.components-list');
+    if (!list) return;
+    positionComponentPlaceholder(list, clientY);
+  }
+}
+
+function positionSectionPlaceholder(area, clientY) {
+  const draggingCard = dragState.card;
+  const siblings = [...area.querySelectorAll(':scope > .section-card:not(.dragging)')];
+  const next = siblings.find(s => {
+    const box = s.getBoundingClientRect();
+    return clientY < box.top + box.height / 2;
+  });
+
+  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
+
+  if (next) area.insertBefore(dragPlaceholder, next);
+  else {
+    const addBtn = area.querySelector(':scope > .add-section-btn');
+    if (addBtn) area.insertBefore(dragPlaceholder, addBtn);
+    else area.appendChild(dragPlaceholder);
+  }
+
+  // Hide if adjacent to dragged card (no-op drop)
+  const prev = dragPlaceholder.previousElementSibling;
+  const nxt  = dragPlaceholder.nextElementSibling;
+  if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
+}
+
+function positionComponentPlaceholder(list, clientY) {
+  const draggingCard = dragState.card;
+  const isSameList = draggingCard.parentElement === list;
+
+  const siblings = [...list.querySelectorAll(':scope > .component-card:not(.dragging)')];
+  const next = siblings.find(s => {
+    const box = s.getBoundingClientRect();
+    return clientY < box.top + box.height / 2;
+  });
+
+  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
+
+  if (next) list.insertBefore(dragPlaceholder, next);
+  else list.appendChild(dragPlaceholder);
+
+  if (isSameList) {
+    const prev = dragPlaceholder.previousElementSibling;
+    const nxt  = dragPlaceholder.nextElementSibling;
+    if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
+  }
+}
+
+function handleAutoScroll(clientX, clientY) {
+  const main = document.getElementById('editorMain');
+  if (!main) return;
+  const rect = main.getBoundingClientRect();
   const zoneH = 80;
-  const y = e.clientY;
+  const inX = clientX >= rect.left && clientX <= rect.right;
+  const topY    = Math.max(0, rect.top);
+  const bottomY = Math.min(window.innerHeight, rect.bottom);
   const st = getScrollState();
 
-  if (!st.atTop && y < zoneH) {
+  if (inX && !st.atTop && clientY >= topY && clientY < topY + zoneH) {
     startAutoScroll(-1);
-  } else if (!st.atBottom && y > window.innerHeight - zoneH) {
+  } else if (inX && !st.atBottom && clientY <= bottomY && clientY > bottomY - zoneH) {
     startAutoScroll(+1);
   } else {
     stopAutoScroll();
   }
 }
 
-function onCardDragEnd(e) {
-  console.log('[DRAG] ➜ dragend fired');
-  e.currentTarget.classList.remove('dragging');
-  e.currentTarget.removeAttribute('draggable');
+function onDocPointerUp(e) {
+  // If only pending (never crossed threshold), just cancel
+  if (dragPending && !dragState) {
+    cleanupDrag();
+    return;
+  }
+  if (!dragState) { cleanupDrag(); return; }
+
+  // Commit the drop based on placeholder position
+  if (dragPlaceholder && dragPlaceholder.parentNode) {
+    commitDrop();
+  }
+  finishDrag();
+}
+
+function onDocKeyDown(e) {
+  if (e.key === 'Escape' && dragState) {
+    finishDrag(true);
+  }
+}
+
+function commitDrop() {
+  if (dragState.type === 'section') {
+    const area = dragPlaceholder.parentNode;
+    if (!area || !area.id === 'sectionsArea' && !area.classList.contains('sections-area')) {
+      // fallback: find target by placeholder's next sibling
+    }
+    const children = [...area.children];
+    const phIdx = children.indexOf(dragPlaceholder);
+    let targetId = null;
+    for (let i = phIdx + 1; i < children.length; i++) {
+      const c = children[i];
+      if (c.classList.contains('section-card') && !c.classList.contains('dragging')) {
+        targetId = c.dataset.sectionId; break;
+      }
+    }
+    const srcIdx = activePage.sections.findIndex(s => s.id === dragState.id);
+    if (srcIdx === -1) return;
+    const [moved] = activePage.sections.splice(srcIdx, 1);
+    if (targetId) {
+      const ti = activePage.sections.findIndex(s => s.id === targetId);
+      activePage.sections.splice(ti, 0, moved);
+    } else {
+      activePage.sections.push(moved);
+    }
+    markUnsaved(); debounceSave();
+  } else {
+    const list = dragPlaceholder.parentNode;
+    if (!list || !list.classList.contains('components-list')) return;
+    const toSectionId = list.dataset.sectionId;
+    const children = [...list.children];
+    const phIdx = children.indexOf(dragPlaceholder);
+    let targetCompId = null;
+    for (let i = phIdx + 1; i < children.length; i++) {
+      const c = children[i];
+      if (c.classList.contains('component-card') && !c.classList.contains('dragging')) {
+        targetCompId = c.dataset.compId; break;
+      }
+    }
+    const fromSection = activePage.sections.find(s => s.id === dragState.fromSectionId);
+    const toSection   = activePage.sections.find(s => s.id === toSectionId);
+    if (!fromSection || !toSection) return;
+    const srcIdx = fromSection.components.findIndex(c => c.id === dragState.id);
+    if (srcIdx === -1) return;
+    const [moved] = fromSection.components.splice(srcIdx, 1);
+    if (targetCompId) {
+      const ti = toSection.components.findIndex(c => c.id === targetCompId);
+      toSection.components.splice(ti, 0, moved);
+    } else {
+      toSection.components.push(moved);
+    }
+    markUnsaved(); debounceSave();
+  }
+}
+
+function finishDrag(canceled) {
+  if (dragState?.card) dragState.card.classList.remove('dragging');
   if (dragPlaceholder?.parentNode) dragPlaceholder.remove();
   dragPlaceholder = null;
   dragState = null;
@@ -1140,8 +2099,16 @@ function onCardDragEnd(e) {
   document.body.classList.remove('is-dragging');
   removeScrollZones();
   stopAutoScroll();
-  document.removeEventListener('dragover', onGlobalDragOver);
-  console.log('[DRAG] cleanup done');
+  cleanupDrag();
+
+  if (!canceled) renderEditor();
+}
+
+function cleanupDrag() {
+  dragPending = null;
+  document.removeEventListener('pointermove', onDocPointerMove);
+  document.removeEventListener('pointerup',   onDocPointerUp);
+  document.removeEventListener('keydown',     onDocKeyDown);
 }
 
 function getScrollContainer() {
@@ -1170,18 +2137,13 @@ function getScrollState() {
 }
 
 function createScrollZones() {
-  console.log('[ZONE] createScrollZones() called');
   removeScrollZones();
-
-  const st = getScrollState();
-  console.log('[ZONE] scroll container is window?', st.isWindow, '| scrollTop=', st.scrollTop, 'clientH=', st.clientHeight, 'scrollH=', st.scrollHeight, 'atTop=', st.atTop, 'atBottom=', st.atBottom);
-
   const main = document.getElementById('editorMain');
   const rect = main ? main.getBoundingClientRect() : null;
-  // Clamp horizontal placement to viewport
-  const left  = rect ? Math.max(0, rect.left) : 0;
-  const width = rect ? Math.min(window.innerWidth - left, rect.width) : window.innerWidth;
-  console.log('[ZONE] placing zones at left=', left, 'width=', width);
+  const left     = rect ? Math.max(0, rect.left) : 0;
+  const width    = rect ? Math.min(window.innerWidth - left, rect.width) : window.innerWidth;
+  const topY     = rect ? Math.max(0, rect.top) : 0;
+  const bottomY  = rect ? Math.min(window.innerHeight, rect.bottom) : window.innerHeight;
 
   const zoneH = 80;
 
@@ -1189,8 +2151,8 @@ function createScrollZones() {
   top.id = 'scrollZoneTop';
   top.className = 'scroll-zone top';
   Object.assign(top.style, {
-    left: left + 'px',
-    top:  '0px',               // viewport top
+    left:  left + 'px',
+    top:   topY + 'px',
     width: width + 'px',
     height: zoneH + 'px',
   });
@@ -1201,21 +2163,15 @@ function createScrollZones() {
   bot.id = 'scrollZoneBottom';
   bot.className = 'scroll-zone bottom';
   Object.assign(bot.style, {
-    left: left + 'px',
-    top:  (window.innerHeight - zoneH) + 'px',  // viewport bottom
+    left:  left + 'px',
+    top:   (bottomY - zoneH) + 'px',
     width: width + 'px',
     height: zoneH + 'px',
   });
   bot.innerHTML = '<span class="arrow">▼</span>';
   document.body.appendChild(bot);
 
-  [top, bot].forEach(z => {
-    z.addEventListener('dragover', e => e.preventDefault());
-    z.addEventListener('drop',     e => e.preventDefault());
-  });
-
   updateScrollZonesVisibility();
-  console.log('[ZONE] after visibility: top.display=', top.style.display, 'bot.display=', bot.style.display);
 }
 
 function removeScrollZones() {
@@ -1255,131 +2211,6 @@ function stopAutoScroll() {
   if (autoScrollTimer) { clearInterval(autoScrollTimer); autoScrollTimer = null; }
 }
 
-function onSectionsDragOver(e) {
-  if (!dragState || dragState.type !== 'section' || !dragPlaceholder) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-
-  const area = e.currentTarget;
-  const draggingCard = area.querySelector(':scope > .section-card.dragging');
-  const siblings = [...area.querySelectorAll(':scope > .section-card:not(.dragging)')];
-  const y = e.clientY;
-  const next = siblings.find(s => {
-    const box = s.getBoundingClientRect();
-    return y < box.top + box.height / 2;
-  });
-
-  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
-
-  if (next) area.insertBefore(dragPlaceholder, next);
-  else {
-    const addBtn = area.querySelector(':scope > .add-section-btn');
-    if (addBtn) area.insertBefore(dragPlaceholder, addBtn);
-    else area.appendChild(dragPlaceholder);
-  }
-
-  // Hide placeholder if it would drop into its own spot (right above/below)
-  if (draggingCard) {
-    const prev = dragPlaceholder.previousElementSibling;
-    const nxt  = dragPlaceholder.nextElementSibling;
-    if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
-  }
-}
-
-function onSectionsDrop(e) {
-  if (!dragState || dragState.type !== 'section' || !dragPlaceholder) return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (!dragPlaceholder.parentNode) return; // hidden placeholder = no-op drop
-
-  // Determine target index: find section immediately after placeholder
-  const area = e.currentTarget;
-  const children = [...area.children];
-  const phIdx = children.indexOf(dragPlaceholder);
-  let targetId = null;
-  for (let i = phIdx + 1; i < children.length; i++) {
-    const c = children[i];
-    if (c.classList.contains('section-card') && !c.classList.contains('dragging')) {
-      targetId = c.dataset.sectionId; break;
-    }
-  }
-
-  const srcIdx = activePage.sections.findIndex(s => s.id === dragState.id);
-  if (srcIdx === -1) return;
-  const [moved] = activePage.sections.splice(srcIdx, 1);
-  if (targetId) {
-    const ti = activePage.sections.findIndex(s => s.id === targetId);
-    activePage.sections.splice(ti, 0, moved);
-  } else {
-    activePage.sections.push(moved);
-  }
-  markUnsaved(); debounceSave();
-  renderEditor();
-}
-
-function onComponentsDragOver(e) {
-  if (!dragState || dragState.type !== 'component' || !dragPlaceholder) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-
-  const list = e.currentTarget;
-  // Only hide if we're hovering over the same list the item was dragged from
-  const draggingCard = document.querySelector('.component-card.dragging');
-  const isSameList = draggingCard && draggingCard.parentElement === list;
-
-  const siblings = [...list.querySelectorAll(':scope > .component-card:not(.dragging)')];
-  const y = e.clientY;
-  const next = siblings.find(s => {
-    const box = s.getBoundingClientRect();
-    return y < box.top + box.height / 2;
-  });
-
-  if (dragPlaceholder.parentNode) dragPlaceholder.remove();
-
-  if (next) list.insertBefore(dragPlaceholder, next);
-  else list.appendChild(dragPlaceholder);
-
-  if (isSameList) {
-    const prev = dragPlaceholder.previousElementSibling;
-    const nxt  = dragPlaceholder.nextElementSibling;
-    if (prev === draggingCard || nxt === draggingCard) dragPlaceholder.remove();
-  }
-}
-
-function onComponentsDrop(e) {
-  if (!dragState || dragState.type !== 'component' || !dragPlaceholder) return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (!dragPlaceholder.parentNode) return; // hidden placeholder = no-op drop
-
-  const list = e.currentTarget;
-  const toSectionId = list.dataset.sectionId;
-  const children = [...list.children];
-  const phIdx = children.indexOf(dragPlaceholder);
-  let targetCompId = null;
-  for (let i = phIdx + 1; i < children.length; i++) {
-    const c = children[i];
-    if (c.classList.contains('component-card') && !c.classList.contains('dragging')) {
-      targetCompId = c.dataset.compId; break;
-    }
-  }
-
-  const fromSection = activePage.sections.find(s => s.id === dragState.fromSectionId);
-  const toSection   = activePage.sections.find(s => s.id === toSectionId);
-  if (!fromSection || !toSection) return;
-
-  const srcIdx = fromSection.components.findIndex(c => c.id === dragState.id);
-  if (srcIdx === -1) return;
-  const [moved] = fromSection.components.splice(srcIdx, 1);
-  if (targetCompId) {
-    const ti = toSection.components.findIndex(c => c.id === targetCompId);
-    toSection.components.splice(ti, 0, moved);
-  } else {
-    toSection.components.push(moved);
-  }
-  markUnsaved(); debounceSave();
-  renderEditor();
-}
 
 /* ═══ MUTATIONS ═══ */
 function markUnsaved() { unsaved = true; }
@@ -1689,6 +2520,7 @@ document.addEventListener("click", (e) => {
     if (secRes.ok) SECTIONS = await secRes.json();
   } catch (_) {}
   loadPages();
+  buildFloatingPanelButtons();
   showCourseOverview();
 })();
 
