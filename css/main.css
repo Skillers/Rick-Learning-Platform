@@ -800,28 +800,25 @@ code {
 .spacer-block { width: 100%; }
 .spacer-line {
   border: none; margin: 0; width: 100%;
+  border-top: 2px solid var(--border2);
 }
-.spacer-dotted {
-  border-top: 2px dotted var(--border2);
+.spacer-line.spacer-dotted {
+  border-top-style: dotted;
 }
-.spacer-double_dotted {
-  border-top: 2px dotted var(--border2);
+.spacer-line.spacer-double_dotted {
+  border-top-style: dotted;
   border-bottom: 2px dotted var(--border2);
   height: 6px;
 }
-.spacer-dashed {
-  border-top: 2px dashed var(--border2);
+.spacer-line.spacer-dashed {
+  border-top-style: dashed;
 }
-.spacer-double_dashed {
-  border-top: 2px dashed var(--border2);
+.spacer-line.spacer-double_dashed {
+  border-top-style: dashed;
   border-bottom: 2px dashed var(--border2);
   height: 6px;
 }
-.spacer-line {
-  border-top: 2px solid var(--border2);
-}
-.spacer-double_line {
-  border-top: 2px solid var(--border2);
+.spacer-line.spacer-double_line {
   border-bottom: 2px solid var(--border2);
   height: 6px;
 }

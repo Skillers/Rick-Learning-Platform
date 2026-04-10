@@ -4,36 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lesontwerper — ICT Leerlijn Admin</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
   <style>
-    /* ── Base ── */
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    :root {
-      --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --bg4:#21262d;
-      --border:#30363d; --border2:#444c56;
-      --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
-      --accent:#2ea043; --accent2:#3fb950;
-      --blue:#388bfd; --blue2:#58a6ff;
-      --purple:#bc8cff; --orange:#f78166; --orange2:#ffa657;
-      --yellow:#e3b341; --red:#f85149;
-      --radius:8px; --radius2:12px;
-    }
-    [data-theme="light"] {
-      --bg:#f6f8fa; --bg2:#fff; --bg3:#f0f2f5; --bg4:#e8eaed;
-      --border:#d0d7de; --border2:#b1bac4;
-      --text:#1f2328; --text2:#57606a; --text3:#8c959f;
-      --accent:#1a7f37; --accent2:#2da44e;
-      --blue:#0969da; --blue2:#0550ae;
-      --purple:#8250df; --orange:#bc4c00; --orange2:#953800;
-      --yellow:#9a6700; --red:#cf222e;
-    }
-    body { font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; line-height:1.5; }
-    button { font-family:'Space Grotesk',sans-serif; cursor:pointer; }
+    /* ── Admin-specific overrides ── */
+    button { cursor:pointer; }
     input,select,textarea { font-family:'Space Grotesk',sans-serif; }
 
     /* ── Layout ── */
-    .admin-layout { display:flex; min-height:100vh; }
+    .admin-layout { display:flex; min-height:100vh; width:100%; }
 
     /* ── Left panel: structure ── */
     .structure-panel {
@@ -81,55 +59,64 @@
     .icon-btn:hover { background:var(--bg4); color:var(--text); border-color:var(--border); }
 
     /* ── Structure tree ── */
-    .tree-subject { margin-bottom:2px; }
-    .tree-subject-header {
+    .tree-row {
       display:flex; align-items:center; gap:6px;
-      padding:6px 18px; cursor:pointer; user-select:none;
-      font-size:10px; font-weight:600; color:var(--text3);
-      letter-spacing:1px; text-transform:uppercase;
+      padding:5px 12px; cursor:pointer; transition:background .12s;
+      position:relative; white-space:nowrap;
     }
-    .tree-subject-header:hover { color:var(--text2); }
-    .tree-chevron { font-size:9px; transition:transform .15s; }
-    .tree-subject.open .tree-chevron { transform:rotate(90deg); }
+    .tree-row:hover { background:var(--bg3); }
+    .tree-row.active { background:var(--bg4); }
 
-    .tree-course { display:none; }
-    .tree-subject.open .tree-course { display:block; }
+    /* Indentation levels */
+    .tree-lvl-0 { padding-left:14px; }
+    .tree-lvl-1 { padding-left:28px; }
+    .tree-lvl-2 { padding-left:42px; }
+    .tree-lvl-3 { padding-left:56px; }
 
-    .tree-course-item {
-      display:flex; align-items:center; gap:8px;
-      padding:7px 18px 7px 28px; cursor:pointer;
-      transition:background .12s; border-radius:0;
+    /* Subject row */
+    .tree-row.tree-subject {
+      font-size:11px; font-weight:700; color:var(--text2);
+      letter-spacing:.8px; text-transform:uppercase;
+      padding-top:10px; padding-bottom:4px; cursor:default;
     }
-    .tree-course-item:hover { background:var(--bg3); }
-    .tree-course-item.active { background:var(--bg3); }
-    .tree-course-icon { font-size:12px; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:.5px; flex-shrink:0; }
-    .tree-course-name { font-size:13px; font-weight:500; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tree-row.tree-subject:hover { background:transparent; }
 
-    .tree-pages { display:none; }
-    .tree-course-item.open + .tree-pages { display:block; }
-
-    .tree-page-item {
-      display:flex; align-items:center; gap:6px;
-      padding:5px 18px 5px 44px; cursor:pointer; transition:background .12s;
+    /* Course row */
+    .tree-row.tree-course { font-size:13px; font-weight:500; }
+    .tree-course-icon {
+      font-size:11px; font-weight:700; font-family:'JetBrains Mono',monospace;
+      letter-spacing:.5px; flex-shrink:0; min-width:20px;
     }
-    .tree-page-item:hover { background:var(--bg4); }
-    .tree-page-item.active { background:var(--bg4); }
-    .tree-page-dot { width:6px; height:6px; border-radius:50%; background:var(--border2); flex-shrink:0; }
-    .tree-page-item.active .tree-page-dot { background:var(--blue); }
-    .tree-page-name { font-size:12px; color:var(--text2); flex:1; }
-    .tree-page-item.active .tree-page-name { color:var(--text); }
-    .tree-page-type { font-size:10px; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono',monospace; flex-shrink:0; }
+    .tree-course-name { flex:1; overflow:hidden; text-overflow:ellipsis; }
 
-    /* ── Add buttons in tree ── */
-    .tree-add-btn {
-      display:flex; align-items:center; gap:5px;
-      padding:4px 18px 4px 44px; font-size:11px;
-      color:var(--text3); cursor:pointer; transition:color .12s;
-      background:transparent; border:none; width:100%; text-align:left;
+    /* Page row */
+    .tree-row.tree-page { font-size:12px; color:var(--text2); }
+    .tree-row.tree-page.active .tree-page-name { color:var(--text); font-weight:500; }
+    .tree-row.tree-section.active .tree-section-name { color:var(--accent); font-weight:500; }
+    .tree-row.tree-section.active .tree-section-dash { color:var(--accent); }
+    .tree-page-dot { width:5px; height:5px; border-radius:50%; background:var(--border2); flex-shrink:0; }
+    .tree-row.tree-page.active .tree-page-dot { background:var(--blue); }
+    .tree-page-name { flex:1; overflow:hidden; text-overflow:ellipsis; }
+    .tree-page-type {
+      font-size:9px; padding:1px 5px; border-radius:3px;
+      font-family:'JetBrains Mono',monospace; flex-shrink:0;
     }
-    .tree-add-btn:hover { color:var(--accent2); }
-    .tree-add-page-btn { padding-left:28px; }
-    .tree-add-page-btn:hover { color:var(--blue2); }
+
+    /* Section row */
+    .tree-row.tree-section { font-size:11px; color:var(--text3); }
+    .tree-section-dash { color:var(--border2); flex-shrink:0; font-size:10px; }
+    .tree-section-name { flex:1; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Hover add buttons */
+    .tree-hover-add {
+      display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      font-size:10px; color:var(--text3); background:var(--bg3);
+      border:1px solid var(--border); border-radius:4px;
+      padding:1px 6px; cursor:pointer; transition:all .12s;
+      white-space:nowrap;
+    }
+    .tree-row:hover .tree-hover-add { display:inline-flex; }
+    .tree-hover-add:hover { color:var(--accent2); border-color:var(--accent); background:var(--bg4); }
 
     /* ── Editor main area ── */
     .editor-main { flex:1; overflow-y:auto; }
@@ -156,22 +143,24 @@
     .page-meta-full { grid-column:1/-1; }
 
     .field-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; display:block; }
-    .field-input {
-      width:100%; background:var(--bg3); border:1px solid var(--border);
-      border-radius:var(--radius); color:var(--text); font-size:13px;
-      padding:8px 12px; transition:border-color .15s; outline:none;
+    .field-input, .field-select, .comp-textarea, .comp-input, .comp-code-area, .comp-meta-select {
+      background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+      color:var(--text); font-size:13px; padding:8px 12px;
+      outline:none; transition: border-color .2s, box-shadow .2s;
     }
-    .field-input:focus { border-color:var(--border2); }
+    .field-input:hover, .field-select:hover, .comp-textarea:hover,
+    .comp-input:hover, .comp-code-area:hover, .comp-meta-select:hover { border-color: var(--blue); }
+    .field-input:focus, .field-select:focus, .comp-textarea:focus,
+    .comp-input:focus, .comp-code-area:focus, .comp-meta-select:focus {
+      border-color: var(--blue); box-shadow: 0 0 0 2px rgba(9,105,218,.15);
+    }
+    .field-input, .comp-input { width:100%; }
     .field-select {
-      width:100%; background:var(--bg3); border:1px solid var(--border);
-      border-radius:var(--radius); color:var(--text); font-size:13px;
-      padding:8px 12px; outline:none; cursor:pointer;
-      appearance:none;
+      width:100%; cursor:pointer; appearance:none;
       background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b949e' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
       background-repeat:no-repeat; background-position:right 12px center;
       padding-right:32px;
     }
-    .field-select:focus { border-color:var(--border2); }
 
     /* ── Section cards ── */
     .sections-area { display:flex; flex-direction:column; gap:0; }
@@ -191,12 +180,15 @@
     .section-card-header:active { cursor:grabbing; }
     .section-drag-handle { color:var(--text3); font-size:14px; cursor:grab; padding:2px; }
     .section-title-input {
-      flex:1; background:transparent; border:none; outline:none;
-      color:var(--text); font-size:14px; font-weight:600;
+      flex:0 1 50%; background:var(--bg2); border:1px solid var(--border); border-radius:6px;
+      outline:none; color:var(--text); font-size:14px; font-weight:600;
       font-family:'Space Grotesk',sans-serif;
+      padding:6px 10px; transition: border-color .2s, box-shadow .2s;
     }
+    .section-title-input:hover { border-color: var(--blue); }
+    .section-title-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(9,105,218,.15); }
     .section-title-input::placeholder { color:var(--text3); font-weight:400; }
-    .section-actions { display:flex; gap:4px; align-items:center; }
+    .section-actions { display:flex; gap:4px; align-items:center; margin-left:auto; }
 
     /* ── Component list ── */
     .components-list { padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
@@ -220,35 +212,26 @@
     .comp-video   { background:rgba(247,129,102,.15); color:#ffa657; }
     .comp-image   { background:rgba(227,179,65,.15);  color:#e3b341; }
     .comp-quiz    { background:rgba(248,81,73,.15);   color:#f85149; }
+    .comp-divider { background:rgba(139,148,158,.15); color:#8b949e; }
 
     .component-body { padding:10px 12px; }
 
     .comp-textarea {
-      width:100%; background:transparent; border:none; outline:none;
-      color:var(--text); font-size:13px; line-height:1.6;
-      font-family:'Space Grotesk',sans-serif; resize:vertical;
-      min-height:72px;
+      width:100%; font-family:'Space Grotesk',sans-serif;
+      line-height:1.6; resize:vertical; min-height:72px;
     }
     .comp-code-area {
-      width:100%; background:transparent; border:none; outline:none;
-      color:#c9d1d9; font-size:12px; line-height:1.6;
-      font-family:'JetBrains Mono',monospace; resize:vertical;
-      min-height:100px;
+      width:100%; color:#c9d1d9; font-size:12px;
+      font-family:'JetBrains Mono',monospace; line-height:1.6;
+      resize:vertical; min-height:100px;
     }
-    .comp-input {
-      width:100%; background:var(--bg2); border:1px solid var(--border);
-      border-radius:var(--radius); color:var(--text); font-size:13px;
-      padding:6px 10px; outline:none; margin-bottom:6px;
-      font-family:'Space Grotesk',sans-serif;
-    }
-    .comp-input:focus { border-color:var(--border2); }
+    .comp-input { margin-bottom:6px; font-family:'Space Grotesk',sans-serif; }
 
     .comp-meta-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
     .comp-meta-label { font-size:11px; color:var(--text3); white-space:nowrap; }
     .comp-meta-select {
-      flex:1; background:var(--bg2); border:1px solid var(--border);
-      border-radius:var(--radius); color:var(--text); font-size:12px;
-      padding:4px 8px; outline:none; font-family:'JetBrains Mono',monospace;
+      flex:1; font-size:12px; padding:4px 8px;
+      font-family:'JetBrains Mono',monospace;
     }
 
     .callout-style-row { display:flex; gap:6px; margin-bottom:8px; }
@@ -262,8 +245,6 @@
     .callout-style-btn.tip.active    { background:rgba(56,139,253,.12); }
     .callout-style-btn.warning { color:#ffa657; }
     .callout-style-btn.warning.active { background:rgba(247,129,102,.12); }
-    .callout-style-btn.success { color:#3fb950; }
-    .callout-style-btn.success.active { background:rgba(46,160,67,.12); }
 
     /* ── Add component toolbar ── */
     .add-component-bar {
@@ -275,10 +256,10 @@
     .add-comp-btn {
       display:flex; align-items:center; gap:4px;
       padding:4px 10px; border-radius:5px; font-size:11px; font-weight:500;
-      border:1px solid var(--border); background:transparent; cursor:pointer;
+      border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer;
       transition:all .12s; font-family:'Space Grotesk',sans-serif;
     }
-    .add-comp-btn:hover { background:var(--bg4); border-color:var(--border2); }
+    .add-comp-btn:hover { background:var(--bg4); border-color:var(--border2); color:var(--text); }
 
     /* ── Add section btn ── */
     .add-section-btn {
@@ -303,6 +284,28 @@
     .type-quiz     { background:rgba(188,140,255,.15); color:#d2a8ff; }
     .type-project  { background:rgba(247,129,102,.15); color:#ffa657; }
 
+    /* ── Modal ── */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transition:opacity .2s;
+    }
+    .modal-overlay.visible { opacity:1; }
+    .modal-box {
+      background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2);
+      width:420px; max-width:90vw; box-shadow:0 16px 48px rgba(0,0,0,.3);
+    }
+    .modal-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px; border-bottom:1px solid var(--border);
+    }
+    .modal-title { font-size:15px; font-weight:600; }
+    .modal-body { padding:20px; }
+    .modal-footer {
+      display:flex; justify-content:flex-end; gap:8px;
+      padding:14px 20px; border-top:1px solid var(--border);
+    }
+
     /* ── Drag indicator ── */
     .drag-over { border:2px dashed var(--blue) !important; background:rgba(56,139,253,.04) !important; }
 
@@ -315,10 +318,10 @@
 <div class="admin-layout">
 
   <!-- ══════════════════ STRUCTURE PANEL ══════════════════ -->
-  <aside class="structure-panel">
+  <aside class="structure-panel" id="structurePanel">
     <div class="panel-header">
-      <span class="panel-header-title">Structuur</span>
-      <button class="btn btn-sm btn-ghost" onclick="showNewPageModal()" title="Nieuwe pagina">+ Pagina</button>
+      <span class="panel-header-title" id="panelTitle">Structuur</span>
+      <button class="btn btn-sm btn-ghost" id="panelBackBtn" style="display:none" onclick="backToCourseOverview()">← Overzicht</button>
     </div>
     <div class="structure-scroll" id="structureTree"></div>
   </aside>
@@ -332,13 +335,27 @@
         <div class="brand-chip">ADMIN</div>
         <div>
           <div class="topbar-title" id="topbarTitle">Lesontwerper</div>
-          <div class="topbar-sub" id="topbarSub">Selecteer een pagina links</div>
+          <div class="topbar-sub" id="topbarSub">Selecteer een cursus</div>
         </div>
       </div>
       <div class="topbar-right">
-        <span class="save-indicator saved" id="saveIndicator">✓ Opgeslagen</span>
+        <a href="./" class="btn btn-ghost btn-sm">← Studentenview</a>
         <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
-        <a href="index.html" class="btn btn-primary btn-sm">← Terug naar studentenview</a>
+        <button class="notif-btn" title="Meldingen">🔔</button>
+        <div class="avatar-wrap">
+          <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
+               onclick="toggleAvatarMenu()">??</div>
+          <div class="avatar-menu" id="avatarMenu">
+            <div class="avatar-menu-info">
+              <div class="avatar-menu-name" id="avatarMenuName">—</div>
+              <div class="avatar-menu-sub" id="avatarMenuSub">admin</div>
+            </div>
+            <div class="avatar-menu-divider"></div>
+            <button class="avatar-menu-item" onclick="window.location='./'">Naar studentenview</button>
+            <div class="avatar-menu-divider"></div>
+            <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -357,7 +374,7 @@
 </div>
 
 <!-- ═══════════════════ NEW PAGE MODAL ═══════════════════ -->
-<div class="modal-overlay" id="newPageModal" onclick="if(event.target===this)closeNewPageModal()">
+<div class="modal-overlay" id="newPageModal" style="display:none" onclick="if(event.target===this)closeNewPageModal()">
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">Nieuwe pagina</span>
@@ -399,24 +416,27 @@
 
 <script>
 /* ═══════════════════════════════════════════════
-   DATA MODEL
-   All pages are stored in localStorage under
-   "ict-admin-pages" as an array of page objects.
-   On first load, demo pages are seeded.
+   DATA MODEL — fetched from API
 ═══════════════════════════════════════════════ */
 
+let SUBJECTS = [];
 let COURSES = [];
+let PAGES = [];
+let SECTIONS = [];
+let activeCourse = null;
+let activePageId = null;
 
 const COMP_TYPES = [
-  { type:"text",    label:"Tekst",     icon:"T" },
-  { type:"code",    label:"Code",      icon:"<>" },
-  { type:"callout", label:"Tip/Waarschuwing", icon:"!" },
-  { type:"video",   label:"Video",     icon:"▶" },
-  { type:"quiz",    label:"Vraag",     icon:"?" },
+  { type:"text",       label:"Tekst",            icon:"T" },
+  { type:"code",       label:"Code",             icon:"<>" },
+  { type:"callout",    label:"Tip/Waarschuwing", icon:"!" },
+  { type:"multimedia", label:"Multimedia",       icon:"▶" },
+  { type:"quiz",       label:"Vraag",            icon:"?" },
+  { type:"divider",    label:"Divider",          icon:"—" },
 ];
 
 const TYPE_LABELS = {
-  theory:   { label:"theorie",  cls:"type-lesson" },
+  lesson:   { label:"theorie",  cls:"type-lesson" },
   exercise: { label:"oefening", cls:"type-exercise" },
   quiz:     { label:"quiz",     cls:"type-quiz" },
   project:  { label:"project",  cls:"type-project" },
@@ -432,49 +452,7 @@ function loadPages() {
     const raw = localStorage.getItem("ict-admin-pages");
     if (raw) { pages = JSON.parse(raw); return; }
   } catch {}
-
-  // Seed with demo pages built from BUILTIN data
-  pages = [
-    makePage("python", "Introductie Python",  "theory",   50, [
-      makeSection("Wat is Python?", [
-        makeComp("text", "Python is een van de populairste programmeertalen. Het is leesbaar, veelzijdig en perfect als eerste taal."),
-        makeComp("callout", "Data science, web development (Django/Flask), scripting, AI/ML en games.", {style:"success", title:"✅ Toepassingen"}),
-      ]),
-      makeSection("Je eerste programma", [
-        makeComp("text", "Maak een bestand hallo.py en typ het volgende:"),
-        makeComp("code", 'print("Hallo, wereld!")', {language:"python"}),
-      ]),
-    ]),
-    makePage("python", "Loops & iteratie", "exercise", 60, [
-      makeSection("Introductie", [
-        makeComp("text", "In Python gebruik je loops om code herhaaldelijk uit te voeren. Er zijn twee soorten: de for-loop en de while-loop."),
-        makeComp("callout", "Gebruik een for-loop als je weet hoeveel keer. Gebruik een while-loop als je herhaalt totdat iets verandert.", {style:"tip", title:"💡 Wanneer welke?"}),
-      ]),
-      makeSection("For-loop", [
-        makeComp("text", "De for-loop itereert over een reeks waarden via range()."),
-        makeComp("code", "# Print getallen 1 tot 5\nfor i in range(1, 6):\n    print(f\"Getal: {i}\")", {language:"python"}),
-      ]),
-      makeSection("While-loop", [
-        makeComp("text", "De while-loop blijft draaien zolang een conditie waar is."),
-        makeComp("code", "teller = 0\nwhile teller < 5:\n    print(teller)\n    teller += 1", {language:"python"}),
-        makeComp("callout", "Als de conditie nooit False wordt stopt je programma nooit. Stop met Ctrl+C.", {style:"warning", title:"⚠️ Oneindige loop"}),
-      ]),
-      makeSection("Opdrachten", [
-        makeComp("quiz", "Schrijf een for-loop die alle even getallen van 2 t/m 20 print.", {label:"🎯 Opdracht 1"}),
-        makeComp("quiz", "Tel op: 1+2+3... Stop zodra de som > 50. Print het eindresultaat.", {label:"🎯 Opdracht 2"}),
-      ]),
-    ]),
-    makePage("unity", "C# Scripting basics", "exercise", 80, [
-      makeSection("MonoBehaviour basis", [
-        makeComp("text", "In Unity schrijf je gedrag voor GameObjects met C# scripts die erven van MonoBehaviour."),
-        makeComp("code", "using UnityEngine;\npublic class MijnScript : MonoBehaviour {\n    void Start()  { Debug.Log(\"Gestart!\"); }\n    void Update() { /* elke frame */ }\n}", {language:"csharp"}),
-      ]),
-      makeSection("Beweging", [
-        makeComp("text", "Gebruik transform.position met Time.deltaTime voor framerate-onafhankelijke beweging."),
-        makeComp("callout", "Vergeet Time.deltaTime nooit bij beweging — anders is je game framerate-afhankelijk.", {style:"warning", title:"⚠️ Time.deltaTime"}),
-      ]),
-    ]),
-  ];
+  pages = [];
   savePages();
 }
 
@@ -485,7 +463,6 @@ function savePages() {
 
 /* ── Factories ── */
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-
 function makePage(courseId, title, type, xp, sections=[]) {
   return { id:uid(), courseId, title, type, xp, sections };
 }
@@ -509,87 +486,209 @@ function applyTheme(t) {
   if(btn) btn.textContent=t==="dark"?"🌙":"☀️";
 }
 
-/* ═══ STRUCTURE TREE ═══ */
-function buildTree() {
-  const tree = document.getElementById("structureTree");
-  const sections = {};
+/* ═══ COURSE OVERVIEW (main area on load) ═══ */
+function showCourseOverview() {
+  activeCourse = null;
+  activePageId = null;
+  activePage = null;
+
+  // Hide sidebar back button, show title
+  document.getElementById("panelBackBtn").style.display = "none";
+  document.getElementById("panelTitle").textContent = "Structuur";
+  document.getElementById("structureTree").innerHTML = `
+    <div style="padding:24px 18px;text-align:center;color:var(--text3);font-size:12px;">
+      Selecteer een cursus in het overzicht om de structuur te bekijken.
+    </div>`;
+
+  document.getElementById("topbarTitle").textContent = "Lesontwerper";
+  document.getElementById("topbarSub").textContent = "Selecteer een cursus";
+
+  const main = document.getElementById("editorMain");
+  let html = '<div class="page-editor">';
+
+  // Group courses by subject
+  const bySubject = {};
   COURSES.forEach(c => {
-    if (!sections[c.section]) sections[c.section] = [];
-    sections[c.section].push(c);
+    const subj = SUBJECTS.find(s => s.id == c.subject_id);
+    const name = subj ? subj.name : 'Overig';
+    if (!bySubject[name]) bySubject[name] = [];
+    bySubject[name].push(c);
   });
 
-  tree.innerHTML = "";
-  Object.entries(sections).forEach(([sec, courses]) => {
-    const subj = document.createElement("div");
-    subj.className = "tree-subject open";
-    subj.innerHTML = `<div class="tree-subject-header" onclick="this.parentElement.classList.toggle('open')"><span class="tree-chevron">▶</span>${sec}</div>`;
+  for (const [subjName, courses] of Object.entries(bySubject)) {
+    html += `<div style="margin-bottom:28px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;padding-left:4px;">${esc(subjName)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">`;
 
-    const courseWrap = document.createElement("div");
-    courseWrap.className = "tree-course";
-
-    courses.forEach(course => {
-      const courseItem = document.createElement("div");
-      courseItem.className = "tree-course-item";
-      courseItem.dataset.courseId = course.id;
-      const coursePages = pages.filter(p => p.courseId === course.id);
-
-      courseItem.innerHTML = `<span class="tree-course-icon">${course.icon}</span><span class="tree-course-name">${course.name}</span><span style="font-size:11px;color:var(--text3)">${coursePages.length}</span>`;
-      courseItem.addEventListener("click", () => {
-        courseItem.classList.toggle("open");
-        pagesDiv.style.display = courseItem.classList.contains("open") ? "block" : "none";
-      });
-
-      const pagesDiv = document.createElement("div");
-      pagesDiv.className = "tree-pages";
-      pagesDiv.style.display = "none";
-
-      coursePages.forEach(page => {
-        const pi = document.createElement("div");
-        pi.className = "tree-page-item" + (activePage?.id===page.id?" active":"");
-        pi.dataset.pageId = page.id;
-        const tl = TYPE_LABELS[page.type]||TYPE_LABELS.theory;
-        pi.innerHTML = `<div class="tree-page-dot"></div><span class="tree-page-name">${page.title}</span><span class="tree-page-type ${tl.cls}">${tl.label}</span>`;
-        pi.addEventListener("click", () => openPage(page.id));
-        pagesDiv.appendChild(pi);
-      });
-
-      // Add page button
-      const addBtn = document.createElement("button");
-      addBtn.className = "tree-add-btn";
-      addBtn.innerHTML = `<span style="font-size:10px">＋</span> Les toevoegen`;
-      addBtn.onclick = (e) => { e.stopPropagation(); prefillNewPage(course.id); showNewPageModal(); };
-      pagesDiv.appendChild(addBtn);
-
-      courseWrap.appendChild(courseItem);
-      courseWrap.appendChild(pagesDiv);
+    courses.forEach(c => {
+      const pageCount = PAGES.filter(p => p.course_id == c.id).length;
+      html += `
+        <div class="page-meta-card" style="cursor:pointer;transition:border-color .15s,transform .1s;"
+             onclick="selectCourse(${c.id})"
+             onmouseover="this.style.borderColor='var(--blue)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span class="tree-course-icon" style="font-size:16px;color:var(--text2);">${esc(c.icon)}</span>
+            <span style="font-size:14px;font-weight:600;">${esc(c.name)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);">${pageCount} pagina's</div>
+        </div>`;
     });
+    html += '</div></div>';
+  }
 
-    subj.appendChild(courseWrap);
-    tree.appendChild(subj);
+  html += '</div>';
+  main.innerHTML = html;
+}
+
+/* ═══ SELECT COURSE → build sidebar ═══ */
+function selectCourse(courseId) {
+  activeCourse = COURSES.find(c => c.id == courseId);
+  if (!activeCourse) return;
+
+  // Show back button
+  document.getElementById("panelBackBtn").style.display = "";
+  document.getElementById("panelTitle").textContent = activeCourse.name;
+
+  document.getElementById("topbarTitle").textContent = activeCourse.name;
+  document.getElementById("topbarSub").textContent = "Selecteer een pagina";
+
+  buildCourseSidebar();
+
+  // Show empty state in editor
+  document.getElementById("editorMain").innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">✏️</div>
+      <div class="empty-title">Selecteer een pagina</div>
+      <div class="empty-sub">Kies een pagina links om te bewerken.</div>
+    </div>`;
+}
+
+function backToCourseOverview() {
+  showCourseOverview();
+}
+
+function buildCourseSidebar() {
+  if (!activeCourse) return;
+  const tree = document.getElementById("structureTree");
+  const coursePages = PAGES.filter(p => p.course_id == activeCourse.id);
+
+  let html = '';
+  coursePages.forEach(page => {
+    const tl = TYPE_LABELS[page.type] || TYPE_LABELS.lesson;
+    const isActive = activePageId == page.id;
+    const pageSections = SECTIONS.filter(s => s.page_id == page.id);
+
+    html += `
+      <div class="tree-row tree-page tree-lvl-0${isActive ? ' active' : ''}"
+           data-page-id="${page.id}" onclick="openPageFromDb(${page.id})">
+        <div class="tree-page-dot"></div>
+        <span class="tree-page-name">${esc(page.title)}</span>
+        <span class="tree-page-type ${tl.cls}">${tl.label}</span>
+        <span class="tree-hover-add" onclick="event.stopPropagation()">+ sectie</span>
+      </div>`;
+
+    pageSections.forEach(sec => {
+      const secActive = focusedSectionDbId == sec.id;
+      html += `
+        <div class="tree-row tree-section tree-lvl-1${secActive ? ' active' : ''}" style="cursor:pointer"
+             onclick="openPageAndScrollToSection(${page.id}, ${sec.id})">
+          <span class="tree-section-dash">—</span>
+          <span class="tree-section-name">${esc(sec.title)}</span>
+        </div>`;
+    });
   });
+
+  // Add page button
+  html += `
+    <div class="tree-row tree-lvl-0" style="color:var(--text3) !important;font-size:11px;cursor:pointer;"
+         onclick="prefillNewPage(${activeCourse.id});showNewPageModal()"
+         onmouseover="this.style.color='var(--accent2)'"
+         onmouseout="this.style.color='var(--text3)'">
+      <span>＋</span> <span>Pagina toevoegen</span>
+    </div>`;
+
+  tree.innerHTML = html;
+}
+
+let focusedSectionDbId = null;
+
+async function openPageAndScrollToSection(pageId, sectionDbId) {
+  focusedSectionDbId = sectionDbId;
+  await openPageFromDb(pageId, true);
 }
 
 /* ═══ PAGE EDITOR ═══ */
-function openPage(pageId) {
-  activePage = pages.find(p => p.id === pageId);
-  if (!activePage) return;
+async function openPageFromDb(pageId, keepFocus) {
+  if (!keepFocus) focusedSectionDbId = null;
+  activePageId = pageId;
+  const dbPage = PAGES.find(p => p.id == pageId);
+  if (!dbPage) return;
 
-  // Update tree selection
-  document.querySelectorAll(".tree-page-item").forEach(el => {
-    el.classList.toggle("active", el.dataset.pageId === pageId);
-    el.querySelector(".tree-page-dot").style.background = el.dataset.pageId === pageId ? "var(--blue)" : "";
-  });
-  // Open parent course
-  document.querySelectorAll(".tree-course-item").forEach(el => {
-    if (el.dataset.courseId === activePage.courseId) {
-      el.classList.add("open");
-      el.nextElementSibling.style.display = "block";
+  // Fetch real components from DB
+  const pageSections = SECTIONS.filter(s => s.page_id == pageId);
+  let dbComponents = [];
+  try {
+    const res = await fetch(`api/section_content.php?page_id=${pageId}`);
+    if (res.ok) dbComponents = await res.json();
+  } catch (_) {}
+
+  // Map DB components into admin editor format, grouped by section
+  const compsBySection = {};
+  console.log("DB components loaded:", dbComponents.length, dbComponents);
+  dbComponents.forEach(c => {
+    const secId = parseInt(c.section_id);
+    if (!compsBySection[secId]) compsBySection[secId] = [];
+    let type = c.type;
+    let content = c.content || '';
+    let meta = {};
+
+    if (type === 'tip' || type === 'warning') {
+      type = 'callout';
+      meta.style = c.type === 'warning' ? 'warning' : 'tip';
+      meta.title = c.type === 'warning' ? 'Let op' : 'Tip';
     }
+    if (type === 'code') {
+      meta.language = (c.language || 'python').toLowerCase();
+    }
+    if (type === 'quiz') {
+      try {
+        const qData = JSON.parse(content);
+        content = qData.question || '';
+        meta.label = qData.open_question ? 'Open vraag' : 'Meerkeuzevraag';
+        meta.quizData = qData;
+      } catch(e) { console.error("Quiz parse error:", e); }
+    }
+    if (type === 'multimedia') {
+      try {
+        const mData = JSON.parse(content);
+        type = mData.media_type === 'video' ? 'video' : 'image';
+        content = mData.url || '';
+        meta.media_type = mData.media_type;
+      } catch(e) { console.error("Media parse error:", e); }
+    }
+
+    compsBySection[secId].push(makeComp(type, content, meta));
   });
 
-  const course = COURSES.find(c => c.id === activePage.courseId);
+  activePage = {
+    id: uid(), dbId: pageId,
+    courseId: dbPage.course_id,
+    title: dbPage.title,
+    type: dbPage.type || 'lesson',
+    xp: 60,
+    sections: pageSections.map(s => ({
+      id: uid(), dbId: s.id, title: s.title,
+      components: compsBySection[parseInt(s.id)] || []
+    }))
+  };
+
+  // Update sidebar selection
+  buildCourseSidebar();
+
+  const course = COURSES.find(c => c.id == activePage.courseId);
   document.getElementById("topbarTitle").textContent = activePage.title;
-  document.getElementById("topbarSub").textContent   = (course?.name||"") + " › " + (TYPE_LABELS[activePage.type]?.label||"");
+  document.getElementById("topbarSub").textContent = (course?.name||"") + " › " + (TYPE_LABELS[activePage.type]?.label||"");
 
   renderEditor();
 }
@@ -598,8 +697,22 @@ function renderEditor() {
   if (!activePage) return;
   const main = document.getElementById("editorMain");
 
+  const sectionsToRender = focusedSectionDbId
+    ? activePage.sections.filter(s => s.dbId == focusedSectionDbId)
+    : activePage.sections;
+
+  const isFocused = focusedSectionDbId !== null;
+  const focusedSection = isFocused ? sectionsToRender[0] : null;
+
   main.innerHTML = `
     <div class="page-editor">
+      ${isFocused ? `
+        <div style="margin-bottom:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="focusedSectionDbId=null;renderEditor();" style="font-size:12px;color:var(--text2);">
+            ← Alle secties van ${esc(activePage.title)}
+          </button>
+        </div>
+      ` : `
       <!-- Page metadata -->
       <div class="page-meta-card">
         <div style="font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;">Pagina-instellingen</div>
@@ -611,7 +724,7 @@ function renderEditor() {
           <div>
             <label class="field-label">Type</label>
             <select class="field-select" id="metaType" onchange="updateMeta('type',this.value)">
-              <option value="theory"   ${activePage.type==='theory'  ?'selected':''}>Theorie</option>
+              <option value="lesson"   ${activePage.type==='lesson'  ?'selected':''}>Theorie</option>
               <option value="exercise" ${activePage.type==='exercise'?'selected':''}>Oefening</option>
               <option value="quiz"     ${activePage.type==='quiz'    ?'selected':''}>Quiz</option>
               <option value="project"  ${activePage.type==='project' ?'selected':''}>Project</option>
@@ -623,17 +736,20 @@ function renderEditor() {
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:14px;">
-          <button class="btn btn-danger btn-sm" onclick="deletePage()">🗑 Pagina verwijderen</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePage()">Pagina verwijderen</button>
         </div>
       </div>
+      `}
 
       <!-- Sections -->
       <div class="sections-area" id="sectionsArea">
-        ${activePage.sections.map((s,si) => renderSectionCard(s,si)).join("")}
+        ${sectionsToRender.map((s,si) => renderSectionCard(s,si)).join("")}
       </div>
 
+      ${!isFocused ? `
       <!-- Add section -->
       <button class="add-section-btn" onclick="addSection()">＋ Sectie toevoegen</button>
+      ` : ''}
     </div>`;
 
   wireEditorEvents();
@@ -670,11 +786,14 @@ function renderSectionCard(section, si) {
 
 function renderCompCard(comp, sectionId, ci) {
   const typeMeta = {
-    text:    { label:"Tekst",    cls:"comp-text" },
-    code:    { label:"Code",     cls:"comp-code" },
-    callout: { label:"Tip/Waarschuwing", cls:"comp-callout" },
-    video:   { label:"Video",    cls:"comp-video" },
-    quiz:    { label:"Vraag",    cls:"comp-quiz" },
+    text:       { label:"Tekst",            cls:"comp-text" },
+    code:       { label:"Code",             cls:"comp-code" },
+    callout:    { label:"Tip/Waarschuwing", cls:"comp-callout" },
+    multimedia: { label:"Multimedia",       cls:"comp-video" },
+    video:      { label:"Video",            cls:"comp-video" },
+    image:      { label:"Afbeelding",       cls:"comp-image" },
+    quiz:       { label:"Vraag",            cls:"comp-quiz" },
+    divider:    { label:"Divider",          cls:"comp-divider" },
   }[comp.type] || { label:"Component", cls:"comp-text" };
 
   let body = "";
@@ -693,10 +812,6 @@ function renderCompCard(comp, sectionId, ci) {
           ${["python","javascript","java","csharp","html","css","bash","text"].map(l =>
             `<option value="${l}" ${comp.meta?.language===l?"selected":""}>${l}</option>`).join("")}
         </select>
-        <span class="comp-meta-label">Bestandsnaam:</span>
-        <input class="comp-meta-select" style="flex:1.5" value="${esc(comp.meta?.filename||"")}"
-          data-comp-id="${comp.id}" data-field="meta.filename" oninput="updateCompMeta(this)"
-          placeholder="bijv. loops.py" />
       </div>
       <textarea class="comp-code-area" rows="6"
         data-comp-id="${comp.id}" data-field="content"
@@ -705,31 +820,33 @@ function renderCompCard(comp, sectionId, ci) {
 
   if (comp.type === "callout") {
     const style = comp.meta?.style || "tip";
-    const title = comp.meta?.title || "";
     body = `
       <div class="callout-style-row">
-        ${["tip","warning","success"].map(s => `
+        ${["tip","warning"].map(s => `
           <button class="callout-style-btn ${s}${style===s?" active":""}"
             data-comp-id="${comp.id}" onclick="setCalloutStyle(this,'${s}')">
-            ${s==="tip"?"💡 Tip":s==="warning"?"⚠️ Waarschuwing":"✅ Succes"}
+            ${s==="tip"?"💡 Tip":"⚠️ Waarschuwing"}
           </button>`).join("")}
       </div>
-      <input class="comp-input" value="${esc(title)}"
-        data-comp-id="${comp.id}" data-field="meta.title"
-        oninput="updateCompMeta(this)" placeholder="Titel (bijv. 💡 Wanneer welke?)" />
-      <textarea class="comp-textarea" rows="2"
+      <textarea class="comp-textarea" rows="3"
         data-comp-id="${comp.id}" data-field="content"
         oninput="updateComp(this)" placeholder="Inhoud van de tip of waarschuwing...">${esc(comp.content)}</textarea>`;
   }
 
-  if (comp.type === "video") {
+  if (comp.type === "multimedia" || comp.type === "video" || comp.type === "image") {
+    const mediaType = comp.meta?.media_type || (comp.type === "image" ? "image" : "video");
     body = `
+      <div class="comp-meta-row">
+        <span class="comp-meta-label">Type:</span>
+        <select class="comp-meta-select" data-comp-id="${comp.id}" data-field="meta.media_type" onchange="updateCompMeta(this)">
+          <option value="video" ${mediaType==="video"?"selected":""}>Video</option>
+          <option value="image" ${mediaType==="image"?"selected":""}>Afbeelding</option>
+        </select>
+      </div>
       <input class="comp-input" value="${esc(comp.content)}"
         data-comp-id="${comp.id}" data-field="content"
-        oninput="updateComp(this)" placeholder="YouTube URL of video-ID..." />
-      <input class="comp-input" value="${esc(comp.meta?.caption||"")}"
-        data-comp-id="${comp.id}" data-field="meta.caption"
-        oninput="updateCompMeta(this)" placeholder="Ondertitel (optioneel)" />`;
+        oninput="updateComp(this)" placeholder="${mediaType==='video'?'YouTube URL of video-ID...':'Afbeelding URL...'}" />
+      ${mediaType==='image' && comp.content ? `<img src="${esc(comp.content)}" style="max-width:100%;max-height:200px;border-radius:var(--radius);margin-top:6px;" alt="">` : ''}`;
   }
 
   if (comp.type === "quiz") {
@@ -740,6 +857,30 @@ function renderCompCard(comp, sectionId, ci) {
       <textarea class="comp-textarea" rows="3"
         data-comp-id="${comp.id}" data-field="content"
         oninput="updateComp(this)" placeholder="Beschrijf de opdracht of vraag...">${esc(comp.content)}</textarea>`;
+  }
+
+  if (comp.type === "divider") {
+    const lineType = comp.meta?.lineType || "line";
+    const before = comp.meta?.before ?? 16;
+    const after = comp.meta?.after ?? 16;
+    const lineTypes = ["line","double_line","dashed","double_dashed","dotted","double_dotted","nothing"];
+    const lineLabels = { line:"Lijn", double_line:"Dubbele lijn", dashed:"Streepjes", double_dashed:"Dubbele streepjes", dotted:"Stippel", double_dotted:"Dubbele stippel", nothing:"Geen lijn" };
+    body = `
+      <div class="comp-meta-row">
+        <span class="comp-meta-label">Lijntype:</span>
+        <select class="comp-meta-select" data-comp-id="${comp.id}" data-field="meta.lineType" onchange="updateCompMeta(this)">
+          ${lineTypes.map(t => `<option value="${t}" ${lineType===t?"selected":""}>${lineLabels[t]}</option>`).join("")}
+        </select>
+        <span class="comp-meta-label">Ruimte boven:</span>
+        <input class="comp-meta-select" type="number" min="0" max="100" value="${before}"
+          data-comp-id="${comp.id}" data-field="meta.before" oninput="updateCompMeta(this)" style="width:60px" />
+        <span class="comp-meta-label">Ruimte onder:</span>
+        <input class="comp-meta-select" type="number" min="0" max="100" value="${after}"
+          data-comp-id="${comp.id}" data-field="meta.after" oninput="updateCompMeta(this)" style="width:60px" />
+      </div>
+      <div class="spacer-block" style="padding-top:${before}px;padding-bottom:${after}px;">
+        ${lineType==='nothing'?'':`<hr class="spacer-line spacer-${lineType}" />`}
+      </div>`;
   }
 
   return `
@@ -761,16 +902,8 @@ function wireEditorEvents() {
 }
 
 /* ═══ MUTATIONS ═══ */
-function markUnsaved() {
-  unsaved = true;
-  const ind = document.getElementById("saveIndicator");
-  ind.textContent = "● Niet opgeslagen"; ind.className = "save-indicator unsaved";
-}
-function markSaved() {
-  unsaved = false;
-  const ind = document.getElementById("saveIndicator");
-  if (ind) { ind.textContent = "✓ Opgeslagen"; ind.className = "save-indicator saved"; }
-}
+function markUnsaved() { unsaved = true; }
+function markSaved() { unsaved = false; }
 
 function updateMeta(field, value) {
   if (!activePage) return;
@@ -807,6 +940,20 @@ function updateCompMeta(input) {
   if (!comp.meta) comp.meta = {};
   comp.meta[field] = input.value;
   markUnsaved(); debounceSave();
+
+  // Re-render divider preview live
+  if (comp.type === "divider") {
+    const card = input.closest(".component-card");
+    const preview = card.querySelector(".spacer-block");
+    if (preview) {
+      const lt = comp.meta.lineType || "line";
+      const before = comp.meta.before ?? 16;
+      const after = comp.meta.after ?? 16;
+      preview.style.paddingTop = before + "px";
+      preview.style.paddingBottom = after + "px";
+      preview.innerHTML = lt === "nothing" ? "" : `<hr class="spacer-line spacer-${lt}" />`;
+    }
+  }
 }
 
 function setCalloutStyle(btn, style) {
@@ -944,14 +1091,55 @@ function createNewPage() {
 function esc(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function escHTML(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function escAttr(str) { return (str||"").replace(/"/g,"&quot;"); }
+/* ═══ USER / AUTH (shared with dashboard via sessionStorage) ═══ */
+function loadUser() {
+  const name = sessionStorage.getItem("ict_user");
+  if (!name) { window.location = "./"; return null; }
+  const initials = name.slice(0, 2).toUpperCase();
+  return { name, initials };
+}
+
+function toggleAvatarMenu() {
+  document.getElementById("avatarMenu").classList.toggle("open");
+}
+
+function handleLogout() {
+  sessionStorage.removeItem("ict_user");
+  sessionStorage.removeItem("ict_email");
+  window.location = "./";
+}
+
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".avatar-wrap");
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById("avatarMenu")?.classList.remove("open");
+  }
+});
+
 /* ═══ INIT ═══ */
 (async () => {
+  const user = loadUser();
+  if (!user) return;
+
+  // Populate avatar
+  document.getElementById("topbarAvatar").textContent = user.initials;
+  document.getElementById("avatarMenuName").textContent = user.name;
+  document.getElementById("avatarMenuSub").textContent = user.initials;
+
   try {
-    const res = await fetch('api/courses.php');
-    if (res.ok) COURSES = await res.json();
+    const [subjRes, courseRes, pageRes, secRes] = await Promise.all([
+      fetch('api/subjects.php'),
+      fetch('api/courses.php'),
+      fetch('api/pages.php'),
+      fetch('api/sections.php'),
+    ]);
+    if (subjRes.ok) SUBJECTS = await subjRes.json();
+    if (courseRes.ok) COURSES = await courseRes.json();
+    if (pageRes.ok) PAGES = await pageRes.json();
+    if (secRes.ok) SECTIONS = await secRes.json();
   } catch (_) {}
   loadPages();
-  buildTree();
+  showCourseOverview();
 })();
 
 // Auto-save on close
