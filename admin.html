@@ -54,6 +54,7 @@
     .btn-danger { background:rgba(248,81,73,.1); color:var(--red); border:1px solid rgba(248,81,73,.2); }
     .btn-danger:hover { background:rgba(248,81,73,.2); }
     .btn-sm { padding:4px 10px; font-size:12px; }
+    .btn-nav { width:160px; text-align:center; display:inline-block; }
     .btn-icon { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:14px; border-radius:6px; }
     .icon-btn { background:transparent; border:1px solid transparent; border-radius:6px; padding:4px 6px; font-size:13px; color:var(--text3); transition:all .15s; }
     .icon-btn:hover { background:var(--bg4); color:var(--text); border-color:var(--border); }
@@ -822,7 +823,8 @@
         </div>
       </div>
       <div class="topbar-right">
-        <a href="./" class="btn btn-ghost btn-sm">← Studentenview</a>
+        <a href="./adminaccountmanager.html" class="btn btn-primary btn-sm btn-nav">AccountManagement</a>
+        <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
         <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
         <button class="notif-btn" title="Meldingen">🔔</button>
         <div class="avatar-wrap">

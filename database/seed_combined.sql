@@ -853,7 +853,35 @@ INSERT INTO `EmptySpace` (`BeforeLineSpace`, `AfterLineSpace`, `table1_LineType`
 (16, 16, 'double_line', 36);   -- double line after quiz component
 
 -- -------------------------------------------------------------
--- Accounts (test user)
+-- Accounts
+-- Password hash = bcrypt of 'wachtwoord123' for all demo users
 -- -------------------------------------------------------------
-INSERT INTO `accounts` (`username`, `Password`, `Email`) VALUES
-('Rick', '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'Rick.nl@hotmail.com');
+INSERT INTO `accounts` (`username`, `Password`, `Email`, `Role`, `CreatedAt`, `Active`) VALUES
+('Rick',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'Rick.nl@hotmail.com',         'superadmin', '2024-09-01 08:00:00', 1),
+('Marloes',   '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'marloes@ictcollege.nl',       'docent',     '2024-09-01 08:30:00', 1),
+('JanWillem', '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'jan.willem@student.rocmn.nl', 'student',    '2024-09-02 10:15:00', 1),
+('Fatima',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'fatima@student.rocmn.nl',     'student',    '2024-09-02 10:20:00', 1),
+('Daan',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'daan@student.rocmn.nl',       'student',    '2024-09-03 09:00:00', 1),
+('Priya',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'priya@student.rocmn.nl',      'student',    '2024-09-03 09:05:00', 1),
+('Thomas',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'thomas@student.rocmn.nl',     'student',    '2024-09-04 11:00:00', 1),
+('Yusuf',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'yusuf@student.rocmn.nl',      'student',    '2024-10-01 08:45:00', 0);
+
+-- -------------------------------------------------------------
+-- Course enrollments
+-- Course IDs: 1=Python, 2=JS, 3=Java, 4=Unity6, 5=VR, 6=N4, 7=N3
+-- -------------------------------------------------------------
+INSERT INTO `accounts_has_courses` (`accounts_username`, `courses_Id`, `Enrolled_at`) VALUES
+('JanWillem', 1, '2024-09-02 10:20:00'),
+('JanWillem', 3, '2024-09-02 10:20:00'),
+('Fatima',    1, '2024-09-02 10:25:00'),
+('Fatima',    2, '2024-09-02 10:25:00'),
+('Fatima',    4, '2024-09-15 12:00:00'),
+('Daan',      1, '2024-09-03 09:10:00'),
+('Daan',      4, '2024-09-03 09:10:00'),
+('Daan',      5, '2024-10-01 10:00:00'),
+('Priya',     2, '2024-09-03 09:10:00'),
+('Priya',     6, '2024-09-03 09:10:00'),
+('Thomas',    1, '2024-09-04 11:05:00'),
+('Thomas',    3, '2024-09-04 11:05:00'),
+('Thomas',    7, '2024-09-04 11:05:00'),
+('Yusuf',     1, '2024-10-01 08:50:00');

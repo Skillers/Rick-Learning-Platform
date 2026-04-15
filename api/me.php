@@ -10,7 +10,7 @@ if (!$username) {
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT `username`, `Email` FROM `Accounts` WHERE `username` = ?");
+$stmt = $pdo->prepare("SELECT `username`, `Email`, `Role` FROM `accounts` WHERE `username` = ?");
 $stmt->execute([$username]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -23,4 +23,5 @@ if (!$row) {
 echo json_encode([
     'username' => $row['username'],
     'email'    => $row['Email'],
+    'role'     => $row['Role'],
 ]);
