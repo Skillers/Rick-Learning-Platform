@@ -251,6 +251,9 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`accounts` (
   `username` VARCHAR(25) NOT NULL,
   `Password` VARCHAR(255) NOT NULL,
   `Email` VARCHAR(120) NOT NULL,
+  `Role` VARCHAR(25) NOT NULL,
+  `CreatedAt` DATETIME NOT NULL,
+  `Active` TINYINT NOT NULL,
   PRIMARY KEY (`username`),
   UNIQUE INDEX `Email_UNIQUE` (`Email` ASC))
 ENGINE = InnoDB
@@ -463,6 +466,30 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`EmptySpace` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`accounts_has_courses`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`accounts_has_courses` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `courses_Id` INT(11) NOT NULL,
+  `Enrolled_at` DATETIME NOT NULL,
+  PRIMARY KEY (`accounts_username`, `courses_Id`),
+  INDEX `fk_accounts_has_courses_courses1_idx` (`courses_Id` ASC),
+  INDEX `fk_accounts_has_courses_accounts1_idx` (`accounts_username` ASC),
+  CONSTRAINT `fk_accounts_has_courses_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_accounts_has_courses_courses1`
+    FOREIGN KEY (`courses_Id`)
+    REFERENCES `rick learning platform`.`courses` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
 
 
 SET SQL_MODE=@OLD_SQL_MODE;
