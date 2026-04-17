@@ -870,7 +870,7 @@ INSERT INTO `accounts` (`username`, `Password`, `Email`, `Role`, `CreatedAt`, `A
 -- Course enrollments
 -- Course IDs: 1=Python, 2=JS, 3=Java, 4=Unity6, 5=VR, 6=N4, 7=N3
 -- -------------------------------------------------------------
-INSERT INTO `accounts_has_courses` (`accounts_username`, `courses_Id`, `Enrolled_at`) VALUES
+INSERT INTO `Student_Has_Course` (`accounts_username`, `courses_Id`, `Enrolled_at`) VALUES
 ('JanWillem', 1, '2024-09-02 10:20:00'),
 ('JanWillem', 3, '2024-09-02 10:20:00'),
 ('Fatima',    1, '2024-09-02 10:25:00'),
@@ -1004,3 +1004,43 @@ INSERT INTO `AC_Did_Question`
 ('Thomas',    3, 'section', '2025-01-03 11:00:00',
  'for heeft teller, while heeft conditie',
  'Rick', '2025-01-06 09:15:00', 'Bijna. Controleer de loops.');
+
+-- -------------------------------------------------------------
+-- Teacher ↔ Course assignments
+-- Marloes teaches Python (1) and JavaScript (2)
+-- Rick is superadmin — bypasses scoping, no rows needed
+-- -------------------------------------------------------------
+INSERT INTO `Teacher_ParticipatesIn_Course` (`courses_Id`, `accounts_username`) VALUES
+(1, 'Marloes'),
+(2, 'Marloes');
+
+-- -------------------------------------------------------------
+-- Teacher ↔ Student mentoring
+-- Marloes mentors JanWillem, Fatima, and Daan
+-- -------------------------------------------------------------
+INSERT INTO `Teacher_guides_Student` (`accounts_Student`, `accounts_Teacher`) VALUES
+('JanWillem', 'Marloes'),
+('Fatima',    'Marloes'),
+('Daan',      'Marloes');
+
+-- -------------------------------------------------------------
+-- Groups (student classes)
+-- -------------------------------------------------------------
+INSERT INTO `Groups` (`GroupNames`, `StartedOn`) VALUES
+('SD1A', '2024-09-01 08:00:00'),
+('SD1B', '2024-09-01 08:00:00'),
+('SD2A', '2023-09-01 08:00:00');
+
+-- Marloes teaches SD1A and SD1B
+INSERT INTO `Group_has_Teacher` (`accounts_username`, `Groups_GroupNames`) VALUES
+('Marloes', 'SD1A'),
+('Marloes', 'SD1B');
+
+-- Students in groups
+INSERT INTO `Student_BelongsTo_Group` (`accounts_username`, `Groups_GroupNames`, `AssignedOn`) VALUES
+('JanWillem', 'SD1A', '2024-09-02 10:15:00'),
+('Fatima',    'SD1A', '2024-09-02 10:20:00'),
+('Daan',      'SD1B', '2024-09-03 09:00:00'),
+('Priya',     'SD1B', '2024-09-03 09:05:00'),
+('Thomas',    'SD2A', '2024-09-04 11:00:00'),
+('Yusuf',     'SD1A', '2024-10-01 08:45:00');

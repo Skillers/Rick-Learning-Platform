@@ -2476,11 +2476,26 @@ function esc(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").
 function escHTML(str) { return (str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function escAttr(str) { return (str||"").replace(/"/g,"&quot;"); }
 /* ═══ USER / AUTH (shared with dashboard via sessionStorage) ═══ */
-function loadUser() {
+let TEACHER_SCOPE = null; // null = superadmin (no restrictions), { courses:[], students:[] } = docent
+
+async function loadUser() {
   const name = sessionStorage.getItem("ict_user");
   if (!name) { window.location = "./"; return null; }
-  const initials = name.slice(0, 2).toUpperCase();
-  return { name, initials };
+
+  try {
+    const res = await fetch("api/me.php?username=" + encodeURIComponent(name));
+    if (!res.ok) { window.location = "./"; return null; }
+    const data = await res.json();
+    if (data.role !== "superadmin" && data.role !== "docent") {
+      window.location = "./"; return null;
+    }
+    if (data.role === "docent") {
+      TEACHER_SCOPE = { courses: data.courses || [], students: data.students || [] };
+    }
+    return { name: data.username, initials: data.username.slice(0,2).toUpperCase(), role: data.role };
+  } catch {
+    window.location = "./"; return null;
+  }
 }
 
 function toggleAvatarMenu() {
@@ -2502,13 +2517,13 @@ document.addEventListener("click", (e) => {
 
 /* ═══ INIT ═══ */
 (async () => {
-  const user = loadUser();
+  const user = await loadUser();
   if (!user) return;
 
   // Populate avatar
   document.getElementById("topbarAvatar").textContent = user.initials;
   document.getElementById("avatarMenuName").textContent = user.name;
-  document.getElementById("avatarMenuSub").textContent = user.initials;
+  document.getElementById("avatarMenuSub").textContent = user.role;
 
   try {
     const [subjRes, courseRes, pageRes, secRes] = await Promise.all([
@@ -2522,6 +2537,14 @@ document.addEventListener("click", (e) => {
     if (pageRes.ok) PAGES = await pageRes.json();
     if (secRes.ok) SECTIONS = await secRes.json();
   } catch (_) {}
+
+  // Scope: docent only sees assigned courses + their pages
+  if (TEACHER_SCOPE) {
+    const allowed = TEACHER_SCOPE.courses;
+    COURSES = COURSES.filter(c => allowed.includes(c.id));
+    PAGES = PAGES.filter(p => allowed.includes(p.course_id));
+  }
+
   loadPages();
   buildFloatingPanelButtons();
   showCourseOverview();

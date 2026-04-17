@@ -550,6 +550,7 @@ let activeCourseId = null;                    // selected course in Per cursus v
 let courseDetailSearch = '';
 let bulkMode = null;                          // 'enroll' | 'unenroll' while bulk modal open
 let bulkPickedCourses = new Set();            // course ids checked in bulk modal
+let TEACHER_SCOPE = null;                     // null = superadmin (no restrictions), { courses:[], students:[] } = docent
 
 /* ── Theme ── */
 (function(){const t=localStorage.getItem("ict-theme")||"dark";applyTheme(t);})();
@@ -600,7 +601,21 @@ let ADMIN_USER = null;
     }
 
     ADMIN_USER = data.username;
+
+    // Store teacher scope for docents
+    if (data.role === 'docent') {
+      TEACHER_SCOPE = {
+        courses:  data.courses  || [],
+        students: data.students || []
+      };
+    }
+
     document.getElementById("appContent").classList.remove("hidden");
+
+    // Brand chip reflects role
+    const chip = document.querySelector('.brand-chip');
+    if (chip) chip.textContent = data.role === 'superadmin' ? 'SUPER ADMIN' : 'ADMIN';
+
     // Populate avatar
     const ini = data.username.substring(0,2).toUpperCase();
     document.getElementById("topbarAvatar").textContent = ini;
@@ -668,6 +683,22 @@ function formatDate(str) {
   return d.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
 }
 
+/* ── Scope helpers ── */
+function isStudentVisible(account) {
+  if (!TEACHER_SCOPE) return true; // superadmin sees all
+  if (account.role !== 'student') return true; // docents/admins always visible
+  // Student visible if: in one of my courses OR is my mentored student
+  const enrollments = getUserEnrollments(account.username);
+  const inMyCourse = enrollments.some(e => TEACHER_SCOPE.courses.includes(Number(e.course_id)));
+  const isMyStudent = TEACHER_SCOPE.students.includes(account.username);
+  return inMyCourse || isMyStudent;
+}
+
+function canManageCourse(courseId) {
+  if (!TEACHER_SCOPE) return true; // superadmin
+  return TEACHER_SCOPE.courses.includes(Number(courseId));
+}
+
 /* ── Filtering ── */
 function getFiltered() {
   const search = document.getElementById('searchInput').value.toLowerCase();
@@ -676,6 +707,8 @@ function getFiltered() {
   const course = document.getElementById('courseFilter').value;
 
   return DATA.accounts.filter(a => {
+    // Teacher scope
+    if (!isStudentVisible(a)) return false;
     if (search && !a.username.toLowerCase().includes(search) && !a.email.toLowerCase().includes(search)) return false;
     if (role && a.role !== role) return false;
     if (status !== '' && String(a.active) !== status) return false;
@@ -732,9 +765,10 @@ function renderTable(filtered) {
       <td style="font-size:12px;color:var(--text2);">${formatDate(a.created_at)}</td>
       <td>
         <button class="btn btn-ghost btn-sm" style="margin-right:4px;" onclick="openCourseModal('${a.username}')" title="Cursussen beheren">Cursussen</button>
-        ${a.active == 1
+        ${!TEACHER_SCOPE ? (a.active == 1
           ? `<button class="btn btn-danger btn-sm btn-icon" onclick="toggleActive('${a.username}',0)" title="Deactiveer">&#10005;</button>`
-          : `<button class="btn btn-primary btn-sm btn-icon" onclick="toggleActive('${a.username}',1)" title="Activeer">&#10003;</button>`
+          : `<button class="btn btn-primary btn-sm btn-icon" onclick="toggleActive('${a.username}',1)" title="Activeer">&#10003;</button>`)
+          : ''
         }
       </td>
     </tr>`;
@@ -939,7 +973,10 @@ function getCourseEnrolledUsernames(courseId) {
 
 function renderCoursePicker() {
   const wrap = document.getElementById('coursePicker');
-  wrap.innerHTML = allCourses.map(c => {
+  const visibleCourses = TEACHER_SCOPE
+    ? allCourses.filter(c => TEACHER_SCOPE.courses.includes(c.id))
+    : allCourses;
+  wrap.innerHTML = visibleCourses.map(c => {
     const count = getCourseEnrolledUsernames(c.id).length;
     const isActive = activeCourseId == c.id;
     return `<div class="course-picker-card ${isActive?'active':''}" onclick="selectCourse(${c.id})">
@@ -970,7 +1007,9 @@ function renderCourseDetail() {
 
   // Show only students by default; could expand later. Keep docents visible too.
   const search = courseDetailSearch.toLowerCase();
+  const canManage = canManageCourse(activeCourseId);
   const candidates = DATA.accounts.filter(a => a.role === 'student' && a.active == 1)
+    .filter(a => isStudentVisible(a))
     .filter(a => !search || a.username.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
     .sort((a,b) => {
       // enrolled first, then alphabetical
@@ -997,8 +1036,8 @@ function renderCourseDetail() {
           ? '<div class="modal-empty">Geen studenten gevonden.</div>'
           : candidates.map(a => {
             const isEnrolled = enrolled.has(a.username);
-            return `<label class="course-detail-row ${isEnrolled?'enrolled':''}">
-              <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} onchange="toggleEnroll('${a.username}', ${activeCourseId}, ${isEnrolled})">
+            return `<label class="course-detail-row ${isEnrolled?'enrolled':''}" ${!canManage?'style="opacity:.5;pointer-events:none;" title="Je beheert deze cursus niet"':''}>
+              <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} ${!canManage?'disabled':''} onchange="toggleEnroll('${a.username}', ${activeCourseId}, ${isEnrolled})">
               <div>
                 <div class="row-name"><strong>${a.username}</strong></div>
                 <div class="row-email">${a.email}</div>
@@ -1055,8 +1094,9 @@ function renderCourseModalBody() {
     ? '<div class="modal-empty">Geen cursussen gevonden.</div>'
     : list.map(c => {
       const isEnrolled = enrolled.has(String(c.id));
-      return `<label class="modal-row">
-        <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} onchange="toggleEnroll('${modalUser}', ${c.id}, ${isEnrolled})">
+      const canManage = canManageCourse(c.id);
+      return `<label class="modal-row" ${!canManage?'style="opacity:.5;pointer-events:none;" title="Je beheert deze cursus niet"':''}>
+        <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} ${!canManage?'disabled':''} onchange="toggleEnroll('${modalUser}', ${c.id}, ${isEnrolled})">
         <div class="enroll-icon">${c.icon}</div>
         <div class="row-name">${c.name}</div>
       </label>`;
