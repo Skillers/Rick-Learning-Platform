@@ -236,6 +236,11 @@
     <!-- Filters -->
     <div class="filter-bar">
       <input type="text" class="filter-input" id="searchInput" placeholder="Zoek op student of opdracht...">
+      <select class="filter-select" id="scopeFilter" style="display:none;">
+        <option value="">Alles</option>
+        <option value="courses">Mijn cursussen</option>
+        <option value="students">Mijn studenten</option>
+      </select>
       <select class="filter-select" id="courseFilter">
         <option value="">Alle cursussen</option>
       </select>
@@ -283,6 +288,7 @@
 let SUBMISSIONS = [];
 let allCourses = [];
 let expandedKey = null;  // "{username}::{assignment_id}"
+let TEACHER_SCOPE = null; // null = superadmin (no restrictions), { courses:[], students:[] } = docent
 
 /* ── Theme ── */
 (function(){const t=localStorage.getItem("ict-theme")||"dark";applyTheme(t);})();
@@ -331,6 +337,17 @@ let ADMIN_USER = null;
     }
 
     ADMIN_USER = data.username;
+
+    // Store teacher scope for docents; null = superadmin (no restrictions)
+    if (data.role === 'docent') {
+      TEACHER_SCOPE = {
+        courses:  data.courses  || [],
+        students: data.students || []
+      };
+      // Show scope filter dropdown for docents
+      document.getElementById('scopeFilter').style.display = '';
+    }
+
     document.getElementById("appContent").classList.remove("hidden");
     const ini = data.username.substring(0,2).toUpperCase();
     document.getElementById("topbarAvatar").textContent = ini;
@@ -342,13 +359,37 @@ let ADMIN_USER = null;
   }
 })();
 
+/* ── Scope helpers ── */
+function isInMyCourses(s) {
+  if (!TEACHER_SCOPE) return true; // superadmin
+  return TEACHER_SCOPE.courses.includes(Number(s.course_id));
+}
+
+function isMyStudent(s) {
+  if (!TEACHER_SCOPE) return true; // superadmin
+  return TEACHER_SCOPE.students.includes(s.username);
+}
+
+function isMentorOnly(s) {
+  // Visible via mentor relationship but course is NOT mine → view-only
+  if (!TEACHER_SCOPE) return false; // superadmin can grade all
+  return !isInMyCourses(s) && isMyStudent(s);
+}
+
+function isVisible(s) {
+  if (!TEACHER_SCOPE) return true; // superadmin sees all
+  return isInMyCourses(s) || isMyStudent(s);
+}
+
 /* ── Init ── */
 async function init() {
   const [subsRes, courseRes] = await Promise.all([
     fetch('api/submissions.php').then(r => r.json()),
     fetch('api/courses.php').then(r => r.json())
   ]);
-  SUBMISSIONS = Array.isArray(subsRes) ? subsRes : [];
+  const allSubs = Array.isArray(subsRes) ? subsRes : [];
+  // Pre-filter by teacher scope
+  SUBMISSIONS = allSubs.filter(isVisible);
   allCourses = courseRes;
   populateCourseFilter();
   render();
@@ -356,7 +397,10 @@ async function init() {
 
 function populateCourseFilter() {
   const sel = document.getElementById('courseFilter');
+  // Docents: only show their courses + courses their mentored students are in
+  const visibleCourseIds = new Set(SUBMISSIONS.map(s => Number(s.course_id)));
   allCourses.forEach(c => {
+    if (TEACHER_SCOPE && !visibleCourseIds.has(c.id)) return;
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = c.name;
@@ -402,15 +446,20 @@ function getFiltered() {
   const course = document.getElementById('courseFilter').value;
   const status = document.getElementById('statusFilter').value;
   const type   = document.getElementById('typeFilter').value;
+  const scope  = document.getElementById('scopeFilter').value;
 
   return SUBMISSIONS.filter(s => {
+    // Scope filter (docent only)
+    if (scope === 'courses'  && !isInMyCourses(s)) return false;
+    if (scope === 'students' && !isMyStudent(s))    return false;
+
     if (search) {
       const hay = (s.username + ' ' + (s.assignment_title||'') + ' ' + (s.page_title||'')).toLowerCase();
       if (!hay.includes(search)) return false;
     }
     if (course && String(s.course_id) !== String(course)) return false;
     if (status === 'pending') {
-      // all submissions are pending in this iteration — keep as no-op filter
+      // all submissions are pending in this iteration
     } else if (status === 'recent') {
       const d = daysSince(s.submitted_on);
       if (d === null || d > 7) return false;
@@ -431,7 +480,9 @@ function render() {
 function updateStats() {
   const all = SUBMISSIONS;
   document.getElementById('statTotal').textContent = all.length;
-  document.getElementById('statPending').textContent = all.length;  // all ungraded for now
+  // "Na te kijken" = submissions in my courses (not mentor-only)
+  const gradeable = all.filter(s => !isMentorOnly(s)).length;
+  document.getElementById('statPending').textContent = gradeable;
   const recent = all.filter(s => {
     const d = daysSince(s.submitted_on);
     return d !== null && d <= 7;
@@ -455,6 +506,7 @@ function renderTable(filtered) {
   filtered.forEach(s => {
     const key = submissionKey(s);
     const isExpanded = expandedKey === key;
+    const mentorOnly = isMentorOnly(s);
     const hasText = !!s.text_answer;
     const hasFile = !!s.file_name;
     const typeIcon = hasFile && hasText ? '📄&#8203;📎'
@@ -462,6 +514,11 @@ function renderTable(filtered) {
                    : hasText             ? '📄'
                                          : '—';
     const courseCls = s.course_color || '';
+
+    // Status badge: "Na te kijken" (gradeable) vs "Alleen inzien" (mentor-only)
+    const statusBadge = mentorOnly
+      ? '<span class="status-badge graded">Alleen inzien</span>'
+      : '<span class="status-badge pending">Na te kijken</span>';
 
     html += `<tr class="student-row" data-key="${escapeHtml(key)}">
       <td style="text-align:center;cursor:pointer;" onclick="toggleExpand('${escapeHtml(key)}')">
@@ -473,8 +530,13 @@ function renderTable(filtered) {
       <td style="color:var(--text2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.page_title||'')}">${escapeHtml(s.page_title || '—')}</td>
       <td style="font-size:12px;color:var(--text2);">${formatDate(s.submitted_on)}</td>
       <td><span class="type-icon">${typeIcon}</span></td>
-      <td><span class="status-badge pending">Na te kijken</span></td>
+      <td>${statusBadge}</td>
     </tr>`;
+
+    // Grading button: disabled + different tooltip based on mentor-only vs normal
+    const gradeBtn = mentorOnly
+      ? '<button class="btn btn-ghost btn-sm" disabled title="Je bent mentor, niet de cursus-docent">Alleen inzien</button><span class="expand-hint">Je kunt de voortgang bekijken, maar niet nakijken voor deze cursus.</span>'
+      : '<button class="btn btn-primary btn-sm" disabled title="Binnenkort beschikbaar">Markeer als nagekeken</button><span class="expand-hint">Beoordelen met score en feedback komt in een volgende versie.</span>';
 
     // Expanded detail row
     html += `<tr class="expand-row"><td colspan="8">
@@ -497,8 +559,7 @@ function renderTable(filtered) {
         ${!hasText && !hasFile ? `<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Geen inhoud ingeleverd.</div>` : ''}
 
         <div class="expand-actions">
-          <button class="btn btn-primary btn-sm" disabled title="Binnenkort beschikbaar">Markeer als nagekeken</button>
-          <span class="expand-hint">Beoordelen met score en feedback komt in een volgende versie.</span>
+          ${gradeBtn}
         </div>
       </div>
     </td></tr>`;
@@ -513,7 +574,7 @@ function toggleExpand(key) {
   render();
 }
 
-/* ── Toast (unused this iteration, kept for consistency) ── */
+/* ── Toast ── */
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -523,6 +584,7 @@ function showToast(msg) {
 
 /* ── Filter listeners ── */
 document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('scopeFilter').addEventListener('change', render);
 document.getElementById('courseFilter').addEventListener('change', render);
 document.getElementById('statusFilter').addEventListener('change', render);
 document.getElementById('typeFilter').addEventListener('change', render);

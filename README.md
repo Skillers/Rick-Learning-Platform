@@ -1,6 +1,6 @@
 # ICT Leerlijn
 
-**Gemaakt door:** Rick Dörr  
+**Gemaakt door:** Rick Dorr  
 **Instelling:** ROC Midden Nederland — ICT-College  
 **Rol:** Docent Software Development, MBO-3 en MBO-4
 
@@ -18,11 +18,14 @@ Uit die behoefte is ICT Leerlijn gegroeid — iteratie voor iteratie, functie vo
 
 ## Doelstelling
 
-ICT Leerlijn biedt MBO-studenten Software Development één centrale leeromgeving met:
+ICT Leerlijn biedt MBO-studenten Software Development een centrale leeromgeving met:
 
 - Gestructureerd lesmateriaal per vak, georganiseerd in secties en pagina's
 - Voortgang en gamification (XP, levels, streaks, badges)
 - Een docenteninterface om lessen te maken zonder code te schrijven
+- Studentaccounts met inloggen, rollen en cursuskoppelingen
+- Een huiswerkbeheerder voor docenten om inzendingen te bekijken
+- Rolgebaseerde toegang: superadmin, docent en student
 - Een meldingssysteem waarmee studenten fouten in lesmateriaal kunnen rapporteren
 
 ---
@@ -31,7 +34,7 @@ ICT Leerlijn biedt MBO-studenten Software Development één centrale leeromgevin
 
 Het platform heeft een bewuste, consistente visuele identiteit die aansluit bij de wereld van softwareontwikkeling.
 
-**Dark mode als standaard** — het donkere GitHub Dark kleurenpalet (`#0d1117` achtergrond, `#e6edf3` tekst) is de standaardmodus. Het voelt vertrouwd voor studenten die dagelijks in code-editors werken. Een schakelknop (🌙 / ☀️) in de topbar wisselt naar een GitHub Light variant.
+**Dark mode als standaard** — het donkere GitHub Dark kleurenpalet (`#0d1117` achtergrond, `#e6edf3` tekst) is de standaardmodus. Het voelt vertrouwd voor studenten die dagelijks in code-editors werken. Een schakelknop in de topbar wisselt naar een GitHub Light variant.
 
 **Twee lettertypes** — Space Grotesk voor alle interface-tekst: modern, goed leesbaar op scherm, met karakter. JetBrains Mono voor alle code: de standaard in de ontwikkelaarswereld, herkenbaar voor studenten.
 
@@ -51,8 +54,9 @@ Het platform heeft een bewuste, consistente visuele identiteit die aansluit bij 
 **Componenttypes in lessen** — lesinhoud bestaat uit bouwstenen met een eigen visuele stijl:
 - Tekst met markdown-achtige opmaak
 - Codeblokken met syntaxkleuring (per taal)
-- Info-boxes in drie smaken: 💡 tip (blauw), ⚠️ waarschuwing (oranje), ✅ succes (groen)
+- Info-boxes in drie smaken: tip (blauw), waarschuwing (oranje), succes (groen)
 - Opdrachtenboxen
+- Quizvragen (meerkeuzevragen en open vragen)
 - Video-embeds
 
 ---
@@ -71,6 +75,24 @@ Het platform heeft een bewuste, consistente visuele identiteit die aansluit bij 
 
 ---
 
+## Rollen en rechten
+
+Het platform kent drie rollen met verschillende toegangsniveaus:
+
+| Rol | Toegang |
+|---|---|
+| **Superadmin** | Ziet alles, kan alles bewerken, accounts beheren, inzendingen nakijken. Geen beperkingen. |
+| **Docent** | Ziet alleen eigen cursussen en eigen studenten. Kan lessen bewerken en inzendingen nakijken voor eigen cursussen. Kan voortgang bekijken van mentorstudenten, maar niet nakijken buiten eigen cursussen. |
+| **Student** | Ziet alleen eigen cursussen. Kan lessen volgen, opdrachten inleveren en quizzen maken. |
+
+**Docent-scoping werkt via twee relaties:**
+- **Docent-cursus** (`Teacher_ParticipatesIn_Course`) — docent geeft les in deze cursus, kan nakijken en lessen bewerken
+- **Docent-student / mentor** (`Teacher_guides_Student`) — docent begeleidt deze student, kan voortgang inzien maar niet nakijken
+
+**Groepen** (`Groups`) — studenten worden ingedeeld in klassen (bijv. SD1A, SD1B). Docenten worden aan groepen gekoppeld via `Group_has_Teacher`.
+
+---
+
 ## Snel starten
 
 Het platform vereist XAMPP (Apache + MySQL). Een gewone statische server is niet voldoende omdat de API-endpoints PHP draaien.
@@ -79,13 +101,27 @@ Het platform vereist XAMPP (Apache + MySQL). Een gewone statische server is niet
 2. Zet het project in `htdocs/` of gebruik de `DocumentRoot` in Apache
 3. Importeer in phpMyAdmin:
    - `database/CreateScriptRickLearningPlatform.sql` — maakt de database en tabellen
-   - `database/seed.sql` — vult vakken, cursussen en pagina's
-   - `database/seed_sections.sql` — vult demosecties
+   - `database/seed.sql` — vult vakken, cursussen, pagina's, accounts en demodata
 4. Open in de browser:
-   - `http://localhost/` — studentenview
-   - `http://localhost/admin.html` — lesontwerper (docentenview)
+   - `http://localhost/` — studentenview (login/registratie)
+   - `http://localhost/admin.html` — lesontwerper
+   - `http://localhost/AccountManager.html` — accountbeheer
+   - `http://localhost/HomeworkManager.html` — huiswerkbeheer
 
 **Database-instellingen** staan in `config/db.settings.php`. Standaard: host `localhost`, geen wachtwoord.
+
+**Demo-accounts** (wachtwoord voor allemaal: `wachtwoord123`):
+
+| Gebruiker | Rol | Cursussen |
+|---|---|---|
+| Rick | superadmin | Alles (geen beperkingen) |
+| Marloes | docent | Python, JavaScript. Mentor van JanWillem, Fatima, Daan |
+| JanWillem | student | Python, Java |
+| Fatima | student | Python, JavaScript, Unity 6 |
+| Daan | student | Python, Unity 6, VR |
+| Priya | student | JavaScript, Rekenen N4 |
+| Thomas | student | Python, Java, Rekenen N3 |
+| Yusuf | student | Python (inactief account) |
 
 ---
 
@@ -93,41 +129,109 @@ Het platform vereist XAMPP (Apache + MySQL). Een gewone statische server is niet
 
 ```
 ict-leerlijn/
-│
-├── index.html              ← Studentenview
-├── admin.html              ← Lesontwerper (docentenview)
-│
-├── components/
-│   └── sidebar.html        ← Sidebar HTML-template
-│
-├── config/
-│   ├── db.settings.php     ← Host, databasenaam, gebruiker, wachtwoord
-│   └── db.connection.php   ← PDO-verbinding (gebruikt door alle API-bestanden)
-│
-├── api/
-│   ├── subjects.php        ← GET: alle vakgroepen
-│   ├── courses.php         ← GET: alle cursussen met vakgroep
-│   ├── pages.php           ← GET: gepubliceerde pagina's met minimaal één sectie
-│   └── sections.php        ← GET: alle secties per pagina
-│
-├── css/
-│   └── main.css            ← Alle styling, dark + light mode
-│
-├── js/
-│   ├── sidebar.js          ← Sidebar ES-module (fetch, build, sync, export)
-│   └── app.js              ← App-logica: navigatie, paginering, meldingen
-│
-├── lessons/                ← Lesinhoud als HTML-fragmenten (optioneel)
-│   └── ...
-│
-└── database/
-    ├── CreateScriptRickLearningPlatform.sql  ← Schema
-    ├── seed.sql                              ← Vakken, cursussen, pagina's
-    ├── seed_sections.sql                     ← Demosecties
-    ├── alter_cascade_delete.sql              ← FK cascade on delete
-    ├── alter_charset_utf8mb4.sql             ← Emoji-ondersteuning
-    └── drop_database.sql                     ← Reset
+|
+|-- index.html                 <- Studentenview (login + lesomgeving)
+|-- admin.html                 <- Lesontwerper (docentenview)
+|-- AccountManager.html        <- Accountbeheer (superadmin/docent)
+|-- HomeworkManager.html       <- Huiswerkbeheer (inzendingen nakijken)
+|
+|-- components/
+|   +-- sidebar.html           <- Sidebar HTML-template
+|
+|-- config/
+|   |-- db.settings.php        <- Host, databasenaam, gebruiker, wachtwoord
+|   +-- db.connection.php      <- PDO-verbinding (gebruikt door alle API-bestanden)
+|
+|-- api/
+|   |-- subjects.php           <- GET: alle vakgroepen
+|   |-- courses.php            <- GET: alle cursussen met vakgroep
+|   |-- pages.php              <- GET: gepubliceerde pagina's
+|   |-- sections.php           <- GET: secties per pagina
+|   |-- section_content.php    <- GET: componenten per sectie (tekst, code, quiz, etc.)
+|   |-- login.php              <- POST: inloggen met gebruikersnaam/wachtwoord
+|   |-- register.php           <- POST: nieuw account registreren
+|   |-- me.php                 <- GET: huidige gebruiker + scope (cursussen, studenten)
+|   |-- check_availability.php <- GET: controleer of gebruikersnaam/email beschikbaar is
+|   |-- update_email.php       <- POST: e-mailadres wijzigen
+|   |-- accounts.php           <- GET: alle accounts met inschrijvingen en voortgang
+|   |-- account_toggle.php     <- POST: account activeren/deactiveren
+|   |-- account_courses.php    <- POST/DELETE: student in-/uitschrijven voor cursus
+|   |-- progress.php           <- GET: voltooide pagina's per student per cursus
+|   |-- open_page.php          <- POST: pagina als geopend markeren
+|   |-- submissions.php        <- GET: alle huiswerkinzendingen met cursus/pagina-info
+|   |-- docent_courses.php     <- POST/DELETE: docent aan cursus koppelen/ontkoppelen
+|   |-- docent_students.php    <- POST/DELETE: docent als mentor koppelen aan student
+|   +-- upload_media.php       <- POST: media-bestanden uploaden
+|
+|-- css/
+|   +-- main.css               <- Alle styling, dark + light mode, CSS-variabelen
+|
+|-- js/
+|   |-- app.js                 <- App-logica: navigatie, paginering, meldingen
+|   |-- sidebar.js             <- Sidebar ES-module (fetch, build, sync, export)
+|   +-- highlighter.js         <- Syntaxkleuring voor codeblokken
+|
+|-- uploads/                   <- Geuploade bestanden (media, inzendingen)
+|
++-- database/
+    |-- CreateScriptRickLearningPlatform.sql  <- Schema (alle tabellen)
+    |-- seed.sql                              <- Demodata (vakken, accounts, inzendingen)
+    +-- drop_database.sql                     <- Reset
 ```
+
+---
+
+## Databaseschema
+
+```
+Subjects --> Courses --> Pages --> Sections --> Components
+                |                                  |
+                |                          +-------+-------+
+                |                          |       |       |
+                |                     TextBlocks CodeSnippets PQQuestion --> PQAnswer
+                |                          |       |       |
+                |                     InfoBoxes MultiMedia Assigments
+                |
+     Student_Has_Course              Accounts_have_assignments
+                |                              |
+            Accounts ------------- AC_Did_Question --> AC_Picked_Answer
+                |
+    +-----------+-----------+
+    |           |           |
+Teacher_     Teacher_    Student_
+Participates guides     BelongsTo
+In_Course   Student     Group
+                           |
+                        Groups --> Group_has_Teacher
+```
+
+**30 tabellen** georganiseerd rond drie kernconcepten:
+
+| Concept | Tabellen |
+|---|---|
+| **Lesinhoud** | Subjects, Courses, PageTypes, Pages, Sections, ComponentType, Components, TextBlocks, CodeSnippets, InfoBoxes, MultiMedia, MultiMediaType, Languages, EmptySpace, EmptySpaceTypes |
+| **Opdrachten & quizzen** | Assigments, Accounts_have_assignments, PQQuestion, PQAnswer, QuestionContext, AC_Did_Question, AC_Picked_Answer |
+| **Gebruikers & rollen** | Accounts, Student_Has_Course, Accounts_opened_pages, Teacher_ParticipatesIn_Course, Teacher_guides_Student, Groups, Group_has_Teacher, Student_BelongsTo_Group |
+
+---
+
+## Pagina's
+
+### Studentenview (`index.html`)
+
+De hoofdpagina voor studenten. Bevat login/registratie, een sidebar met cursusnavigatie, en de lesweergave met sectiepaginering. Studenten zien alleen cursussen waarvoor ze zijn ingeschreven.
+
+### Lesontwerper (`admin.html`)
+
+Een twee-koloms editor voor docenten om lessen te ontwerpen zonder code te schrijven. Links een structuurpaneel met cursussen en pagina's, rechts de editor met secties en componenten. Docenten zien alleen hun eigen toegewezen cursussen.
+
+### Accountbeheer (`AccountManager.html`)
+
+Beheer van studentaccounts, cursusinschrijvingen en voortgang. Twee views: per student (tabel met filters, bulk-inschrijvingen) en per cursus (cursuskaarten met studentenlijst). Docenten zien alleen studenten in hun cursussen of mentorstudenten. Activate/deactivate is alleen voor superadmins.
+
+### Huiswerkbeheer (`HomeworkManager.html`)
+
+Overzicht van alle ingeleverde opdrachten. Toont statistieken (totaal, na te kijken, laatste 7 dagen, aantal studenten), filterbaar op cursus, status en type. Uitklapbare rijen tonen het volledige antwoord (tekst en/of bestand). Voor docenten: eigen cursussen zijn nakijkbaar, mentorstudenten tonen "Alleen inzien" badge. Beoordelen met score en feedback is nog in ontwikkeling.
 
 ---
 
@@ -135,19 +239,23 @@ ict-leerlijn/
 
 ```
 MySQL DB
-  └── api/*.php              PHP-queries, JSON output
-        └── js/sidebar.js    Fetcht 4 lagen, bouwt navigatieboom, exporteert data
-              └── js/app.js  Navigatie, lesweergave, paginering, weergavewisseling
+  +-- api/*.php              PHP-queries, JSON output, rolgebaseerde data
+        +-- js/sidebar.js    Fetcht 4 lagen, bouwt navigatieboom, exporteert data
+              +-- js/app.js  Navigatie, lesweergave, paginering, syntaxkleuring
 ```
 
 De sidebar laadt data in vier opeenvolgende lagen:
 
 1. **Subjects** — vakgroepskoppen (Programmeren, Game & VR, Rekenen MBO)
 2. **Courses** — cursusgroepen per vakgroep met icoon en kleur
-3. **Pages** — lesitems per cursus (alleen gepubliceerd én heeft secties)
+3. **Pages** — lesitems per cursus (alleen gepubliceerd en heeft secties)
 4. **Sections** — sub-items per pagina, inklapbaar via een pijl
 
-Een docent die lesmateriaal toevoegt, werkt alleen in de database. `app.js` en `sidebar.js` hoeven niet aangepast te worden.
+Alle admin-pagina's volgen hetzelfde patroon:
+1. Auth check via `api/me.php` — controleert rol en haalt scope op
+2. Data fetch — haalt relevante data op
+3. Client-side filtering — filtert op basis van docent-scope (cursussen + studenten)
+4. Render — bouwt de tabel/interface op met filter-listeners
 
 ---
 
@@ -155,7 +263,7 @@ Een docent die lesmateriaal toevoegt, werkt alleen in de database. `app.js` en `
 
 ### Iteratie 1 — Interface & sidebar
 
-Gebaseerd op de Udemy/W3Schools-ervaring: een collapsible sidebar met cursusgroepen, voortgangsbalken, statusindicatoren per les (✓ klaar / ▶ bezig / 🔒 vergrendeld) en type-badges (les / oefening / quiz / project). Rechts een hoofdgebied met het dashboard of de lesweergave.
+Gebaseerd op de Udemy/W3Schools-ervaring: een collapsible sidebar met cursusgroepen, voortgangsbalken, statusindicatoren per les en type-badges (les / oefening / quiz / project). Rechts een hoofdgebied met het dashboard of de lesweergave.
 
 **Keuze:** geen framework. Pure HTML/CSS/JS zodat het platform eenvoudig te begrijpen, te hosten en te onderhouden is.
 
@@ -169,53 +277,27 @@ Scheiding van data, logica en content. Lesinhoud als HTML-fragmenten in `lessons
 
 ### Iteratie 3 — Database schema
 
-MySQL database met 5 tabellen in een vaste hiërarchie:
-
-```
-subject → course → page → section
-```
-
-| Tabel | Rol |
-|---|---|
-| `Subjects` | Programmeren, Game & VR, Rekenen MBO |
-| `Courses` | Python, Unity 6, N4 — met icon en kleur (CSS-klassenaam) |
-| `Pages` | Een les-eenheid met type (lesson/exercise/quiz/project), volgorde en published-flag |
-| `Sections` | Inhoudelijk blok met titel en volgorde binnen een pagina |
-
-Cascade delete is ingesteld: een cursus verwijderen verwijdert ook alle bijbehorende pagina's en secties.
+MySQL database met een vaste tabelhierarchie: subject, course, page, section. Cascade delete is ingesteld: een cursus verwijderen verwijdert ook alle bijbehorende pagina's en secties.
 
 ---
 
 ### Iteratie 4 — Sectiepaginering
 
-Lessen worden gesplitst in slides: één sectie per slide. De student bladert door secties met vorige/volgende-pijlen. Een dot-indicator toont op welke sectie de student zit.
+Lessen worden gesplitst in slides: een sectie per slide. De student bladert door secties met vorige/volgende-pijlen. Een dot-indicator toont op welke sectie de student zit.
 
-Bij één sectie: geen navigatiechrome. Bij meerdere: een dunne voortgangsbalk bovenaan en de navigatiebalk onderaan.
-
-**Contentstructuur:** lesbestanden gebruiken `<section data-title="Naam">` als expliciete splitpunten. Zonder die tags splitst de parser op `<h3>`. Als er geen lesbestand is, worden de sectietitels uit de database als placeholders gebruikt.
+Bij een sectie: geen navigatiechrome. Bij meerdere: een dunne voortgangsbalk bovenaan en de navigatiebalk onderaan.
 
 ---
 
 ### Iteratie 5 — Dark / light thema
 
-De 🌙 / ☀️ schakelknop in de topbar wisselt tussen dark en light mode. Implementatie: `data-theme="light"` op het `<html>`-element schakelt een volledige set CSS-variabele-overrides in. Geen JavaScript voor kleurlogica — alles via CSS. De keuze wordt opgeslagen in `localStorage`.
+De schakelknop in de topbar wisselt tussen dark en light mode. Implementatie: `data-theme="light"` op het `<html>`-element schakelt een volledige set CSS-variabele-overrides in. Geen JavaScript voor kleurlogica — alles via CSS. De keuze wordt opgeslagen in `localStorage`.
 
 ---
 
 ### Iteratie 6 — Meldingensysteem
 
-Studenten vinden fouten. Dat is goed. Ze moeten dat makkelijk kunnen melden.
-
-Bij hover op een sectie verschijnt een subtiel ⚑ vlagje rechts naast de sectietitel. Klikken opent een compact modal met vier meldingstypen:
-
-- ✗ Fout in de inhoud
-- ? Onduidelijke uitleg
-- ! Probleem met de opdracht
-- … Iets anders
-
-Na het invullen van een optionele toelichting en versturen: toast-bevestiging onderin, de vlag kleurt oranje als herinnering.
-
-In het rechterpaneel bij elke les staat een "Meldingen" kaart voor de docent. Per melding: type, locatie (cursus › les › sectie), datum en toelichting. Een "Opgelost ✓" knop archiveert de melding.
+Bij hover op een sectie verschijnt een subtiel vlagje rechts naast de sectietitel. Klikken opent een compact modal met vier meldingstypen: fout in de inhoud, onduidelijke uitleg, probleem met de opdracht, of iets anders. Na versturen: toast-bevestiging, de vlag kleurt oranje als herinnering.
 
 **Opslag:** `localStorage` onder `ict-reports`. Geen server nodig in de huidige fase.
 
@@ -223,97 +305,74 @@ In het rechterpaneel bij elke les staat een "Meldingen" kaart voor de docent. Pe
 
 ### Iteratie 7 — Lesontwerper (admin.html)
 
-Een aparte pagina voor docenten om lessen te ontwerpen zonder code te schrijven.
-
-**Twee kolommen:**
-- Links: structuurpaneel met de volledige boom van vakken, cursussen en pagina's. Per cursus een "＋ Les toevoegen" knop.
-- Rechts: de editor met paginametadata (titel, type, XP) en secties met componenten.
-
-**Componenttypen in de editor:**
-
-| Type | Invoer |
-|---|---|
-| Tekst | Vrije textarea |
-| Code | Code-textarea + taalkeuzelijst + optionele bestandsnaam |
-| Tip/Waarschuwing | Stijlknop (💡/⚠️/✅) + titel + tekst |
-| Video | URL-veld + optionele ondertitel |
-| Opdracht | Label + beschrijving |
-
-Secties en componenten zijn te herordenen met ↑↓-knoppen en te verwijderen. Alles slaat automatisch op in `localStorage` met een debounce van 800ms.
+Een aparte pagina voor docenten om lessen te ontwerpen zonder code te schrijven. Twee kolommen: links een structuurpaneel, rechts de editor met paginametadata en componenttypes (tekst, code, tip/waarschuwing, video, opdracht). Secties en componenten zijn te herordenen en te verwijderen.
 
 ---
 
 ### Iteratie 8 — Sidebar als losgekoppelde module
 
-De sidebar is geëxtraheerd naar een eigen ES-module zodat hij herbruikbaar is en niet verstrengeld met de app-logica.
-
-**Drie onderdelen:**
-
-- `components/sidebar.html` — de HTML-template (merk, gebruikersrij, nav-placeholder).
-- `js/sidebar.js` — ES-module met geëxporteerde functies:
-  - `initSidebar(mountId, onLessonClick)` — fetcht de template, bouwt de navigatieboom in 4 lagen.
-  - `getCourses()` — geeft de samengestelde cursusstructuur terug voor `app.js`.
-  - `getSectionsByPage()` — geeft secties per pagina-ID terug voor lesinhoud.
-  - `syncSidebarActive(courseId, lessonId)` — markeert de actieve les.
-  - `toggleGroup(id)` — vouwt een cursusgroep open of dicht.
-  - `updateSidebarUser(student)` — vult naam, niveau en XP-balk in.
-- `index.html` — de `<aside>` is vervangen door `<div id="sidebar-mount"></div>`.
+De sidebar is geextraheerd naar een eigen ES-module (`js/sidebar.js`) met geexporteerde functies: `initSidebar`, `getCourses`, `getSectionsByPage`, `syncSidebarActive`, `toggleGroup`, `updateSidebarUser`.
 
 ---
 
 ### Iteratie 9 — Navigatiestijl van de sectiepaginering
 
-De vorige/volgende-knoppen en dot-indicators zijn volledig herontworpen zodat ze passen bij de dark en light thema's en intuïtiever zijn in gebruik.
-
-**Layout:**
-- Bovenaan: alleen de dunne voortgangsbalk (breedte = percentage voltooide slides).
-- Onderaan, gecentreerd: één navigatiebalk met `←` · dots · paginatelling · `→`.
-
-**Dots:** met een pill-animatie: de actieve dot rekt uit naar 22px breedte. Elke dot heeft de sectienaam als tooltip en is klikbaar om direct naar die sectie te springen. Op de laatste slide vervangt een groene vinkjesknop de volgende-pijl.
+De vorige/volgende-knoppen en dot-indicators zijn herontworpen met een pill-animatie: de actieve dot rekt uit. Elke dot heeft de sectienaam als tooltip en is klikbaar.
 
 ---
 
 ### Iteratie 10 — Live database-koppeling
 
-`courses.js` (hardgecodeerde data) is volledig vervangen door een live MySQL-koppeling via PHP-API-endpoints.
-
-**Wat veranderde:**
-- `config/db.settings.php` en `config/db.connection.php` — gescheiden settings en verbinding (PDO, utf8mb4 voor emoji-ondersteuning).
-- `api/subjects.php`, `api/courses.php`, `api/pages.php`, `api/sections.php` — vier endpoints die JSON teruggeven.
-- `sidebar.js` laadt data in vier progressieve lagen: eerst de vakgroep-koppen, dan de cursusgroepen, dan de pagina's, dan de secties. Elke laag rendert direct zodra hij binnenkomt.
-- Pagina's worden alleen getoond als ze ten minste één sectie hebben (`EXISTS`-filter in `api/pages.php`).
+Hardgecodeerde data is vervangen door een live MySQL-koppeling via PHP-API-endpoints. Sidebar laadt data in vier progressieve lagen.
 
 ---
 
 ### Iteratie 11 — Sectie-uitklap in de sidebar
 
-Pagina's met secties krijgen een uitklapfunctie in de sidebar.
-
-**Gedrag:**
-- Bij hover over een paginaregel verschijnt een blauw pijltje (▶) vóór de type-badge.
-- Klikken op het pijltje klapt de secties uit (pijl roteert 90°). De secties blijven zichtbaar totdat je opnieuw klikt of de muis het gebied verlaat.
-- Bij weggaan van de muis: secties klappen dicht, pijl roteert terug, en vervaagt daarna pas — zodat de animatie netjes voltooid wordt voor de pijl verdwijnt.
-- Secties zijn gestyled als paginaregels maar met extra inspringing en een kleinere statuscirkel.
+Pagina's met secties krijgen een uitklapfunctie in de sidebar. Bij hover verschijnt een pijltje, klikken klapt de secties uit.
 
 ---
 
 ### Iteratie 12 — Lesweergave vanuit de sidebar
 
-Klikken op een pagina in de sidebar opent de lesweergave in het midden en verbergt het dashboard.
+Klikken op een pagina in de sidebar opent de lesweergave. Secties uit de database worden als slides geladen. Wissel tussen sectieweergave en volledige weergave.
 
-**Gedrag:**
-- Het dashboard verdwijnt; de lesweergave toont de paginatitel, broodkruimel, type-badge en het rechterpaneel.
-- De secties uit de database worden als slides geladen: elke sectie is een eigen slide met de bestaande dot-navigatie en vorige/volgende-knoppen.
-- Als een pagina al een HTML-lesbestand heeft (`lesson.file`), wordt dat geladen. Anders dienen de sectietitels uit de database als placeholder.
+---
 
-**Weergavewisseling:**
-- Een knop bovenaan de lesweergave ("Switch to full view") toont alle secties tegelijk op één pagina.
-- Klikken schakelt terug naar de slide-weergave ("Switch to section view").
-- Bij het openen van een nieuwe pagina reset de weergave altijd naar sectieweergave.
+### Iteratie 13 — Studentaccounts en authenticatie
 
-**UI-opschoning:**
-- Het "Pagina voltooid"-label onderaan de laatste slide is verwijderd. De groene vinkjesknop geeft al aan dat de pagina klaar is.
-- De "Sectie X van Y"-teller in het rechterpaneel ("Jouw voortgang") is verwijderd — de dot-indicator in de navigatiebalk geeft deze informatie al visueel weer.
+Inlogsysteem met registratie, wachtwoord-hashing (bcrypt) en rolgebaseerde toegang. Drie rollen: student, docent en superadmin. Sessie via `sessionStorage`. Elke admin-pagina controleert de rol via `api/me.php` en redirect studenten naar de studentenview.
+
+---
+
+### Iteratie 14 — Accountbeheer (AccountManager.html)
+
+Admin-pagina voor het beheren van studentaccounts. Twee views:
+- **Per student** — tabel met zoeken, filteren op rol/status/cursus, bulk in-/uitschrijven, activeren/deactiveren
+- **Per cursus** — cursuskaarten met studentenlijsten en direct in-/uitschrijven
+
+Volgt hetzelfde UI-patroon als de lesontwerper: topbar met navigatie, statsrij, filerbalk en datatabellen.
+
+---
+
+### Iteratie 15 — Huiswerkbeheer (HomeworkManager.html)
+
+Admin-pagina voor het bekijken van ingeleverde opdrachten. Toont alle inzendingen uit `Accounts_have_assignments` met cursus- en pagina-informatie. Stats, filters (zoeken, cursus, status, type), uitklapbare rijen met tekstantwoord en/of bestandsdownload. Beoordelen met score en feedback is voorbereid maar nog niet actief.
+
+---
+
+### Iteratie 16 — Docent-scoping en mentorrelaties
+
+Twee nieuwe relaties toegevoegd:
+- **Docent-cursus** — docent geeft les in een cursus, kan nakijken en lessen bewerken
+- **Docent-student (mentor)** — docent begeleidt een student, kan voortgang inzien maar niet nakijken
+
+Superadmins hebben geen beperkingen. Docenten zien in alle drie admin-pagina's alleen hun eigen scope:
+- **Lesontwerper** — alleen toegewezen cursussen in de structuurboom
+- **Huiswerkbeheer** — inzendingen van eigen cursussen (nakijkbaar) + mentorstudenten (alleen inzien)
+- **Accountbeheer** — alleen studenten in eigen cursussen of mentorstudenten, geen activate/deactivate
+
+Groepen (SD1A, SD1B, etc.) zijn aangemaakt in de database voor toekomstige koppeling met klassen.
 
 ---
 
@@ -323,7 +382,7 @@ Klikken op een pagina in de sidebar opent de lesweergave in het midden en verber
 2. Voeg de secties toe in de `Sections`-tabel met de bijbehorende `Pages_Id`, `Title` en `Order`.
 3. De sidebar en lesweergave laden de nieuwe pagina automatisch bij de volgende refresh.
 
-Voor rijke lesinhoud: maak een HTML-bestand aan in `lessons/` met `<section data-title="...">` blokken en sla het pad op als toekomstig veld in de `Pages`-tabel.
+Of gebruik de **Lesontwerper** (`admin.html`) om pagina's en secties visueel aan te maken.
 
 ---
 
@@ -360,14 +419,12 @@ Voor rijke lesinhoud: maak een HTML-bestand aan in `lessons/` met `<section data
 | PDO utf8mb4 | Database-verbinding | Volledige Unicode inclusief emoji-iconen |
 | ES modules | `import`/`export` in `sidebar.js` | Losse verantwoordelijkheden, herbruikbare componenten |
 | 4-laagse sidebar | Progressieve render | Elke laag zichtbaar zodra die binnenkomt, geen laadscherm |
-| EXISTS-filter | `api/pages.php` | Alleen pagina's met content tonen aan studenten |
-| Één sectie per slide | Paginering | Duidelijke leerstap per keer, makkelijk te navigeren |
+| Client-side scoping | Rolgebaseerde filtering | Server stuurt alle data, client filtert op scope van ingelogde gebruiker |
+| Bcrypt wachtwoorden | `password_hash` in PHP | Veilige opslag, standaard in de branche |
+| sessionStorage | Sessiedata | Simpel, verloopt bij sluiten van de tab, geen cookies nodig |
 | CSS-variabelen | Themasysteem | Dark/light zonder JavaScript kleurlogica |
-| `<section>` tags | Paginering | Expliciete splitpunten, fallback op `<h3>` |
-| Cirkelpijlen + pill-dots | Sectienavigatie | Compacter dan tekst-knoppen, thema-neutraal, intuïtief |
-| `localStorage` | Meldingen & admin | Geen server nodig in de huidige fase |
-| Aparte `admin.html` | Docentenview | Geen code-menging met studentenview |
-| Space Grotesk | UI-lettertype | Modern, leesbaar, karakter zonder cliché te zijn |
+| Inline `<style>` per pagina | Admin-pagina styling | Elke admin-pagina heeft eigen overrides bovenop `main.css` |
+| Space Grotesk | UI-lettertype | Modern, leesbaar, karakter zonder cliche te zijn |
 | JetBrains Mono | Code | Standaard in de ontwikkelwereld |
 | GitHub Dark/Light | Kleurpaletten | Herkenbaar, professioneel, consistent met code-editors |
 
@@ -377,13 +434,14 @@ Voor rijke lesinhoud: maak een HTML-bestand aan in `lessons/` met `<section data
 
 | Prioriteit | Feature |
 |---|---|
-| Hoog | Lesinhoud toevoegen per sectie (HTML-bestand of Content-veld in DB) |
-| Hoog | Voortgang opslaan per student (localStorage of Supabase) |
-| Hoog | Studentaccounts en inloggen |
-| Hoog | Werkend quizsysteem met score en directe feedback |
-| Middel | Meldingen naar een server sturen |
-| Middel | Badges op basis van mijlpalen |
+| Hoog | Beoordelen met score en feedback in Huiswerkbeheer (DB-migratie: Grade, Feedback, GradedOn kolommen) |
+| Hoog | Quizvragen toevoegen aan Huiswerkbeheer (UNION van AC_Did_Question met submissions) |
+| Hoog | Student-side inleverflow (opdracht inleveren vanuit de lesweergave) |
+| Hoog | Docentbeheer-UI in AccountManager (superadmin wijst cursussen en mentorstudenten toe aan docent) |
+| Middel | Groepenbeheer-UI (klassen aanmaken, studenten toewijzen) |
+| Middel | Server-side scoping (API-endpoints filteren op rol i.p.v. alleen client-side) |
+| Middel | Meldingen naar een server sturen (vervang localStorage) |
 | Middel | Zoekfunctie over alle lessen |
-| Laag | Video-embed als werkend component |
+| Laag | OpenAnswer en ReviewFeedback kolommen verbreden (VARCHAR(45) naar LONGTEXT) |
 | Laag | Voortgang exporteren als PDF |
 | Laag | Mobiele weergave verfijnen |

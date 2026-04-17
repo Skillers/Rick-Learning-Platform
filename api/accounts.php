@@ -24,7 +24,7 @@ $enrollments = $pdo->query("
         c.`Name`                AS `course_name`,
         c.`Icon`                AS `course_icon`,
         c.`Color`               AS `course_color`
-    FROM `accounts_has_courses` ahc
+    FROM `Student_Has_Course` ahc
     JOIN `courses` c ON ahc.`courses_Id` = c.`Id`
     ORDER BY ahc.`Enrolled_at`
 ")->fetchAll();

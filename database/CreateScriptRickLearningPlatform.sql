@@ -61,12 +61,12 @@ DEFAULT CHARACTER SET = utf8mb4;
 -- Table `rick learning platform`.`pages`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`pages` (
-  `Course_Id` INT(11) NOT NULL,
   `Id` INT(11) NOT NULL AUTO_INCREMENT,
+  `Course_Id` INT(11) NOT NULL,
   `title` VARCHAR(45) NOT NULL,
   `order` INT(11) NULL DEFAULT NULL,
   `published` TINYINT(1) NOT NULL,
-  `PageType_Id` INT(11) NULL DEFAULT NULL,
+  `PageType_Id` INT(11) NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_Pages_Courses1_idx` (`Course_Id` ASC),
   INDEX `fk_Pages_PageTypes1_idx` (`PageType_Id` ASC),
@@ -469,9 +469,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `rick learning platform`.`accounts_has_courses`
+-- Table `rick learning platform`.`Student_Has_Course`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `rick learning platform`.`accounts_has_courses` (
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Student_Has_Course` (
   `accounts_username` VARCHAR(25) NOT NULL,
   `courses_Id` INT(11) NOT NULL,
   `Enrolled_at` DATETIME NOT NULL,
@@ -487,6 +487,107 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`accounts_has_courses` (
     FOREIGN KEY (`courses_Id`)
     REFERENCES `rick learning platform`.`courses` (`Id`)
     ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Teacher_guides_Student`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Teacher_guides_Student` (
+  `accounts_Student` VARCHAR(25) NOT NULL,
+  `accounts_Teacher` VARCHAR(25) NOT NULL,
+  PRIMARY KEY (`accounts_Student`, `accounts_Teacher`),
+  INDEX `fk_accounts_has_accounts_accounts2_idx` (`accounts_Teacher` ASC),
+  INDEX `fk_accounts_has_accounts_accounts1_idx` (`accounts_Student` ASC),
+  CONSTRAINT `fk_accounts_has_accounts_accounts1`
+    FOREIGN KEY (`accounts_Student`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_accounts_has_accounts_accounts2`
+    FOREIGN KEY (`accounts_Teacher`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Groups`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Groups` (
+  `GroupNames` VARCHAR(25) NOT NULL,
+  `StartedOn` DATETIME NOT NULL,
+  PRIMARY KEY (`GroupNames`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Group_has_Teacher`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Group_has_Teacher` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `Groups_GroupNames` VARCHAR(25) NOT NULL,
+  PRIMARY KEY (`accounts_username`, `Groups_GroupNames`),
+  INDEX `fk_Group_has_accounts_accounts1_idx` (`accounts_username` ASC),
+  INDEX `fk_Group_has_Teacher_Groups1_idx` (`Groups_GroupNames` ASC),
+  CONSTRAINT `fk_Group_has_accounts_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Group_has_Teacher_Groups1`
+    FOREIGN KEY (`Groups_GroupNames`)
+    REFERENCES `rick learning platform`.`Groups` (`GroupNames`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Student_BelongsTo_Group`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Student_BelongsTo_Group` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `Groups_GroupNames` VARCHAR(25) NOT NULL,
+  `AssignedOn` DATETIME NOT NULL,
+  PRIMARY KEY (`accounts_username`, `Groups_GroupNames`),
+  INDEX `fk_Group_has_accounts_accounts2_idx` (`accounts_username` ASC),
+  INDEX `fk_Student_BelongsTo_Group_Groups1_idx` (`Groups_GroupNames` ASC),
+  CONSTRAINT `fk_Group_has_accounts_accounts2`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Student_BelongsTo_Group_Groups1`
+    FOREIGN KEY (`Groups_GroupNames`)
+    REFERENCES `rick learning platform`.`Groups` (`GroupNames`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Teacher_ParticipatesIn_Course`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Teacher_ParticipatesIn_Course` (
+  `courses_Id` INT(11) NOT NULL,
+  `accounts_username` VARCHAR(25) NOT NULL,
+  PRIMARY KEY (`courses_Id`, `accounts_username`),
+  INDEX `fk_courses_has_accounts_accounts1_idx` (`accounts_username` ASC),
+  INDEX `fk_courses_has_accounts_courses1_idx` (`courses_Id` ASC),
+  CONSTRAINT `fk_courses_has_accounts_courses1`
+    FOREIGN KEY (`courses_Id`)
+    REFERENCES `rick learning platform`.`courses` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_courses_has_accounts_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;

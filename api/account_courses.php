@@ -17,7 +17,7 @@ if ($method === 'POST') {
     }
 
     $stmt = $pdo->prepare("
-        INSERT INTO `accounts_has_courses` (`accounts_username`, `courses_Id`, `Enrolled_at`)
+        INSERT INTO `Student_Has_Course` (`accounts_username`, `courses_Id`, `Enrolled_at`)
         VALUES (:username, :course_id, NOW())
     ");
     $stmt->execute(['username' => $username, 'course_id' => $courseId]);
@@ -35,7 +35,7 @@ if ($method === 'POST') {
     }
 
     $stmt = $pdo->prepare("
-        DELETE FROM `accounts_has_courses`
+        DELETE FROM `Student_Has_Course`
         WHERE `accounts_username` = :username AND `courses_Id` = :course_id
     ");
     $stmt->execute(['username' => $username, 'course_id' => $courseId]);
