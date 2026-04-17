@@ -885,3 +885,122 @@ INSERT INTO `accounts_has_courses` (`accounts_username`, `courses_Id`, `Enrolled
 ('Thomas',    3, '2024-09-04 11:05:00'),
 ('Thomas',    7, '2024-09-04 11:05:00'),
 ('Yusuf',     1, '2024-10-01 08:50:00');
+
+-- -------------------------------------------------------------
+-- Assignment components
+-- Ids 100-104 to avoid clashing with existing 1-42.
+-- -------------------------------------------------------------
+INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
+(100, 'assignment',   9, 4),   -- Python p3 s9  (while-loop)          — FizzBuzz
+(101, 'assignment',   4, 3),   -- Python p2 s4  (variabelen)          — Variabelen-oefening
+(102, 'assignment',  35, 3),   -- JS     p11 s35 (variabelen)         — Console-opdracht
+(103, 'assignment',  78, 3),   -- Java   p25 s78 (klassen & objecten) — Klasse Hond
+(104, 'assignment', 164, 2);   -- N4     p53 s164 (procenten)         — Procenten berekenen
+
+-- -------------------------------------------------------------
+-- Assigments
+-- -------------------------------------------------------------
+INSERT INTO `Assigments` (`Id`, `component_Id`, `FileRequired`, `Title`) VALUES
+(1, 100, 0, 'FizzBuzz in Python'),
+(2, 101, 0, 'Eigen variabelen declareren'),
+(3, 102, 0, 'Console.log spelen met variabelen'),
+(4, 103, 1, 'Klasse Hond met constructor'),
+(5, 104, 0, 'Procenten uitwerken');
+
+-- -------------------------------------------------------------
+-- Homework submissions  (Accounts_have_assignments)
+-- Mix of text-only / file-only / both across 5 students, 5 assignments.
+-- Dates range from Nov 2024 (early coursework) to Jan 2025.
+-- -------------------------------------------------------------
+INSERT INTO `Accounts_have_assignments`
+  (`account_username`, `Assigment_Id`, `SubmittedTextAnswer`, `FileName`, `FilePath`, `SubmittedOn`) VALUES
+
+-- Priya — JS console opdracht
+('Priya', 3,
+ 'let naam = "Priya"; console.log(`Hallo ${naam}`); // werkt!',
+ NULL, NULL,
+ '2025-01-15 14:30:00'),
+
+-- JanWillem — Python FizzBuzz, tekst + bestand
+('JanWillem', 1,
+ 'Ik heb FizzBuzz tot 100 werkend. Gebruikt % 3 en % 5 in een if-elif keten.',
+ 'fizzbuzz_janwillem.py', 'submissions/2025/01/fizzbuzz_janwillem.py',
+ '2025-01-14 10:20:00'),
+
+-- Daan — Python FizzBuzz, alleen bestand
+('Daan', 1,
+ NULL,
+ 'fizzbuzz.py', 'submissions/2025/01/fizzbuzz_daan.py',
+ '2025-01-13 09:45:00'),
+
+-- Fatima — JS console opdracht, tekst + bestand
+('Fatima', 3,
+ 'Voorbeelden getest in de browserconsole. Template literals werken met ${}.',
+ 'console_fatima.js', 'submissions/2025/01/console_fatima.js',
+ '2025-01-12 16:00:00'),
+
+-- Fatima — Python variabelen, tekst
+('Fatima', 2,
+ 'Ik heb variabelen gemaakt voor naam, leeftijd en stad en deze geprint met f-strings.',
+ NULL, NULL,
+ '2025-01-10 11:30:00'),
+
+-- Daan — Python variabelen, tekst
+('Daan', 2,
+ 'Vier variabelen: int, float, str, bool. Geprint met print(type(x), x).',
+ NULL, NULL,
+ '2025-01-09 13:15:00'),
+
+-- Thomas — Python FizzBuzz, tekst + bestand
+('Thomas', 1,
+ 'Eerst met if-elif, daarna opgeschoond met een aparte functie fizzbuzz(n).',
+ 'fizzbuzz_thomas.py', 'submissions/2025/01/fizzbuzz_thomas.py',
+ '2025-01-07 10:00:00'),
+
+-- JanWillem — Java klasse Hond, tekst + bestand
+('JanWillem', 4,
+ 'Klasse Hond met velden naam, ras, leeftijd. Constructor + toString().',
+ 'Hond.java', 'submissions/2024/12/Hond_janwillem.java',
+ '2024-12-20 14:45:00'),
+
+-- Thomas — Java klasse Hond, alleen bestand
+('Thomas', 4,
+ NULL,
+ 'Hond.java', 'submissions/2024/12/Hond_thomas.java',
+ '2024-12-10 11:30:00'),
+
+-- Priya — N4 procenten, vroege inzending
+('Priya', 5,
+ 'Uitwerking: 25% van 80 = 20. Stappenplan: deel door 100, keer het percentage.',
+ NULL, NULL,
+ '2024-11-25 10:00:00');
+
+-- -------------------------------------------------------------
+-- Quiz: open-question attempts  (AC_Did_Question)
+-- Only PQQuestion 3 has OpenQuestion = 1 in the seed.
+-- OpenAnswer and ReviewFeedback ≤ 45 chars (current VARCHAR(45)).
+-- 3 unreviewed, 2 already reviewed by docent/admin.
+-- -------------------------------------------------------------
+INSERT INTO `AC_Did_Question`
+  (`accounts_username`, `PQQuestion_Id`, `QuestionContext_ContextType`,
+   `AttemptDate`, `OpenAnswer`, `ReviewedBy`, `ReviewedAt`, `ReviewFeedback`) VALUES
+
+('Priya',     3, 'section', '2025-01-15 08:00:00',
+ 'Ik weet het niet goed',
+ NULL, NULL, NULL),
+
+('JanWillem', 3, 'section', '2025-01-13 14:00:00',
+ 'for = vast, while = zolang waar',
+ NULL, NULL, NULL),
+
+('Fatima',    3, 'section', '2025-01-11 10:30:00',
+ 'for weet je hoe vaak, while niet',
+ NULL, NULL, NULL),
+
+('Daan',      3, 'section', '2025-01-08 09:00:00',
+ 'for itereert lijst, while op conditie',
+ 'Marloes', '2025-01-11 15:30:00', 'Goed uitgelegd!'),
+
+('Thomas',    3, 'section', '2025-01-03 11:00:00',
+ 'for heeft teller, while heeft conditie',
+ 'Rick', '2025-01-06 09:15:00', 'Bijna. Controleer de loops.');
