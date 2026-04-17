@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Huiswerkbeheer — ICT Leerlijn</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* ── Layout ── */
+    button { cursor:pointer; }
+    input,select,textarea { font-family:'Space Grotesk',sans-serif; }
+    html { overflow-y:scroll; }
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    /* ── Topbar ── */
+    .topbar {
+      padding:12px 24px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+      background:var(--bg2); flex-shrink:0; position:sticky; top:0; z-index:10;
+    }
+    .topbar-brand { display:flex; align-items:center; gap:8px; }
+    .brand-chip { background:var(--blue); color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:.5px; }
+    .topbar-title { font-size:15px; font-weight:600; }
+    .topbar-sub { font-size:12px; color:var(--text2); }
+    .topbar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+    /* ── Buttons ── */
+    .btn { padding:7px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; border:none; transition:all .15s; cursor:pointer; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover { background:var(--accent2); }
+    .btn-ghost { background:var(--bg4); color:var(--text2); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--border2); }
+    .btn-danger { background:rgba(248,81,73,.1); color:var(--red); border:1px solid rgba(248,81,73,.2); }
+    .btn-danger:hover { background:rgba(248,81,73,.2); }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .btn-nav { width:160px; text-align:center; display:inline-block; }
+    .btn-warn { background:rgba(227,179,65,.1); color:var(--yellow); border:1px solid rgba(227,179,65,.2); }
+    .btn-warn:hover { background:rgba(227,179,65,.2); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    .notif-btn {
+      width:34px; height:34px; border-radius:8px; border:1px solid var(--border);
+      background:var(--bg3); display:inline-flex; align-items:center; justify-content:center;
+      font-size:15px; color:var(--text2); transition:all .15s; cursor:pointer;
+    }
+    .notif-btn:hover { background:var(--bg4); color:var(--text); border-color:var(--border2); }
+    .theme-btn { font-size:15px !important; }
+
+    /* ── Main content ── */
+    .page-content { flex:1; padding:24px 28px; max-width:1200px; margin:0 auto; width:100%; }
+
+    /* ── Banner ── */
+    .info-banner {
+      background:rgba(56,139,253,.08); border:1px solid rgba(56,139,253,.25);
+      border-radius:var(--radius); padding:10px 14px; margin-bottom:20px;
+      font-size:12px; color:var(--text2); display:flex; align-items:center; gap:8px;
+    }
+    .info-banner-icon { color:var(--blue2); font-size:14px; }
+
+    /* ── Stats row ── */
+    .stats-row { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+    .stat-box {
+      flex:1; min-width:160px; background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); padding:16px 20px;
+    }
+    .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; font-weight:600; margin-bottom:4px; }
+    .stat-value { font-size:24px; font-weight:700; }
+    .stat-value.green { color:var(--accent2); }
+    .stat-value.blue { color:var(--blue2); }
+    .stat-value.orange { color:var(--orange); }
+    .stat-value.yellow { color:var(--yellow); }
+    .stat-value.red { color:var(--red); }
+
+    /* ── Filter bar ── */
+    .filter-bar { display:flex; gap:10px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+    .filter-input {
+      padding:7px 12px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg3); color:var(--text); font-size:13px; min-width:220px;
+    }
+    .filter-input:focus { outline:none; border-color:var(--blue); }
+    .filter-select {
+      padding:7px 12px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg3); color:var(--text); font-size:13px;
+    }
+    .filter-select:focus { outline:none; border-color:var(--blue); }
+
+    /* ── Submission table ── */
+    .student-table-wrap {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); overflow:hidden;
+    }
+    .student-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .student-table th {
+      text-align:left; padding:10px 16px; font-size:11px; font-weight:600;
+      color:var(--text3); text-transform:uppercase; letter-spacing:.5px;
+      background:var(--bg3); border-bottom:1px solid var(--border);
+    }
+    .student-table td {
+      padding:12px 16px; font-size:13px; border-bottom:1px solid var(--border);
+      vertical-align:middle;
+    }
+    .student-table tr:last-child td { border-bottom:none; }
+    .student-table tr.student-row:hover td { background:var(--bg3); }
+
+    /* ── Course chip ── */
+    .course-chip {
+      font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px;
+      font-family:'JetBrains Mono',monospace; letter-spacing:.3px;
+      display:inline-flex; align-items:center; gap:4px;
+    }
+    .course-chip.c-python { background:rgba(56,139,253,.15); color:var(--blue2); }
+    .course-chip.c-js     { background:rgba(227,179,65,.15); color:var(--yellow); }
+    .course-chip.c-java   { background:rgba(247,129,102,.15); color:var(--orange); }
+    .course-chip.c-unity  { background:rgba(188,140,255,.15); color:var(--purple2); }
+    .course-chip.c-vr     { background:rgba(63,185,80,.15); color:var(--accent2); }
+    .course-chip.c-math   { background:rgba(139,148,158,.15); color:var(--text2); }
+
+    /* ── Status badge ── */
+    .status-badge {
+      font-size:10px; font-weight:600; padding:3px 9px; border-radius:4px;
+      text-transform:uppercase; letter-spacing:.3px; display:inline-block;
+    }
+    .status-badge.pending { background:rgba(227,179,65,.12); color:var(--yellow); border:1px solid rgba(227,179,65,.25); }
+    .status-badge.graded  { background:rgba(46,160,67,.12);  color:var(--accent2); border:1px solid rgba(46,160,67,.25); }
+
+    /* ── Type icon ── */
+    .type-icon { font-size:14px; opacity:.75; }
+
+    /* ── Expanded row ── */
+    .expand-row td { padding:0 !important; border-bottom:1px solid var(--border); }
+    .expand-content {
+      padding:16px 24px 20px; background:var(--bg3);
+      display:none; animation:slideDown .2s ease;
+    }
+    .expand-content.open { display:block; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+    .expand-section-title { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px; }
+
+    .answer-box {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius); padding:12px 14px;
+      font-family:'JetBrains Mono',monospace; font-size:12px;
+      white-space:pre-wrap; word-break:break-word;
+      color:var(--text); line-height:1.5; margin-bottom:14px;
+      max-height:300px; overflow-y:auto;
+    }
+
+    .file-card {
+      display:inline-flex; align-items:center; gap:10px;
+      padding:8px 14px; border-radius:var(--radius);
+      border:1px solid var(--border); background:var(--bg2);
+      font-size:12px; color:var(--text); text-decoration:none;
+      transition:all .15s; margin-bottom:14px;
+    }
+    .file-card:hover { border-color:var(--blue); color:var(--blue2); }
+    .file-card-icon { font-size:16px; }
+
+    .expand-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .expand-hint { font-size:11px; color:var(--text3); margin-left:4px; }
+
+    .meta-line { font-size:11px; color:var(--text3); margin-bottom:12px; }
+    .meta-line strong { color:var(--text2); font-weight:500; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:60px 20px; color:var(--text3); }
+    .empty-icon { font-size:36px; margin-bottom:12px; opacity:.4; }
+    .empty-text { font-size:14px; }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:24px; right:24px; padding:12px 20px;
+      background:var(--bg2); border:1px solid var(--accent); border-radius:var(--radius);
+      font-size:13px; color:var(--text); box-shadow:0 8px 24px rgba(0,0,0,.4);
+      transform:translateY(80px); opacity:0; transition:all .25s ease; z-index:100;
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+
+    .app-content.hidden { display:none; }
+  </style>
+</head>
+<body>
+
+  <!-- ── App content (hidden until auth check) ── -->
+  <div class="app-content hidden" id="appContent">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-chip">ADMIN</div>
+      <div>
+        <div class="topbar-title">Huiswerkbeheer</div>
+        <div class="topbar-sub">Inzendingen en nakijkwerk</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="./admin.html" class="btn btn-primary btn-sm btn-nav">Lesontwerper</a>
+      <a href="./AccountManager" class="btn btn-ghost btn-sm btn-nav">AccountManagement</a>
+      <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
+      <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
+      <button class="notif-btn" title="Meldingen">🔔</button>
+      <div class="avatar-wrap">
+        <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
+             onclick="toggleAvatarMenu()">??</div>
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="avatar-menu-info">
+            <div class="avatar-menu-name" id="avatarMenuName">—</div>
+            <div class="avatar-menu-sub" id="avatarMenuSub">admin</div>
+          </div>
+          <div class="avatar-menu-divider"></div>
+          <button class="avatar-menu-item" onclick="window.location='./'">Naar studentenview</button>
+          <div class="avatar-menu-divider"></div>
+          <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="page-content">
+
+    <!-- Info banner (explains current scope) -->
+    <div class="info-banner">
+      <span class="info-banner-icon">&#9432;</span>
+      <span>Alle ingeleverde opdrachten worden hier getoond als <strong>na te kijken</strong>. Beoordelen met score en feedback komt in een volgende versie.</span>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-box"><div class="stat-label">Totaal inzendingen</div><div class="stat-value" id="statTotal">—</div></div>
+      <div class="stat-box"><div class="stat-label">Na te kijken</div><div class="stat-value yellow" id="statPending">—</div></div>
+      <div class="stat-box"><div class="stat-label">Laatste 7 dagen</div><div class="stat-value blue" id="statRecent">—</div></div>
+      <div class="stat-box"><div class="stat-label">Studenten</div><div class="stat-value green" id="statStudents">—</div></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <input type="text" class="filter-input" id="searchInput" placeholder="Zoek op student of opdracht...">
+      <select class="filter-select" id="courseFilter">
+        <option value="">Alle cursussen</option>
+      </select>
+      <select class="filter-select" id="statusFilter">
+        <option value="">Alle inzendingen</option>
+        <option value="pending">Na te kijken</option>
+        <option value="recent">Laatste 7 dagen</option>
+      </select>
+      <select class="filter-select" id="typeFilter">
+        <option value="">Alle types</option>
+        <option value="text">Met tekst</option>
+        <option value="file">Met bestand</option>
+      </select>
+    </div>
+
+    <!-- Table -->
+    <div class="student-table-wrap">
+      <table class="student-table">
+        <thead>
+          <tr>
+            <th style="width:30px;"></th>
+            <th style="width:12%;">Student</th>
+            <th style="width:20%;">Opdracht</th>
+            <th style="width:9%;">Cursus</th>
+            <th style="width:17%;">Pagina</th>
+            <th style="width:12%;">Ingeleverd</th>
+            <th style="width:7%;">Type</th>
+            <th style="width:11%;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="submissionTableBody">
+          <tr><td colspan="8" class="empty-state"><div class="empty-icon">&#128269;</div><div class="empty-text">Laden...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  </div><!-- /app-content -->
+
+<script>
+/* ── State ── */
+let SUBMISSIONS = [];
+let allCourses = [];
+let expandedKey = null;  // "{username}::{assignment_id}"
+
+/* ── Theme ── */
+(function(){const t=localStorage.getItem("ict-theme")||"dark";applyTheme(t);})();
+function toggleTheme(){const c=document.documentElement.dataset.theme||"dark";const n=c==="dark"?"light":"dark";applyTheme(n);localStorage.setItem("ict-theme",n);}
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  const icon=t==="dark"?"🌙":"☀️";
+  document.querySelectorAll(".theme-btn").forEach(b=>b.textContent=icon);
+}
+
+/* ── Avatar menu ── */
+function toggleAvatarMenu() {
+  document.getElementById("avatarMenu").classList.toggle("open");
+}
+function handleLogout() {
+  sessionStorage.removeItem("ict_user");
+  sessionStorage.removeItem("ict_email");
+  window.location = "./";
+}
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".avatar-wrap");
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById("avatarMenu").classList.remove("open");
+  }
+});
+
+/* ── Auth check ── */
+let ADMIN_USER = null;
+
+(async function checkAuth() {
+  const username = sessionStorage.getItem("ict_user");
+
+  if (!username) {
+    window.location.href = "./";
+    return;
+  }
+
+  try {
+    const res = await fetch("api/me.php?username=" + encodeURIComponent(username));
+    if (!res.ok) { window.location.href = "./"; return; }
+    const data = await res.json();
+
+    if (data.role !== "superadmin" && data.role !== "docent") {
+      window.location.href = "./";
+      return;
+    }
+
+    ADMIN_USER = data.username;
+    document.getElementById("appContent").classList.remove("hidden");
+    const ini = data.username.substring(0,2).toUpperCase();
+    document.getElementById("topbarAvatar").textContent = ini;
+    document.getElementById("avatarMenuName").textContent = data.username;
+    document.getElementById("avatarMenuSub").textContent = data.role;
+    init();
+  } catch {
+    window.location.href = "./";
+  }
+})();
+
+/* ── Init ── */
+async function init() {
+  const [subsRes, courseRes] = await Promise.all([
+    fetch('api/submissions.php').then(r => r.json()),
+    fetch('api/courses.php').then(r => r.json())
+  ]);
+  SUBMISSIONS = Array.isArray(subsRes) ? subsRes : [];
+  allCourses = courseRes;
+  populateCourseFilter();
+  render();
+}
+
+function populateCourseFilter() {
+  const sel = document.getElementById('courseFilter');
+  allCourses.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Helpers ── */
+function daysSince(str) {
+  if (!str) return null;
+  const d = new Date(str.replace(' ', 'T'));
+  const diff = (Date.now() - d.getTime()) / 86400000;
+  return diff;
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  const days = daysSince(str);
+  if (days !== null && days < 7) {
+    if (days < 1/24) return 'Zojuist';
+    if (days < 1) return Math.floor(days * 24) + ' uur geleden';
+    const d = Math.floor(days);
+    return d === 1 ? 'Gisteren' : d + ' dagen geleden';
+  }
+  const d = new Date(str.replace(' ', 'T'));
+  return d.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function submissionKey(s) {
+  return s.username + '::' + s.assignment_id;
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ── Filtering ── */
+function getFiltered() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const course = document.getElementById('courseFilter').value;
+  const status = document.getElementById('statusFilter').value;
+  const type   = document.getElementById('typeFilter').value;
+
+  return SUBMISSIONS.filter(s => {
+    if (search) {
+      const hay = (s.username + ' ' + (s.assignment_title||'') + ' ' + (s.page_title||'')).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    if (course && String(s.course_id) !== String(course)) return false;
+    if (status === 'pending') {
+      // all submissions are pending in this iteration — keep as no-op filter
+    } else if (status === 'recent') {
+      const d = daysSince(s.submitted_on);
+      if (d === null || d > 7) return false;
+    }
+    if (type === 'text' && !s.text_answer) return false;
+    if (type === 'file' && !s.file_name) return false;
+    return true;
+  });
+}
+
+/* ── Render ── */
+function render() {
+  const filtered = getFiltered();
+  updateStats(filtered);
+  renderTable(filtered);
+}
+
+function updateStats() {
+  const all = SUBMISSIONS;
+  document.getElementById('statTotal').textContent = all.length;
+  document.getElementById('statPending').textContent = all.length;  // all ungraded for now
+  const recent = all.filter(s => {
+    const d = daysSince(s.submitted_on);
+    return d !== null && d <= 7;
+  }).length;
+  document.getElementById('statRecent').textContent = recent;
+  const students = new Set(all.map(s => s.username));
+  document.getElementById('statStudents').textContent = students.size;
+}
+
+function renderTable(filtered) {
+  const tbody = document.getElementById('submissionTableBody');
+  if (filtered.length === 0) {
+    const msg = SUBMISSIONS.length === 0
+      ? 'Er zijn nog geen inzendingen'
+      : 'Geen inzendingen gevonden met deze filters';
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state"><div class="empty-icon">&#128221;</div><div class="empty-text">${msg}</div></td></tr>`;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(s => {
+    const key = submissionKey(s);
+    const isExpanded = expandedKey === key;
+    const hasText = !!s.text_answer;
+    const hasFile = !!s.file_name;
+    const typeIcon = hasFile && hasText ? '📄&#8203;📎'
+                   : hasFile             ? '📎'
+                   : hasText             ? '📄'
+                                         : '—';
+    const courseCls = s.course_color || '';
+
+    html += `<tr class="student-row" data-key="${escapeHtml(key)}">
+      <td style="text-align:center;cursor:pointer;" onclick="toggleExpand('${escapeHtml(key)}')">
+        <span style="font-size:11px;color:var(--text3);transition:transform .2s;display:inline-block;${isExpanded?'transform:rotate(90deg)':''}">&#9654;</span>
+      </td>
+      <td><strong>${escapeHtml(s.username)}</strong></td>
+      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.assignment_title||'')}">${escapeHtml(s.assignment_title || '—')}</td>
+      <td><span class="course-chip ${courseCls}">${escapeHtml(s.course_icon || '')}</span></td>
+      <td style="color:var(--text2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.page_title||'')}">${escapeHtml(s.page_title || '—')}</td>
+      <td style="font-size:12px;color:var(--text2);">${formatDate(s.submitted_on)}</td>
+      <td><span class="type-icon">${typeIcon}</span></td>
+      <td><span class="status-badge pending">Na te kijken</span></td>
+    </tr>`;
+
+    // Expanded detail row
+    html += `<tr class="expand-row"><td colspan="8">
+      <div class="expand-content ${isExpanded?'open':''}" id="expand-${escapeHtml(key)}">
+        <div class="meta-line">
+          <strong>Cursus:</strong> ${escapeHtml(s.course_name || '—')} &nbsp;·&nbsp;
+          <strong>Pagina:</strong> ${escapeHtml(s.page_title || '—')} &nbsp;·&nbsp;
+          <strong>Ingeleverd op:</strong> ${escapeHtml(s.submitted_on || '—')}
+        </div>
+
+        ${hasText ? `<div class="expand-section-title">Tekstantwoord</div>
+        <div class="answer-box">${escapeHtml(s.text_answer)}</div>` : ''}
+
+        ${hasFile ? `<div class="expand-section-title">Bestand</div>
+        <a class="file-card" href="uploads/${escapeHtml(s.file_path || s.file_name)}" target="_blank" rel="noopener">
+          <span class="file-card-icon">📎</span>
+          <span>${escapeHtml(s.file_name)}</span>
+        </a>` : ''}
+
+        ${!hasText && !hasFile ? `<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Geen inhoud ingeleverd.</div>` : ''}
+
+        <div class="expand-actions">
+          <button class="btn btn-primary btn-sm" disabled title="Binnenkort beschikbaar">Markeer als nagekeken</button>
+          <span class="expand-hint">Beoordelen met score en feedback komt in een volgende versie.</span>
+        </div>
+      </div>
+    </td></tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+/* ── Actions ── */
+function toggleExpand(key) {
+  expandedKey = expandedKey === key ? null : key;
+  render();
+}
+
+/* ── Toast (unused this iteration, kept for consistency) ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Filter listeners ── */
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('courseFilter').addEventListener('change', render);
+document.getElementById('statusFilter').addEventListener('change', render);
+document.getElementById('typeFilter').addEventListener('change', render);
+</script>
+
+</body>
+</html>

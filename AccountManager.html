@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="nl" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Account Manager — ICT Leerlijn</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* ── Layout ── */
+    button { cursor:pointer; }
+    input,select,textarea { font-family:'Space Grotesk',sans-serif; }
+    html { overflow-y:scroll; } /* prevent scrollbar shift */
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    /* ── Topbar ── */
+    .topbar {
+      padding:12px 24px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+      background:var(--bg2); flex-shrink:0; position:sticky; top:0; z-index:10;
+    }
+    .topbar-brand { display:flex; align-items:center; gap:8px; }
+    .brand-chip { background:var(--purple); color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:.5px; }
+    .topbar-title { font-size:15px; font-weight:600; }
+    .topbar-sub { font-size:12px; color:var(--text2); }
+    .topbar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+    /* ── Buttons ── */
+    .btn { padding:7px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; border:none; transition:all .15s; cursor:pointer; }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover { background:var(--accent2); }
+    .btn-ghost { background:var(--bg4); color:var(--text2); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--text); border-color:var(--border2); }
+    .btn-danger { background:rgba(248,81,73,.1); color:var(--red); border:1px solid rgba(248,81,73,.2); }
+    .btn-danger:hover { background:rgba(248,81,73,.2); }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .btn-nav { width:160px; text-align:center; display:inline-block; }
+    .btn-icon { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; line-height:1; font-size:12px; }
+    .btn-warn { background:rgba(227,179,65,.1); color:var(--yellow); border:1px solid rgba(227,179,65,.2); }
+    .btn-warn:hover { background:rgba(227,179,65,.2); }
+
+    .notif-btn {
+      width:34px; height:34px; border-radius:8px; border:1px solid var(--border);
+      background:var(--bg3); display:inline-flex; align-items:center; justify-content:center;
+      font-size:15px; color:var(--text2); transition:all .15s; cursor:pointer;
+    }
+    .notif-btn:hover { background:var(--bg4); color:var(--text); border-color:var(--border2); }
+    .theme-btn { font-size:15px !important; }
+
+    /* ── Main content ── */
+    .page-content { flex:1; padding:24px 28px; max-width:1200px; margin:0 auto; width:100%; }
+
+    /* ── Stats row ── */
+    .stats-row { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+    .stat-box {
+      flex:1; min-width:160px; background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); padding:16px 20px;
+    }
+    .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; font-weight:600; margin-bottom:4px; }
+    .stat-value { font-size:24px; font-weight:700; }
+    .stat-value.green { color:var(--accent2); }
+    .stat-value.blue { color:var(--blue2); }
+    .stat-value.orange { color:var(--orange); }
+    .stat-value.red { color:var(--red); }
+
+    /* ── Filter bar ── */
+    .filter-bar { display:flex; gap:10px; margin-bottom:20px; align-items:center; flex-wrap:wrap; }
+    .filter-input {
+      padding:7px 12px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg3); color:var(--text); font-size:13px; min-width:220px;
+    }
+    .filter-input:focus { outline:none; border-color:var(--blue); }
+    .filter-select {
+      padding:7px 12px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg3); color:var(--text); font-size:13px;
+    }
+    .filter-select:focus { outline:none; border-color:var(--blue); }
+
+    /* ── Student table ── */
+    .student-table-wrap {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius2); overflow:hidden;
+    }
+    .student-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .student-table th {
+      text-align:left; padding:10px 16px; font-size:11px; font-weight:600;
+      color:var(--text3); text-transform:uppercase; letter-spacing:.5px;
+      background:var(--bg3); border-bottom:1px solid var(--border);
+    }
+    .student-table td {
+      padding:12px 16px; font-size:13px; border-bottom:1px solid var(--border);
+      vertical-align:middle;
+    }
+    .student-table tr:last-child td { border-bottom:none; }
+    .student-table tr:hover td { background:var(--bg3); }
+
+    /* ── Role badge ── */
+    .role-badge {
+      font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px;
+      text-transform:uppercase; letter-spacing:.3px; display:inline-block;
+    }
+    .role-badge.superadmin { background:rgba(188,140,255,.15); color:var(--purple2); }
+    .role-badge.docent { background:rgba(56,139,253,.15); color:var(--blue2); }
+    .role-badge.student { background:rgba(46,160,67,.15); color:var(--accent2); }
+
+    /* ── Status dot ── */
+    .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .status-dot.active { background:var(--accent2); }
+    .status-dot.inactive { background:var(--red); }
+
+    /* ── Course chips ── */
+    .course-chips {
+      display:flex; gap:4px; flex-wrap:wrap;
+      max-height:54px; overflow-y:auto; align-content:flex-start;
+      scrollbar-width:thin; scrollbar-color:var(--border2) transparent;
+    }
+    .course-chips::-webkit-scrollbar { width:6px; }
+    .course-chips::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+    .course-chips::-webkit-scrollbar-track { background:transparent; }
+    .course-chip {
+      font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px;
+      font-family:'JetBrains Mono',monospace; letter-spacing:.3px;
+      display:inline-flex; align-items:center; gap:4px; flex-shrink:0;
+    }
+    .course-chip .chip-remove {
+      cursor:pointer; opacity:.5; font-size:11px; margin-left:2px;
+      transition:opacity .12s;
+    }
+    .course-chip .chip-remove:hover { opacity:1; }
+    .course-chip.c-python { background:rgba(56,139,253,.15); color:var(--blue2); }
+    .course-chip.c-js     { background:rgba(227,179,65,.15); color:var(--yellow); }
+    .course-chip.c-java   { background:rgba(247,129,102,.15); color:var(--orange); }
+    .course-chip.c-unity  { background:rgba(188,140,255,.15); color:var(--purple2); }
+    .course-chip.c-vr     { background:rgba(63,185,80,.15); color:var(--accent2); }
+    .course-chip.c-math   { background:rgba(139,148,158,.15); color:var(--text2); }
+
+    /* ── Progress bar mini ── */
+    .progress-mini { display:flex; align-items:center; gap:8px; }
+    .progress-mini-bar { flex:1; height:6px; background:var(--bg4); border-radius:3px; min-width:60px; overflow:hidden; }
+    .progress-mini-fill { height:100%; border-radius:3px; transition:width .3s; }
+    .progress-mini-label { font-size:11px; color:var(--text2); white-space:nowrap; min-width:40px; }
+
+    /* ── Expanded row ── */
+    .expand-row td { padding:0 !important; border-bottom:1px solid var(--border); }
+    .expand-content {
+      padding:16px 24px 20px; background:var(--bg3);
+      display:none; animation:slideDown .2s ease;
+    }
+    .expand-content.open { display:block; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+    .expand-section-title { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:10px; text-transform:uppercase; letter-spacing:.5px; }
+
+    .enroll-grid { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .enroll-card {
+      padding:8px 14px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg2); font-size:12px; cursor:pointer; transition:all .15s;
+      display:flex; align-items:center; gap:8px;
+    }
+    .enroll-card:hover { border-color:var(--blue); }
+    .enroll-card.enrolled { border-color:var(--accent); background:rgba(46,160,67,.06); }
+    .enroll-icon {
+      width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+      font-size:9px; font-weight:800; font-family:'JetBrains Mono',monospace;
+      background:var(--bg4); color:var(--text);
+    }
+    .enroll-card.enrolled .enroll-check { color:var(--accent2); }
+
+    /* ── Progress detail ── */
+    .progress-detail-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+    .progress-card {
+      padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg2);
+    }
+    .progress-card-title { font-size:12px; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .progress-card-icon {
+      font-size:9px; font-weight:800; font-family:'JetBrains Mono',monospace;
+      padding:2px 5px; border-radius:3px; background:var(--bg4);
+    }
+    .progress-card-stats { font-size:11px; color:var(--text2); margin-top:6px; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:60px 20px; color:var(--text3); }
+    .empty-icon { font-size:36px; margin-bottom:12px; opacity:.4; }
+    .empty-text { font-size:14px; }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:24px; right:24px; padding:12px 20px;
+      background:var(--bg2); border:1px solid var(--accent); border-radius:var(--radius);
+      font-size:13px; color:var(--text); box-shadow:0 8px 24px rgba(0,0,0,.4);
+      transform:translateY(80px); opacity:0; transition:all .25s ease; z-index:100;
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+
+    .app-content.hidden { display:none; }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); }
+    .tab {
+      padding:9px 18px; font-size:13px; font-weight:500; color:var(--text2);
+      background:transparent; border:none; cursor:pointer; border-bottom:2px solid transparent;
+      transition:all .15s; margin-bottom:-1px;
+    }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .view { display:none; }
+    .view.active { display:block; }
+
+    /* ── Bulk action bar ── */
+    .bulk-bar {
+      display:none; align-items:center; gap:12px; padding:10px 16px; margin-bottom:14px;
+      background:var(--bg2); border:1px solid var(--accent); border-radius:var(--radius);
+      animation:slideDown .15s ease;
+    }
+    .bulk-bar.show { display:flex; }
+    .bulk-count { font-size:13px; font-weight:600; color:var(--accent); }
+    .bulk-spacer { flex:1; }
+
+    /* ── Checkbox cell ── */
+    .row-check, .head-check { width:14px; height:14px; cursor:pointer; accent-color:var(--accent); }
+    .check-cell { text-align:center; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200;
+      display:none; align-items:center; justify-content:center; padding:20px;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal {
+      background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2);
+      width:100%; max-width:520px; max-height:80vh; display:flex; flex-direction:column;
+      box-shadow:0 24px 48px rgba(0,0,0,.5);
+    }
+    .modal-header {
+      padding:16px 20px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:10px;
+    }
+    .modal-title { font-size:15px; font-weight:600; flex:1; }
+    .modal-close {
+      width:28px; height:28px; border-radius:6px; border:none; background:transparent;
+      color:var(--text2); font-size:18px; cursor:pointer; line-height:1;
+    }
+    .modal-close:hover { background:var(--bg4); color:var(--text); }
+    .modal-search { padding:12px 20px; border-bottom:1px solid var(--border); }
+    .modal-search input {
+      width:100%; padding:8px 12px; border-radius:var(--radius);
+      border:1px solid var(--border); background:var(--bg3); color:var(--text);
+      font-size:13px;
+    }
+    .modal-search input:focus { outline:none; border-color:var(--blue); }
+    .modal-body { padding:8px 12px; overflow-y:auto; flex:1; }
+    .modal-row {
+      display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius);
+      cursor:pointer; transition:background .12s;
+    }
+    .modal-row:hover { background:var(--bg3); }
+    .modal-row .enroll-icon { width:22px; height:22px; }
+    .modal-row .row-name { flex:1; font-size:13px; }
+    .modal-row .row-sub { font-size:11px; color:var(--text3); }
+    .modal-empty { padding:24px; text-align:center; color:var(--text3); font-size:12px; }
+    .modal-footer {
+      padding:10px 20px; border-top:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:11px; color:var(--text3);
+    }
+
+    /* ── Per-cursus view ── */
+    .course-picker {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+      gap:10px; margin-bottom:20px;
+    }
+    .course-picker-card {
+      padding:14px; border-radius:var(--radius2); border:1px solid var(--border);
+      background:var(--bg2); cursor:pointer; transition:all .15s;
+      display:flex; align-items:center; gap:10px;
+    }
+    .course-picker-card:hover { border-color:var(--blue); }
+    .course-picker-card.active { border-color:var(--accent); background:rgba(46,160,67,.06); }
+    .course-picker-icon {
+      width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:800; font-family:'JetBrains Mono',monospace;
+      background:var(--bg4); color:var(--text); flex-shrink:0;
+    }
+    .course-picker-meta { min-width:0; }
+    .course-picker-name { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .course-picker-count { font-size:11px; color:var(--text3); margin-top:2px; }
+
+    .course-detail { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2); overflow:hidden; }
+    .course-detail-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    .course-detail-icon {
+      width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:800; font-family:'JetBrains Mono',monospace;
+      background:var(--bg4); color:var(--text);
+    }
+    .course-detail-title { font-size:15px; font-weight:600; }
+    .course-detail-sub { font-size:12px; color:var(--text2); margin-top:2px; }
+    .course-detail-search { padding:12px 20px; border-bottom:1px solid var(--border); display:flex; gap:10px; align-items:center; }
+    .course-detail-search input {
+      flex:1; padding:7px 12px; border-radius:var(--radius);
+      border:1px solid var(--border); background:var(--bg3); color:var(--text); font-size:13px;
+    }
+    .course-detail-search input:focus { outline:none; border-color:var(--blue); }
+    .course-detail-list { max-height:60vh; overflow-y:auto; }
+    .course-detail-row {
+      display:flex; align-items:center; gap:12px; padding:10px 20px;
+      border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s;
+    }
+    .course-detail-row:hover { background:var(--bg3); }
+    .course-detail-row:last-child { border-bottom:none; }
+    .course-detail-row.enrolled { background:rgba(46,160,67,.04); }
+    .course-detail-row .row-name { flex:1; font-size:13px; }
+    .course-detail-row .row-name strong { font-weight:600; }
+    .course-detail-row .row-email { font-size:11px; color:var(--text3); margin-top:2px; }
+    .course-empty {
+      padding:60px 20px; text-align:center; color:var(--text3);
+      background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius2);
+    }
+
+    /* ── Bulk modal preview ── */
+    .bulk-section-label {
+      font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase;
+      letter-spacing:.5px; margin-bottom:8px;
+    }
+    .bulk-preview-summary { font-size:13px; color:var(--text); margin-bottom:8px; }
+    .bulk-preview-skip {
+      font-size:12px; color:var(--text3); margin-top:8px; padding:6px 10px;
+      background:var(--bg3); border-radius:var(--radius); border:1px dashed var(--border);
+    }
+    .bulk-preview-groups {
+      display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto;
+    }
+    .bulk-preview-group {
+      border:1px solid var(--border); border-radius:var(--radius); background:var(--bg3);
+      overflow:hidden;
+    }
+    .bulk-preview-group-header {
+      display:flex; align-items:center; gap:8px; padding:8px 12px;
+      background:var(--bg4); border-bottom:1px solid var(--border);
+    }
+    .bulk-preview-group-header .enroll-icon { width:22px; height:22px; flex-shrink:0; }
+    .bulk-preview-group-header strong { font-size:13px; flex:1; }
+    .bulk-preview-group-header .group-count {
+      font-size:11px; color:var(--text3); font-weight:600;
+    }
+    .bulk-preview-students {
+      display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; padding:10px 12px;
+    }
+    .bulk-preview-students span {
+      font-size:12px; color:var(--text); font-weight:500; padding:2px 0;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .bulk-preview-skip-wrap {
+      margin-top:12px; padding:10px 12px;
+      background:var(--bg3); border-radius:var(--radius); border:1px dashed var(--border);
+      opacity:.75;
+    }
+    .bulk-preview-skip-wrap .bulk-preview-group { background:var(--bg2); }
+    .bulk-preview-skip-wrap .bulk-preview-students span {
+      color:var(--text3); font-weight:400;
+    }
+    .bulk-preview-skip-wrap .bulk-preview-group-header strong { color:var(--text2); font-weight:500; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+
+  <!-- ── App content (hidden until auth check) ── -->
+  <div class="app-content hidden" id="appContent">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-chip">SUPER ADMIN</div>
+      <div>
+        <div class="topbar-title">AccountManagement</div>
+        <div class="topbar-sub">Studentenbeheer, cursuskoppelingen en voortgang</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <a href="./admin.html" class="btn btn-primary btn-sm btn-nav">Lesontwerper</a>
+      <a href="./HomeworkManager" class="btn btn-ghost btn-sm btn-nav">Huiswerkbeheer</a>
+      <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
+      <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
+      <button class="notif-btn" title="Meldingen">🔔</button>
+      <div class="avatar-wrap">
+        <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
+             onclick="toggleAvatarMenu()">??</div>
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="avatar-menu-info">
+            <div class="avatar-menu-name" id="avatarMenuName">—</div>
+            <div class="avatar-menu-sub" id="avatarMenuSub">admin</div>
+          </div>
+          <div class="avatar-menu-divider"></div>
+          <button class="avatar-menu-item" onclick="window.location='./'">Naar studentenview</button>
+          <div class="avatar-menu-divider"></div>
+          <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="page-content">
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-box"><div class="stat-label">Totaal accounts</div><div class="stat-value" id="statTotal">—</div></div>
+      <div class="stat-box"><div class="stat-label">Studenten actief</div><div class="stat-value green" id="statActive">—</div></div>
+      <div class="stat-box"><div class="stat-label">Docenten</div><div class="stat-value blue" id="statDocent">—</div></div>
+      <div class="stat-box"><div class="stat-label">Inactief</div><div class="stat-value red" id="statInactive">—</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-view="students" onclick="switchView('students')">Per student</button>
+      <button class="tab" data-view="courses" onclick="switchView('courses')">Per cursus</button>
+    </div>
+
+    <!-- ─────────── PER STUDENT VIEW ─────────── -->
+    <div class="view active" id="viewStudents">
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <input type="text" class="filter-input" id="searchInput" placeholder="Zoek op gebruikersnaam of e-mail...">
+        <select class="filter-select" id="roleFilter">
+          <option value="">Alle rollen</option>
+          <option value="student">Student</option>
+          <option value="docent">Docent</option>
+          <option value="superadmin">Super Admin</option>
+        </select>
+        <select class="filter-select" id="statusFilter">
+          <option value="">Alle statussen</option>
+          <option value="1">Actief</option>
+          <option value="0">Inactief</option>
+        </select>
+        <select class="filter-select" id="courseFilter">
+          <option value="">Alle cursussen</option>
+        </select>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div class="bulk-bar" id="bulkBar">
+        <span class="bulk-count" id="bulkCount">0 geselecteerd</span>
+        <button class="btn btn-primary btn-sm" onclick="openBulkModal()">Cursussen wijzigen</button>
+        <span class="bulk-spacer"></span>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Deselecteer</button>
+      </div>
+
+      <!-- Table -->
+      <div class="student-table-wrap">
+        <table class="student-table">
+          <thead>
+            <tr>
+              <th class="check-cell" style="width:32px;"><input type="checkbox" class="head-check" id="headCheck" onchange="toggleAllVisible(this.checked)"></th>
+              <th style="width:14%;">Gebruiker</th>
+              <th style="width:22%;">E-mail</th>
+              <th style="width:10%;">Rol</th>
+              <th style="width:10%;">Status</th>
+              <th style="width:22%;">Cursussen</th>
+              <th style="width:12%;">Lid sinds</th>
+              <th style="width:130px;">Acties</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody">
+            <tr><td colspan="8" class="empty-state"><div class="empty-icon">&#128269;</div><div class="empty-text">Laden...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─────────── PER CURSUS VIEW ─────────── -->
+    <div class="view" id="viewCourses">
+      <div class="course-picker" id="coursePicker"></div>
+      <div id="courseDetailWrap">
+        <div class="course-empty">Kies een cursus hierboven om studenten te beheren.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─────────── BULK COURSE PICKER MODAL ─────────── -->
+  <div class="modal-overlay" id="bulkModal" onclick="if(event.target===this)closeBulkModal()">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <span class="modal-title">Cursussen wijzigen</span>
+        <button class="modal-close" onclick="closeBulkModal()" title="Sluiten">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <div class="bulk-section-label" id="bulkModalIntro">— student(en) geselecteerd. Kies één of meer cursussen:</div>
+        <div id="bulkModalCourses"></div>
+      </div>
+      <div class="modal-footer" style="gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="closeBulkModal()">Annuleer</button>
+        <span class="bulk-spacer"></span>
+        <button class="btn btn-primary btn-sm" id="bulkUnenrollBtn" onclick="openBulkConfirm('unenroll')" disabled>Schrijf uit</button>
+        <button class="btn btn-primary btn-sm" id="bulkEnrollBtn" onclick="openBulkConfirm('enroll')" disabled>Schrijf in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── BULK CONFIRM MODAL (preview affected students) ─────────── -->
+  <div class="modal-overlay" id="bulkConfirmModal" onclick="if(event.target===this)closeBulkConfirm()">
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header">
+        <span class="modal-title" id="bulkConfirmTitle">Bevestig wijzigingen</span>
+        <button class="modal-close" onclick="closeBulkConfirm()" title="Sluiten">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px;">
+        <div id="bulkConfirmPreview"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" onclick="closeBulkConfirm()">Terug</button>
+        <button class="btn btn-primary btn-sm" id="bulkConfirmBtn" onclick="confirmBulk()">Bevestig</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── COURSE MODAL (per student) ─────────── -->
+  <div class="modal-overlay" id="courseModal" onclick="if(event.target===this)closeCourseModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="courseModalTitle">Cursussen beheren</span>
+        <button class="modal-close" onclick="closeCourseModal()" title="Sluiten">&times;</button>
+      </div>
+      <div class="modal-search">
+        <input type="text" id="courseModalSearch" placeholder="Zoek cursus…">
+      </div>
+      <div class="modal-body" id="courseModalBody"></div>
+      <div class="modal-footer">
+        <span id="courseModalCount">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="closeCourseModal()">Klaar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  </div><!-- /app-content -->
+
+<script>
+/* ── State ── */
+let DATA = { accounts:[], enrollments:[], progress:[], totals:[] };
+let allCourses = [];
+let currentView = 'students';                 // 'students' | 'courses'
+let selectedStudents = new Set();             // usernames checked in bulk
+let modalUser = null;                         // username currently open in course modal
+let modalSearch = '';
+let activeCourseId = null;                    // selected course in Per cursus view
+let courseDetailSearch = '';
+let bulkMode = null;                          // 'enroll' | 'unenroll' while bulk modal open
+let bulkPickedCourses = new Set();            // course ids checked in bulk modal
+
+/* ── Theme ── */
+(function(){const t=localStorage.getItem("ict-theme")||"dark";applyTheme(t);})();
+function toggleTheme(){const c=document.documentElement.dataset.theme||"dark";const n=c==="dark"?"light":"dark";applyTheme(n);localStorage.setItem("ict-theme",n);}
+function applyTheme(t){
+  document.documentElement.dataset.theme=t;
+  const icon=t==="dark"?"🌙":"☀️";
+  document.querySelectorAll(".theme-btn").forEach(b=>b.textContent=icon);
+}
+
+/* ── Avatar menu ── */
+function toggleAvatarMenu() {
+  document.getElementById("avatarMenu").classList.toggle("open");
+}
+function handleLogout() {
+  sessionStorage.removeItem("ict_user");
+  sessionStorage.removeItem("ict_email");
+  window.location = "./";
+}
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".avatar-wrap");
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById("avatarMenu").classList.remove("open");
+  }
+});
+
+/* ── Auth check — redirect to index.html if not logged in or wrong role ── */
+let ADMIN_USER = null;
+
+(async function checkAuth() {
+  const username = sessionStorage.getItem("ict_user");
+
+  // Not logged in at all — redirect to index login
+  if (!username) {
+    window.location.href = "./";
+    return;
+  }
+
+  // Verify role via API
+  try {
+    const res = await fetch("api/me.php?username=" + encodeURIComponent(username));
+    if (!res.ok) { window.location.href = "./"; return; }
+    const data = await res.json();
+
+    if (data.role !== "superadmin" && data.role !== "docent") {
+      window.location.href = "./";
+      return;
+    }
+
+    ADMIN_USER = data.username;
+    document.getElementById("appContent").classList.remove("hidden");
+    // Populate avatar
+    const ini = data.username.substring(0,2).toUpperCase();
+    document.getElementById("topbarAvatar").textContent = ini;
+    document.getElementById("avatarMenuName").textContent = data.username;
+    document.getElementById("avatarMenuSub").textContent = data.role;
+    init();
+  } catch {
+    window.location.href = "./";
+  }
+})();
+
+/* ── Init ── */
+async function init() {
+  const [accRes, courseRes] = await Promise.all([
+    fetch('api/accounts.php').then(r => r.json()),
+    fetch('api/courses.php').then(r => r.json())
+  ]);
+  DATA = accRes;
+  allCourses = courseRes;
+  populateCourseFilter();
+  render();
+}
+
+function populateCourseFilter() {
+  const sel = document.getElementById('courseFilter');
+  while (sel.options.length > 1) sel.remove(1);
+  allCourses.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
+/* ── Helpers ── */
+function getUserEnrollments(username) {
+  return DATA.enrollments.filter(e => e.username === username);
+}
+
+function getUserProgress(username) {
+  return DATA.progress.filter(p => p.username === username);
+}
+
+function getCourseTotalPages(courseId) {
+  const t = DATA.totals.find(t => t.course_id == courseId);
+  return t ? parseInt(t.total) : 0;
+}
+
+function getOverallProgress(username) {
+  const enrollments = getUserEnrollments(username);
+  if (enrollments.length === 0) return { completed: 0, total: 0, pct: 0 };
+  let completed = 0, total = 0;
+  enrollments.forEach(e => {
+    const courseTotal = getCourseTotalPages(e.course_id);
+    total += courseTotal;
+    const prog = DATA.progress.find(p => p.username === username && p.course_id == e.course_id);
+    if (prog) completed += parseInt(prog.completed || 0);
+  });
+  return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+}
+
+function formatDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  return d.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+/* ── Filtering ── */
+function getFiltered() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const role = document.getElementById('roleFilter').value;
+  const status = document.getElementById('statusFilter').value;
+  const course = document.getElementById('courseFilter').value;
+
+  return DATA.accounts.filter(a => {
+    if (search && !a.username.toLowerCase().includes(search) && !a.email.toLowerCase().includes(search)) return false;
+    if (role && a.role !== role) return false;
+    if (status !== '' && String(a.active) !== status) return false;
+    if (course) {
+      const enrolled = getUserEnrollments(a.username);
+      if (!enrolled.some(e => e.course_id == course)) return false;
+    }
+    return true;
+  });
+}
+
+/* ── Render ── */
+function render() {
+  updateStats();
+  if (currentView === 'students') {
+    renderTable(getFiltered());
+    renderBulkBar();
+  } else {
+    renderCoursePicker();
+    renderCourseDetail();
+  }
+}
+
+function updateStats() {
+  const all = DATA.accounts;
+  document.getElementById('statTotal').textContent = all.length;
+  document.getElementById('statActive').textContent = all.filter(a => a.active == 1 && a.role === 'student').length;
+  document.getElementById('statDocent').textContent = all.filter(a => a.role === 'docent' || a.role === 'superadmin').length;
+  document.getElementById('statInactive').textContent = all.filter(a => a.active == 0).length;
+}
+
+function renderTable(filtered) {
+  const tbody = document.getElementById('studentTableBody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-icon">&#128269;</div><div class="empty-text">Geen accounts gevonden</div></td></tr>';
+    syncHeadCheck(filtered);
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(a => {
+    const enrollments = getUserEnrollments(a.username);
+    const isChecked  = selectedStudents.has(a.username);
+
+    html += `<tr class="student-row" data-username="${a.username}">
+      <td class="check-cell"><input type="checkbox" class="row-check" ${isChecked?'checked':''} onchange="toggleSelect('${a.username}', this.checked)"></td>
+      <td><strong>${a.username}</strong></td>
+      <td style="color:var(--text2);font-size:12px;">${a.email}</td>
+      <td><span class="role-badge ${a.role}">${a.role}</span></td>
+      <td><span class="status-dot ${a.active==1?'active':'inactive'}"></span>${a.active==1?'Actief':'Inactief'}</td>
+      <td><div class="course-chips">${enrollments.map(e =>
+        `<span class="course-chip ${e.course_color}">${e.course_icon}</span>`
+      ).join('')}${enrollments.length === 0 ? '<span style="font-size:11px;color:var(--text3);">—</span>' : ''}</div></td>
+      <td style="font-size:12px;color:var(--text2);">${formatDate(a.created_at)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" style="margin-right:4px;" onclick="openCourseModal('${a.username}')" title="Cursussen beheren">Cursussen</button>
+        ${a.active == 1
+          ? `<button class="btn btn-danger btn-sm btn-icon" onclick="toggleActive('${a.username}',0)" title="Deactiveer">&#10005;</button>`
+          : `<button class="btn btn-primary btn-sm btn-icon" onclick="toggleActive('${a.username}',1)" title="Activeer">&#10003;</button>`
+        }
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+  syncHeadCheck(filtered);
+}
+
+function syncHeadCheck(filtered) {
+  const head = document.getElementById('headCheck');
+  if (!head) return;
+  const visible = filtered.map(a => a.username);
+  if (visible.length === 0) { head.checked = false; head.indeterminate = false; return; }
+  const sel = visible.filter(u => selectedStudents.has(u)).length;
+  head.checked = sel === visible.length;
+  head.indeterminate = sel > 0 && sel < visible.length;
+}
+
+/* ── Bulk bar ── */
+function renderBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const n = selectedStudents.size;
+  if (n === 0) { bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  document.getElementById('bulkCount').textContent = `${n} geselecteerd`;
+}
+
+function toggleSelect(username, checked) {
+  if (checked) selectedStudents.add(username); else selectedStudents.delete(username);
+  renderBulkBar();
+  syncHeadCheck(getFiltered());
+}
+
+function toggleAllVisible(checked) {
+  const filtered = getFiltered();
+  filtered.forEach(a => {
+    if (checked) selectedStudents.add(a.username); else selectedStudents.delete(a.username);
+  });
+  render();
+}
+
+function clearSelection() {
+  selectedStudents.clear();
+  render();
+}
+
+/* ── Bulk modals (3-step flow: pick courses → preview affected → confirm) ── */
+function openBulkModal() {
+  if (selectedStudents.size === 0) return;
+  bulkMode = null;
+  bulkPickedCourses.clear();
+  document.getElementById('bulkModal').classList.add('open');
+  renderBulkPicker();
+}
+
+function closeBulkModal() {
+  bulkPickedCourses.clear();
+  document.getElementById('bulkModal').classList.remove('open');
+}
+
+function toggleBulkCourse(courseId, checked) {
+  if (checked) bulkPickedCourses.add(String(courseId));
+  else bulkPickedCourses.delete(String(courseId));
+  renderBulkPicker();
+}
+
+function renderBulkPicker() {
+  document.getElementById('bulkModalIntro').textContent =
+    `${selectedStudents.size} student(en) geselecteerd. Kies één of meer cursussen:`;
+
+  const list = document.getElementById('bulkModalCourses');
+  list.innerHTML = allCourses.map(c => {
+    const checked = bulkPickedCourses.has(String(c.id));
+    return `<label class="modal-row">
+      <input type="checkbox" class="row-check" ${checked?'checked':''} onchange="toggleBulkCourse('${c.id}', this.checked)">
+      <div class="enroll-icon">${c.icon}</div>
+      <div class="row-name">${c.name}</div>
+    </label>`;
+  }).join('');
+
+  const hasPick = bulkPickedCourses.size > 0;
+  document.getElementById('bulkEnrollBtn').disabled = !hasPick;
+  document.getElementById('bulkUnenrollBtn').disabled = !hasPick;
+}
+
+function bulkPlannedChanges() {
+  // Returns { changes: [{username, courseId, courseName, courseIcon}], skipped: [{...}] }
+  const users = [...selectedStudents];
+  const changes = [], skipped = [];
+  bulkPickedCourses.forEach(cidStr => {
+    const course = allCourses.find(c => String(c.id) === cidStr);
+    if (!course) return;
+    users.forEach(u => {
+      const enrolled = DATA.enrollments.some(e => e.username === u && String(e.course_id) === cidStr);
+      const item = { username: u, courseId: cidStr, courseName: course.name, courseIcon: course.icon };
+      if (bulkMode === 'enroll') {
+        if (enrolled) skipped.push(item); else changes.push(item);
+      } else {
+        if (enrolled) changes.push(item); else skipped.push(item);
+      }
+    });
+  });
+  return { changes, skipped };
+}
+
+function openBulkConfirm(mode) {
+  if (bulkPickedCourses.size === 0) return;
+  bulkMode = mode;
+  document.getElementById('bulkConfirmModal').classList.add('open');
+  renderBulkConfirm();
+}
+
+function closeBulkConfirm() {
+  bulkMode = null;
+  document.getElementById('bulkConfirmModal').classList.remove('open');
+}
+
+function renderBulkConfirm() {
+  const isEnroll = bulkMode === 'enroll';
+  document.getElementById('bulkConfirmTitle').textContent =
+    isEnroll ? 'Bevestig: studenten inschrijven' : 'Bevestig: studenten uitschrijven';
+
+  const { changes, skipped } = bulkPlannedChanges();
+  const verb = isEnroll ? 'wordt ingeschreven' : 'wordt uitgeschreven';
+  const skipVerb = isEnroll ? 'al ingeschreven' : 'niet ingeschreven';
+
+  const groupHtml = (group) => {
+    const sortedUsers = [...group.users].sort((a,b) => a.localeCompare(b));
+    return `<div class="bulk-preview-group">
+      <div class="bulk-preview-group-header">
+        <div class="enroll-icon">${group.icon}</div>
+        <strong>${group.name}</strong>
+        <span class="group-count">${group.users.length} student${group.users.length===1?'':'en'}</span>
+      </div>
+      <div class="bulk-preview-students">
+        ${sortedUsers.map(u => `<span>${u}</span>`).join('')}
+      </div>
+    </div>`;
+  };
+
+  let html = '';
+  if (changes.length === 0) {
+    html += `<div class="bulk-preview-summary">Geen wijzigingen — iedereen is al ${isEnroll?'ingeschreven':'uitgeschreven'}.</div>`;
+  } else {
+    const byCourse = {};
+    changes.forEach(ch => {
+      (byCourse[ch.courseId] ??= { name: ch.courseName, icon: ch.courseIcon, users: [] }).users.push(ch.username);
+    });
+    html += `<div class="bulk-preview-summary"><strong>${changes.length}</strong> wijziging(en) — ${verb}:</div>`;
+    html += `<div class="bulk-preview-groups">${Object.values(byCourse).map(groupHtml).join('')}</div>`;
+  }
+  if (skipped.length > 0) {
+    const bySkipCourse = {};
+    skipped.forEach(s => {
+      (bySkipCourse[s.courseId] ??= { name: s.courseName, icon: s.courseIcon, users: [] }).users.push(s.username);
+    });
+    html += `<div class="bulk-preview-skip-wrap">
+      <div class="bulk-section-label" style="margin-bottom:8px;">${skipped.length} overgeslagen (${skipVerb})</div>
+      <div class="bulk-preview-groups">${Object.values(bySkipCourse).map(groupHtml).join('')}</div>
+    </div>`;
+  }
+  document.getElementById('bulkConfirmPreview').innerHTML = html;
+
+  const btn = document.getElementById('bulkConfirmBtn');
+  btn.disabled = changes.length === 0;
+  btn.textContent = changes.length
+    ? (isEnroll ? `Bevestig — schrijf ${changes.length} in` : `Bevestig — schrijf ${changes.length} uit`)
+    : 'Bevestig';
+  btn.className = 'btn btn-primary btn-sm';
+}
+
+async function confirmBulk() {
+  const isEnroll = bulkMode === 'enroll';
+  const { changes } = bulkPlannedChanges();
+  if (changes.length === 0) return;
+  const tasks = changes.map(ch => fetch('api/account_courses.php', {
+    method: isEnroll ? 'POST' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: ch.username, course_id: ch.courseId })
+  }));
+  await Promise.all(tasks);
+  closeBulkConfirm();
+  closeBulkModal();
+  await reloadData();
+  showToast(`${changes.length} ${isEnroll?'inschrijving(en) toegevoegd':'inschrijving(en) verwijderd'}`);
+}
+
+/* ── View switching ── */
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  document.getElementById('viewStudents').classList.toggle('active', view === 'students');
+  document.getElementById('viewCourses').classList.toggle('active', view === 'courses');
+  render();
+}
+
+/* ── Per-cursus view ── */
+function getCourseEnrolledUsernames(courseId) {
+  return DATA.enrollments.filter(e => e.course_id == courseId).map(e => e.username);
+}
+
+function renderCoursePicker() {
+  const wrap = document.getElementById('coursePicker');
+  wrap.innerHTML = allCourses.map(c => {
+    const count = getCourseEnrolledUsernames(c.id).length;
+    const isActive = activeCourseId == c.id;
+    return `<div class="course-picker-card ${isActive?'active':''}" onclick="selectCourse(${c.id})">
+      <div class="course-picker-icon">${c.icon}</div>
+      <div class="course-picker-meta">
+        <div class="course-picker-name">${c.name}</div>
+        <div class="course-picker-count">${count} student${count===1?'':'en'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectCourse(courseId) {
+  activeCourseId = courseId;
+  courseDetailSearch = '';
+  render();
+}
+
+function renderCourseDetail() {
+  const wrap = document.getElementById('courseDetailWrap');
+  if (!activeCourseId) {
+    wrap.innerHTML = '<div class="course-empty">Kies een cursus hierboven om studenten te beheren.</div>';
+    return;
+  }
+  const course = allCourses.find(c => c.id == activeCourseId);
+  if (!course) { wrap.innerHTML = '<div class="course-empty">Cursus niet gevonden.</div>'; return; }
+  const enrolled = new Set(getCourseEnrolledUsernames(activeCourseId));
+
+  // Show only students by default; could expand later. Keep docents visible too.
+  const search = courseDetailSearch.toLowerCase();
+  const candidates = DATA.accounts.filter(a => a.role === 'student' && a.active == 1)
+    .filter(a => !search || a.username.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
+    .sort((a,b) => {
+      // enrolled first, then alphabetical
+      const ea = enrolled.has(a.username) ? 0 : 1;
+      const eb = enrolled.has(b.username) ? 0 : 1;
+      if (ea !== eb) return ea - eb;
+      return a.username.localeCompare(b.username);
+    });
+
+  wrap.innerHTML = `
+    <div class="course-detail">
+      <div class="course-detail-header">
+        <div class="course-detail-icon">${course.icon}</div>
+        <div>
+          <div class="course-detail-title">${course.name}</div>
+          <div class="course-detail-sub">${enrolled.size} student${enrolled.size===1?'':'en'} ingeschreven</div>
+        </div>
+      </div>
+      <div class="course-detail-search">
+        <input type="text" id="courseDetailSearchInput" placeholder="Zoek student…" value="${escAttr(courseDetailSearch)}">
+      </div>
+      <div class="course-detail-list">
+        ${candidates.length === 0
+          ? '<div class="modal-empty">Geen studenten gevonden.</div>'
+          : candidates.map(a => {
+            const isEnrolled = enrolled.has(a.username);
+            return `<label class="course-detail-row ${isEnrolled?'enrolled':''}">
+              <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} onchange="toggleEnroll('${a.username}', ${activeCourseId}, ${isEnrolled})">
+              <div>
+                <div class="row-name"><strong>${a.username}</strong></div>
+                <div class="row-email">${a.email}</div>
+              </div>
+            </label>`;
+          }).join('')
+        }
+      </div>
+    </div>
+  `;
+  const input = document.getElementById('courseDetailSearchInput');
+  if (input) {
+    input.addEventListener('input', (e) => {
+      courseDetailSearch = e.target.value;
+      // partial re-render of just the list
+      renderCourseDetail();
+      // restore focus + caret
+      const ni = document.getElementById('courseDetailSearchInput');
+      if (ni) { ni.focus(); ni.setSelectionRange(courseDetailSearch.length, courseDetailSearch.length); }
+    });
+  }
+}
+
+/* ── Course modal (per student) ── */
+function openCourseModal(username) {
+  modalUser = username;
+  modalSearch = '';
+  document.getElementById('courseModalTitle').textContent = `Cursussen voor ${username}`;
+  document.getElementById('courseModalSearch').value = '';
+  document.getElementById('courseModal').classList.add('open');
+  renderCourseModalBody();
+}
+
+function closeCourseModal() {
+  modalUser = null;
+  document.getElementById('courseModal').classList.remove('open');
+}
+
+function renderCourseModalBody() {
+  if (!modalUser) return;
+  const enrolled = new Set(getUserEnrollments(modalUser).map(e => String(e.course_id)));
+  const search = modalSearch.toLowerCase();
+  const list = allCourses
+    .filter(c => !search || c.name.toLowerCase().includes(search) || (c.icon||'').toLowerCase().includes(search))
+    .sort((a,b) => {
+      const ea = enrolled.has(String(a.id)) ? 0 : 1;
+      const eb = enrolled.has(String(b.id)) ? 0 : 1;
+      if (ea !== eb) return ea - eb;
+      return a.name.localeCompare(b.name);
+    });
+
+  const body = document.getElementById('courseModalBody');
+  body.innerHTML = list.length === 0
+    ? '<div class="modal-empty">Geen cursussen gevonden.</div>'
+    : list.map(c => {
+      const isEnrolled = enrolled.has(String(c.id));
+      return `<label class="modal-row">
+        <input type="checkbox" class="row-check" ${isEnrolled?'checked':''} onchange="toggleEnroll('${modalUser}', ${c.id}, ${isEnrolled})">
+        <div class="enroll-icon">${c.icon}</div>
+        <div class="row-name">${c.name}</div>
+      </label>`;
+    }).join('');
+  document.getElementById('courseModalCount').textContent = `${enrolled.size} van ${allCourses.length} ingeschreven`;
+}
+
+function escAttr(s) { return (s||'').replace(/"/g,'&quot;'); }
+
+/* ── Actions ── */
+async function toggleActive(username, active) {
+  await fetch('api/account_toggle.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, active })
+  });
+  const acc = DATA.accounts.find(a => a.username === username);
+  if (acc) acc.active = active;
+  render();
+  showToast(`${username} is nu ${active ? 'actief' : 'inactief'}`);
+}
+
+async function toggleEnroll(username, courseId, isEnrolled) {
+  const method = isEnrolled ? 'DELETE' : 'POST';
+  await fetch('api/account_courses.php', {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, course_id: courseId })
+  });
+  await reloadData();
+  if (modalUser) renderCourseModalBody();
+  const course = allCourses.find(c => c.id == courseId);
+  showToast(isEnrolled
+    ? `${username} uitgeschreven uit ${course?.name}`
+    : `${username} ingeschreven voor ${course?.name}`
+  );
+}
+
+async function reloadData() {
+  DATA = await fetch('api/accounts.php').then(r => r.json());
+  render();
+}
+
+/* ── Toast ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ── Filter listeners ── */
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('roleFilter').addEventListener('change', render);
+document.getElementById('statusFilter').addEventListener('change', render);
+document.getElementById('courseFilter').addEventListener('change', render);
+
+/* ── Modal search listener ── */
+document.getElementById('courseModalSearch').addEventListener('input', (e) => {
+  modalSearch = e.target.value;
+  renderCourseModalBody();
+});
+
+/* ── Esc closes the topmost open modal ── */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('bulkConfirmModal').classList.contains('open')) closeBulkConfirm();
+  else if (document.getElementById('bulkModal').classList.contains('open')) closeBulkModal();
+  else if (modalUser) closeCourseModal();
+});
+
+/* ── Boot ── */
+init();
+</script>
+
+</body>
+</html>
