@@ -139,7 +139,7 @@
         <div class="page-sub"   id="pageSub">Welkom terug!</div>
       </div>
       <div class="topbar-right">
-        <div class="streak-badge" id="streakBadge">🔥 12-daagse streak</div>
+        <div class="streak-badge" id="streakBadge" style="display:none"></div>
         <button class="notif-btn theme-btn" id="themeToggle" title="Wissel thema" onclick="toggleTheme()">🌙</button>
         <button class="notif-btn" title="Meldingen">🔔</button>
         <div class="avatar-wrap">
@@ -213,11 +213,8 @@
             <div class="stat-label">Badges behaald</div>
             <div class="stat-trend">2 bijna bereikt</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon">🔥</div>
-            <div class="stat-value">12</div>
-            <div class="stat-label">Dag streak</div>
-            <div class="stat-trend">Persoonlijk record!</div>
+          <div class="stat-card" id="streakStatCard">
+            <!-- Filled by js/app.js renderStreakCard() once me.php returns -->
           </div>
         </div>
 

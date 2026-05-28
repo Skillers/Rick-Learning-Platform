@@ -314,10 +314,56 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .avatar-menu-item:hover { background: var(--bg3); }
 
 .streak-badge {
-  display: flex; align-items: center; gap: 5px;
-  background: rgba(227,179,65,.1); border: 1px solid rgba(227,179,65,.25);
-  border-radius: 20px; padding: 4px 10px;
-  font-size: 12px; color: var(--yellow); font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  font-size: 12px; font-weight: 600;
+  background-size: 200% 100%;
+}
+.streak-badge .flame  { width: 14px; height: 14px; flex-shrink: 0; }
+.streak-badge .days   { font-variant-numeric: tabular-nums; }
+.streak-badge .sep    { opacity: .45; font-weight: 400; }
+.streak-badge .trophy { font-size: 11px; }
+.streak-badge .rec    { letter-spacing: .3px; }
+.streak-badge .twin   { display: inline-flex; }
+.streak-badge .twin .flame:last-child { margin-left: -5px; }
+
+/* Case 2 (ice cube): streak broke, old record survives. Square, cold blue wave. */
+.streak-badge.badge-cold {
+  border-radius: 3px;
+  color: #79c0ff;
+  border: 1px solid rgba(121,192,255,.45);
+  background-image: linear-gradient(100deg,
+    rgba(56,139,253,.08) 0%, rgba(140,200,255,.34) 50%, rgba(56,139,253,.08) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28),
+              inset 0 -2px 4px rgba(56,139,253,.25);
+  animation: streak-coldwave 4.5s linear infinite;
+}
+/* Case 3 (active): streak below record. Rounded, warm red fire wave. */
+.streak-badge.badge-fire {
+  border-radius: 20px;
+  color: #ff7b72;
+  border: 1px solid rgba(248,81,73,.38);
+  background-image: linear-gradient(100deg,
+    rgba(248,81,73,.08) 0%, rgba(247,129,102,.34) 50%, rgba(248,81,73,.08) 100%);
+  animation: streak-firewave 2.6s linear infinite;
+}
+/* Case 4 (record): current streak is the record. Rounded, gold shimmer wave. */
+.streak-badge.badge-record {
+  border-radius: 20px;
+  color: var(--yellow);
+  border: 1px solid rgba(227,179,65,.6);
+  background-image: linear-gradient(100deg,
+    rgba(227,179,65,.10) 0%, rgba(255,231,150,.30) 38%,
+    rgba(255,248,220,.70) 50%, rgba(255,231,150,.30) 62%,
+    rgba(227,179,65,.10) 100%);
+  box-shadow: 0 0 10px rgba(227,179,65,.28);
+  animation: streak-goldwave 2.1s linear infinite;
+}
+@keyframes streak-coldwave { to { background-position: -200% 0; } }
+@keyframes streak-firewave { to { background-position: -200% 0; } }
+@keyframes streak-goldwave { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .streak-badge { animation: none; }
 }
 .notif-btn {
   width: 32px; height: 32px; border-radius: 8px;
@@ -436,16 +482,124 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px; margin-bottom: 20px;
+  gap: 20px; margin-bottom: 24px;
 }
 .stat-card {
   background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius2); padding: 16px;
+  border-radius: var(--radius2); padding: 20px;
 }
 .stat-icon  { font-size: 18px; margin-bottom: 8px; }
 .stat-value { font-size: 22px; font-weight: 700; }
 .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
 .stat-trend { font-size: 11px; color: var(--accent2); margin-top: 4px; }
+
+/* ── Streak stat card (dashboard) ── 4 states ── */
+.stat-card.streak-record,
+.stat-card.streak-fire,
+.stat-card.streak-cold,
+.stat-card.streak-new   { position: relative; overflow: hidden; }
+.stat-card.streak-record > div,
+.stat-card.streak-fire   > div,
+.stat-card.streak-cold   > div,
+.stat-card.streak-new    > div { position: relative; z-index: 2; }
+.stat-card .member-since {
+  font-size: 10px; color: var(--text3);
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+/* Day-1 states (cold + new) show a text headline instead of a number */
+.stat-card.streak-cold .stat-value,
+.stat-card.streak-new  .stat-value { font-size: 15px; }
+
+/* Case 4 (record). Gold: pulse + diagonal shine + sparkles. */
+.stat-card.streak-record {
+  border-color: rgba(227,179,65,.5);
+  background: linear-gradient(160deg, rgba(227,179,65,.10), var(--bg2) 60%);
+  animation: cardGoldPulse 2.8s ease-in-out infinite;
+}
+.stat-card.streak-record .stat-value,
+.stat-card.streak-record .stat-trend { color: var(--yellow); }
+@keyframes cardGoldPulse {
+  0%,100% { box-shadow: 0 0 0 rgba(227,179,65,0); }
+  50%     { box-shadow: 0 0 16px rgba(227,179,65,.30); }
+}
+.stat-card.streak-record::before {
+  content: ""; position: absolute; z-index: 1; pointer-events: none;
+  top: 0; bottom: 0; left: -60%; width: 45%;
+  background: linear-gradient(100deg,
+    transparent 0%, rgba(255,248,225,.35) 38%,
+    rgba(255,255,255,.70) 50%, rgba(255,248,225,.35) 62%, transparent 100%);
+  transform: translateX(0) skewX(-18deg);
+  animation: goldShine 4.2s ease-in-out infinite;
+}
+@keyframes goldShine {
+  0%       { transform: translateX(0)    skewX(-18deg); }
+  38%,100% { transform: translateX(470%) skewX(-18deg); }
+}
+.stat-card .sparkle {
+  position: absolute; z-index: 3; pointer-events: none;
+  color: #fff1b8; opacity: 0;
+  text-shadow: 0 0 5px rgba(255,225,130,.95);
+  animation: sparkleTwinkle 2.6s ease-in-out infinite;
+}
+.stat-card .sp1 { top:  9px; right: 13px; font-size: 10px; animation-delay: 0s;   }
+.stat-card .sp2 { top: 40px; right: 32px; font-size:  7px; animation-delay: .7s;  }
+.stat-card .sp3 { bottom: 46px; left: 15px; font-size: 9px; animation-delay: 1.3s; }
+.stat-card .sp4 { bottom: 22px; right: 22px; font-size: 8px; animation-delay: 1.9s; }
+@keyframes sparkleTwinkle {
+  0%,100% { opacity: 0; transform: scale(.3) rotate(0deg); }
+  50%     { opacity: 1; transform: scale(1)  rotate(45deg); }
+}
+
+/* Case 3 (fire). Active streak below record: flicker + top-to-bottom heat wave with cooldown. */
+.stat-card.streak-fire {
+  border-color: rgba(248,81,73,.35);
+  background: linear-gradient(160deg, rgba(248,81,73,.08), var(--bg2) 60%);
+}
+.stat-card.streak-fire .stat-value { color: #ff7b72; }
+.stat-card.streak-fire::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(180deg,
+    transparent 30%, rgba(255,130,100,.22) 50%, transparent 70%);
+  background-size: 100% 300%;
+  animation: fireWave 5.5s ease-in-out infinite;
+}
+@keyframes fireWave {
+  0%       { background-position: 0 -150%; }
+  32%,100% { background-position: 0 150%; }
+}
+
+/* Case 2 (cold / ice cube). Broken streak: slow frost sweep with long cooldown. */
+.stat-card.streak-cold {
+  border-color: rgba(121,192,255,.4);
+  background: linear-gradient(160deg, rgba(56,139,253,.10), var(--bg2) 60%);
+}
+.stat-card.streak-cold .stat-value,
+.stat-card.streak-cold .stat-trend { color: #79c0ff; }
+.stat-card.streak-cold::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(110deg, transparent 40%, rgba(180,220,255,.13) 50%, transparent 60%);
+  background-size: 220% 100%;
+  animation: frostShimmer 8s ease-in-out infinite;
+}
+@keyframes frostShimmer {
+  0%       { background-position: -30% 0; }
+  34%,100% { background-position: 130% 0; }
+}
+
+/* Case 1 (new). Brand new account, no streak yet: flat and muted. */
+.stat-card.streak-new .stat-value { color: var(--text2); }
+.stat-card.streak-new .stat-trend { color: var(--text3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card.streak-record, .stat-card.streak-fire,
+  .stat-card.streak-cold,   .stat-card.streak-new,
+  .stat-card.streak-record::before,
+  .stat-card.streak-fire::after,
+  .stat-card.streak-cold::after,
+  .stat-card .stat-icon, .stat-card .sparkle { animation: none; }
+  .stat-card .sparkle { opacity: .7; }
+}
 
 .section-title {
   font-size: 14px; font-weight: 600; margin-bottom: 12px;
@@ -1292,7 +1446,9 @@ code {
 [data-theme="light"] .heatmap-cell.l4      { background: #1a7f37; }
 
 [data-theme="light"] .nav-btns .btn-ghost  { background: #f6f8fa; border-color: #d0d7de; }
-[data-theme="light"] .streak-badge         { background: rgba(154,103,0,.08); border-color: rgba(154,103,0,.22); color: #9a6700; }
+[data-theme="light"] .streak-badge.badge-cold   { color: #0a52c4; border-color: rgba(10,82,196,.45); }
+[data-theme="light"] .streak-badge.badge-fire   { color: #c0392b; border-color: rgba(192,57,43,.45); }
+[data-theme="light"] .streak-badge.badge-record { color: #9a6700; border-color: rgba(154,103,0,.6); }
 [data-theme="light"] .notif-btn            { background: #f6f8fa; border-color: #d0d7de; color: #57606a; }
 [data-theme="light"] .notif-btn:hover      { background: #eaeef2; color: #1f2328; }
 [data-theme="light"] .xp-mini             { background: #eaeef2; }
