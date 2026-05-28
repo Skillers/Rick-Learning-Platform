@@ -10,7 +10,7 @@ if (!$username) {
     exit;
 }
 
-$stmt = $pdo->prepare("SELECT `username`, `Email`, `Role` FROM `accounts` WHERE `username` = ?");
+$stmt = $pdo->prepare("SELECT `username`, `Email`, `Role`, `CreatedAt` FROM `accounts` WHERE `username` = ?");
 $stmt->execute([$username]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -21,10 +21,48 @@ if (!$row) {
 }
 
 $result = [
-    'username' => $row['username'],
-    'email'    => $row['Email'],
-    'role'     => $row['Role'],
+    'username'    => $row['username'],
+    'email'       => $row['Email'],
+    'role'        => $row['Role'],
+    'memberSince' => substr($row['CreatedAt'], 0, 10),
 ];
+
+// ── Login streak ────────────────────────────────────────────────
+// handleLogin never calls login.php, so me.php is the only endpoint
+// hit on every app-boot, so it doubles as the "active today" signal.
+// Streak math is day-granular, so repeated same-day boots are no-ops.
+$stmt = $pdo->prepare("SELECT `LastLogin`, `LongestStreak`, `CurrentStreak` FROM `AccountStats` WHERE `accounts_username` = ?");
+$stmt->execute([$username]);
+$stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$stats) {
+    // Account predates AccountStats: start the streak today.
+    $current = 1;
+    $longest = 1;
+    $stmt = $pdo->prepare("INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`) VALUES (?, NOW(), 1, 1)");
+    $stmt->execute([$username]);
+} else {
+    $current = (int) $stats['CurrentStreak'];
+    $longest = (int) $stats['LongestStreak'];
+    $gap     = (int) (new DateTime(substr($stats['LastLogin'], 0, 10)))
+                      ->diff(new DateTime('today'))->days;
+
+    if ($gap === 1) {
+        $current += 1;          // consecutive day, streak grows
+    } elseif ($gap >= 2) {
+        $current = 1;           // streak broken, today restarts the count
+    }                           // gap === 0 → already counted today
+    if ($current > $longest) {
+        $longest = $current;
+    }
+    if ($gap > 0) {             // only write when the calendar day changed
+        $stmt = $pdo->prepare("UPDATE `AccountStats` SET `LastLogin` = NOW(), `CurrentStreak` = ?, `LongestStreak` = ? WHERE `accounts_username` = ?");
+        $stmt->execute([$current, $longest, $username]);
+    }
+}
+
+$result['currentStreak'] = $current;
+$result['longestStreak'] = $longest;
 
 // For docents: return assigned courses and mentored students
 // For superadmins: null = no restrictions (bypass all scoping)

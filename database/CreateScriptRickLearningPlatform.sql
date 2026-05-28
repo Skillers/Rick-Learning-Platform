@@ -593,6 +593,23 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
 
 
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`AccountStats`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`AccountStats` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `LastLogin` DATETIME NOT NULL,
+  `LongestStreak` INT NOT NULL,
+  `CurrentStreak` INT NOT NULL,
+  INDEX `fk_AccountStats_accounts1_idx` (`accounts_username` ASC),
+  CONSTRAINT `fk_AccountStats_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

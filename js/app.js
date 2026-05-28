@@ -26,7 +26,9 @@ const STUDENT = {
   xp:      1240,
   xpNext:  1500,
   level:   7,
-  streak:  12,
+  streak:        0,
+  longestStreak: 0,
+  memberSince:   "",
 };
 
 /* ── State ───────────────────────────────────── */
@@ -71,6 +73,9 @@ async function bootApp() {
     const data     = await res.json();
     STUDENT.email  = data.email || STUDENT.email;
     if (data.email) sessionStorage.setItem("ict_email", data.email);
+    STUDENT.streak        = data.currentStreak ?? STUDENT.streak;
+    STUDENT.longestStreak = data.longestStreak ?? STUDENT.longestStreak;
+    STUDENT.memberSince   = data.memberSince   ?? STUDENT.memberSince;
   } catch {
     // Offline / API unavailable — continue with cached data
   }
@@ -305,6 +310,139 @@ function initials(name) {
 }
 
 /* ═══════════════════════════════════════════════
+   STREAK BADGE
+═══════════════════════════════════════════════ */
+const _STREAK_FLAME  = '<svg class="flame" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23a7 7 0 0 1-7-7c0-3.1 1.9-5.6 3.6-7.6.3 1.3 1.2 2.1 2.1 2.4C11.4 8.6 10 5.4 12.4 1c1 4 3.1 5.2 4.2 7.8C17.7 11 19 13.2 19 16a7 7 0 0 1-7 7z"/></svg>';
+const _STREAK_TROPHY = '<svg class="flame" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 18.9V21H7v2h10v-2h-4v-2.1a5.01 5.01 0 0 0 3.61-5.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>';
+
+// Picks one of four states from current (c) and longest (l) streak.
+// A single day is counted but not yet shown as a "streak". Threshold is 2.
+function renderStreakBadge() {
+  const el = document.getElementById("streakBadge");
+  const c  = STUDENT.streak || 0;
+  const l  = STUDENT.longestStreak || 0;
+  el.className = "streak-badge";
+
+  // Case 1: never streaked (new account). No badge at all.
+  if (c < 2 && l < 2) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    el.removeAttribute("title");
+    return;
+  }
+  el.style.display = "";
+
+  if (c >= 2 && c >= l) {
+    // Case 4: current streak is the personal record
+    el.classList.add("badge-record");
+    el.title = `${c} dagen op rij: persoonlijk record!`;
+    el.innerHTML =
+      `<span class="twin">${_STREAK_FLAME}${_STREAK_TROPHY}</span>` +
+      `<span class="days">${c} dagen</span><span class="rec">record!</span>`;
+  } else if (c >= 2) {
+    // Case 3: active streak, record is higher
+    el.classList.add("badge-fire");
+    el.title = `Huidige streak: ${c} dagen. Record: ${l} dagen.`;
+    el.innerHTML =
+      `${_STREAK_FLAME}<span class="days">${c} dagen</span>` +
+      `<span class="sep">·</span><span class="trophy">🏆 ${l}</span>`;
+  } else {
+    // Case 2: streak just broke, old record survives (ice cube)
+    el.classList.add("badge-cold");
+    el.title = `Je vorige streak van ${l} dagen is verbroken. Kom morgen terug!`;
+    el.innerHTML =
+      `${_STREAK_FLAME}<span class="days">Nieuwe start</span>` +
+      `<span class="sep">·</span><span class="trophy">🏆 ${l}</span>`;
+  }
+}
+
+// Member-since: relative buckets (vandaag, gisteren, deze/vorige week,
+// deze/vorige maand), falling back to "maand jaar" once older than that.
+function formatMemberSince(dateStr) {
+  if (!dateStr) return "";
+  const parts = dateStr.split(/[-T :]/);
+  if (parts.length < 3) return "";
+  const created = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  if (isNaN(created)) return "";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayDiff = Math.round((today - created) / 86400000);
+
+  if (dayDiff === 0) return "Lid sinds vandaag";
+  if (dayDiff === 1) return "Lid sinds gisteren";
+
+  // Calendar week, Monday-based
+  const weekStart = (d) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const thisWeek = weekStart(today);
+  const lastWeek = new Date(thisWeek); lastWeek.setDate(lastWeek.getDate() - 7);
+  if (created >= thisWeek) return "Lid sinds deze week";
+  if (created >= lastWeek) return "Lid sinds vorige week";
+
+  // Calendar month
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(),     1);
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  if (created >= thisMonth) return "Lid sinds deze maand";
+  if (created >= lastMonth) return "Lid sinds vorige maand";
+
+  const months = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+  return `Lid sinds ${months[created.getMonth()]} ${created.getFullYear()}`;
+}
+
+// Dashboard streak tile. Always visible (unlike the topbar badge), with 4 states.
+function renderStreakCard() {
+  const el = document.getElementById("streakStatCard");
+  if (!el) return;
+  const c = STUDENT.streak || 0;
+  const l = STUDENT.longestStreak || 0;
+  const since = formatMemberSince(STUDENT.memberSince);
+
+  let stateClass, icon, value, trend, sparkles = "";
+
+  if (c >= 2 && c >= l) {
+    // Case 4: current streak is the personal record
+    stateClass = "streak-record";
+    icon       = "🔥";
+    value      = `${c}`;
+    trend      = "🏆 Persoonlijk record!";
+    sparkles   = '<span class="sparkle sp1">✦</span><span class="sparkle sp2">✦</span>' +
+                 '<span class="sparkle sp3">✦</span><span class="sparkle sp4">✦</span>';
+  } else if (c >= 2) {
+    // Case 3: active streak, record is higher
+    stateClass = "streak-fire";
+    icon       = "🔥";
+    value      = `${c}`;
+    trend      = `Record: ${l} dagen`;
+  } else if (l >= 2) {
+    // Case 2: streak just broke, old record survives (ice cube)
+    stateClass = "streak-cold";
+    icon       = "🧊";
+    value      = "Nieuwe start";
+    trend      = `Verbroken · record was ${l}`;
+  } else {
+    // Case 1: brand new, no streak yet (muted)
+    stateClass = "streak-new";
+    icon       = "🔥";
+    value      = "Nieuwe start";
+    trend      = "Start vandaag je streak!";
+  }
+
+  el.className = "stat-card " + stateClass;
+  el.innerHTML =
+    sparkles +
+    `<div class="stat-icon">${icon}</div>` +
+    `<div class="stat-value">${value}</div>` +
+    `<div class="stat-label">Dag streak</div>` +
+    `<div class="stat-trend">${trend}</div>` +
+    `<div class="member-since">${since}</div>`;
+}
+
+/* ═══════════════════════════════════════════════
    DASHBOARD
 ═══════════════════════════════════════════════ */
 function buildDashboard() {
@@ -312,7 +450,8 @@ function buildDashboard() {
   document.getElementById("userName").textContent     = STUDENT.name;
   document.getElementById("userLevel").textContent    = `Niveau ${STUDENT.level} · ${STUDENT.xp} XP`;
   document.getElementById("xpMiniFill").style.width   = Math.round((STUDENT.xp / STUDENT.xpNext) * 100) + "%";
-  document.getElementById("streakBadge").textContent  = `🔥 ${STUDENT.streak}-daagse streak`;
+  renderStreakBadge();
+  renderStreakCard();
   document.getElementById("topbarAvatar").textContent = STUDENT.initials;
 
   const grid = document.getElementById("coursesGrid");

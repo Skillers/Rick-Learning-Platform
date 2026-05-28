@@ -867,6 +867,20 @@ INSERT INTO `accounts` (`username`, `Password`, `Email`, `Role`, `CreatedAt`, `A
 ('Yusuf',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'yusuf@student.rocmn.nl',      'student',    '2024-10-01 08:45:00', 0);
 
 -- -------------------------------------------------------------
+-- AccountStats  (login streaks — demo data spans all 4 badge states)
+-- LastLogin = NOW() so each user shows its intended case on first login today
+-- -------------------------------------------------------------
+INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`) VALUES
+('Rick',      NOW(), 30, 30),  -- Case 4: current streak IS the record (gold)
+('Marloes',   NOW(), 12,  5),  -- Case 3: active streak below record (fire)
+('JanWillem', NOW(),  1,  1),  -- Case 1: brand new — badge hidden
+('Fatima',    NOW(), 18,  1),  -- Case 2: ice cube — broke an 18-day streak
+('Daan',      NOW(),  7,  7),  -- Case 4: current streak IS the record (gold)
+('Priya',     NOW(),  9,  3),  -- Case 3: active streak below record (fire)
+('Thomas',    NOW(),  1,  1),  -- Case 1: brand new — badge hidden
+('Yusuf',     NOW(),  4,  1);  -- Case 2: ice cube — broke a 4-day streak
+
+-- -------------------------------------------------------------
 -- Course enrollments
 -- Course IDs: 1=Python, 2=JS, 3=Java, 4=Unity6, 5=VR, 6=N4, 7=N3
 -- -------------------------------------------------------------

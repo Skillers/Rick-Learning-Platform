@@ -65,4 +65,11 @@ $hash     = password_hash($peppered, PASSWORD_BCRYPT);
 $stmt = $pdo->prepare("INSERT INTO `Accounts` (`username`, `Password`, `Email`) VALUES (?, ?, ?)");
 $stmt->execute([$username, $hash, $email]);
 
+// Initialise login-streak stats: the signup day counts as day 1
+$stmt = $pdo->prepare(
+    "INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`)
+     VALUES (?, NOW(), 1, 1)"
+);
+$stmt->execute([$username]);
+
 echo json_encode(['success' => true]);
