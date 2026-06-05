@@ -132,9 +132,10 @@ if ($questions) {
     $qIds = array_column($questions, 'question_id');
     $placeholders = implode(',', array_fill(0, count($qIds), '?'));
     $stmtA = $pdo->prepare("
-        SELECT PQQuestion_Id AS question_id, AnswerOption AS answer, IsCorrect AS is_correct
+        SELECT Id AS answer_id, PQQuestion_Id AS question_id, AnswerOption AS answer, IsCorrect AS is_correct
         FROM PQAnswer
         WHERE PQQuestion_Id IN ($placeholders)
+        ORDER BY Id
     ");
     $stmtA->execute($qIds);
     $allAnswers = $stmtA->fetchAll(PDO::FETCH_ASSOC);
@@ -143,6 +144,7 @@ if ($questions) {
     $answersByQ = [];
     foreach ($allAnswers as $a) {
         $answersByQ[$a['question_id']][] = [
+            'id'         => (int)$a['answer_id'],
             'text'       => $a['answer'],
             'is_correct' => (int)$a['is_correct'],
         ];
@@ -162,6 +164,7 @@ if ($questions) {
             'section_id' => (int)$q['section_id'],
             'order'      => (int)$q['order'],
             'content'    => json_encode([
+                'question_id'   => (int)$q['question_id'],
                 'question'      => $q['question'],
                 'image'         => $q['image'],
                 'open_question' => (int)$q['open_question'],

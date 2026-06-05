@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`pages` (
   `order` INT(11) NULL DEFAULT NULL,
   `published` TINYINT(1) NOT NULL,
   `PageType_Id` INT(11) NOT NULL,
+  `XPReward` INT(3) NOT NULL DEFAULT 20,
+  `EstimatedDuration` INT(3) NOT NULL DEFAULT 10,
   PRIMARY KEY (`Id`),
   INDEX `fk_Pages_Courses1_idx` (`Course_Id` ASC),
   INDEX `fk_Pages_PageTypes1_idx` (`PageType_Id` ASC),
@@ -92,6 +94,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`sections` (
   `Pages_Id` INT(11) NOT NULL,
   `Title` VARCHAR(45) NOT NULL,
   `Order` INT(11) NOT NULL,
+  `XPReward` INT(3) NOT NULL DEFAULT 5,
   PRIMARY KEY (`Id`),
   INDEX `fk_Sections_Pages1_idx` (`Pages_Id` ASC),
   CONSTRAINT `fk_Sections_Pages1`
@@ -601,11 +604,49 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`AccountStats` (
   `LastLogin` DATETIME NOT NULL,
   `LongestStreak` INT NOT NULL,
   `CurrentStreak` INT NOT NULL,
+  `TotalXP` INT NOT NULL DEFAULT 0,
+  `Level` INT NOT NULL DEFAULT 1,
   INDEX `fk_AccountStats_accounts1_idx` (`accounts_username` ASC),
+  PRIMARY KEY (`accounts_username`),
   CONSTRAINT `fk_AccountStats_accounts1`
     FOREIGN KEY (`accounts_username`)
     REFERENCES `rick learning platform`.`accounts` (`username`)
     ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`UserXPLog`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`UserXPLog` (
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `pages_Id` INT(11) NULL,
+  `sections_Id` INT(11) NULL,
+  `Source` ENUM('Section', 'Page') NOT NULL,
+  `AwardedOn` DATE NOT NULL,
+  `RewardedAmount` INT(3) NOT NULL,
+  `Page_award_Key` INT(11) GENERATED ALWAYS AS (CASE WHEN Source = 'Page' THEN pages_Id ELSE NULL END) VIRTUAL,
+  INDEX `fk_UserXPLog_pages1_idx` (`pages_Id` ASC),
+  INDEX `fk_UserXPLog_sections1_idx` (`sections_Id` ASC),
+  PRIMARY KEY (`Id`),
+  UNIQUE INDEX `Uniq_section_award` (`accounts_username` ASC, `sections_Id` ASC),
+  UNIQUE INDEX `Uniq_page_award` (`accounts_username` ASC, `Page_award_Key` ASC),
+  CONSTRAINT `fk_UserXPLog_pages1`
+    FOREIGN KEY (`pages_Id`)
+    REFERENCES `rick learning platform`.`pages` (`Id`)
+    ON DELETE SET NULL
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_UserXPLog_sections1`
+    FOREIGN KEY (`sections_Id`)
+    REFERENCES `rick learning platform`.`sections` (`Id`)
+    ON DELETE SET NULL
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_UserXPLog_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 

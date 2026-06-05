@@ -152,6 +152,7 @@
             </div>
             <div class="avatar-menu-divider"></div>
             <button class="avatar-menu-item" style="color:var(--text)" onclick="showAccount()">Mijn account</button>
+            <button class="avatar-menu-item" style="color:var(--text)" onclick="showXPOverview()">XP overzicht</button>
             <div class="avatar-menu-divider"></div>
             <button class="avatar-menu-item" onclick="handleLogout()">Uitloggen</button>
           </div>
@@ -184,22 +185,12 @@
             </div>
           </div>
 
-          <!-- Tip card -->
-          <div class="dash-tip-card">
-            <div class="dash-tip-label">💡 Wist je dat...</div>
-            <div class="dash-tip-text" id="dashTipText"></div>
-            <div class="dash-tip-dots" id="dashTipDots"></div>
-          </div>
-
         </div>
 
         <!-- Stat cards -->
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-value">1240</div>
-            <div class="stat-label">XP totaal</div>
-            <div class="stat-trend">+85 deze week</div>
+          <div class="stat-card" id="xpStatCard">
+            <!-- Filled by js/app.js renderXPCard() -->
           </div>
           <div class="stat-card">
             <div class="stat-icon">✅</div>
@@ -242,6 +233,51 @@
           </div>
         </div>
       </div><!-- /view-account -->
+
+      <!-- ╔══════════════════════════
+           ║  XP OVERVIEW VIEW
+           ╚══════════════════════════ -->
+      <div class="view" id="view-xp">
+        <div class="xp-overview">
+          <div class="xp-overview-header">
+            <div>
+              <div class="page-title">XP overzicht</div>
+              <div class="page-sub">Bekijk je verdiende en openstaande XP per pagina.</div>
+            </div>
+            <button class="btn btn-ghost" onclick="showDashboard()">← Dashboard</button>
+          </div>
+
+          <div class="xp-summary-grid" id="xpSummaryGrid">
+            <!-- Filled by js/app.js renderXPOverview() -->
+          </div>
+
+          <div class="xp-filter-row">
+            <label class="xp-filter-pill">
+              <input type="checkbox" id="xpOnlyOpen">
+              <span>Alleen pagina's met openstaande XP</span>
+            </label>
+          </div>
+
+          <div class="xp-table-wrap">
+            <table class="xp-table" id="xpTable">
+              <thead>
+                <tr>
+                  <th>Cursus</th>
+                  <th>Pagina</th>
+                  <th class="num">Verdiend</th>
+                  <th class="num">Totaal</th>
+                  <th class="num">Open</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="xpTableBody"></tbody>
+            </table>
+            <div class="xp-empty" id="xpEmpty" style="display:none">
+              Geen pagina's om te tonen.
+            </div>
+          </div>
+        </div>
+      </div><!-- /view-xp -->
 
       <!-- ╔══════════════════════════
            ║  COURSE VIEW
@@ -294,8 +330,8 @@
             <div class="lesson-title" id="lessonTitle">Les titel</div>
             <div class="lesson-meta">
               <div class="lesson-tag type-lesson" id="lessonTypeTag">Les</div>
-              <div style="font-size:12px;color:var(--text2);">⏱ ~20 min</div>
-              <div style="font-size:12px;color:var(--accent2);" id="lessonXP">+60 XP bij voltooiing</div>
+              <div class="lesson-duration" id="lessonDuration">⏱ ~15 min</div>
+              <div class="lesson-xp" id="lessonXP">+0 XP</div>
             </div>
           </div>
           <button class="btn btn-ghost" id="btnPrev" style="display:none">← Vorige</button>

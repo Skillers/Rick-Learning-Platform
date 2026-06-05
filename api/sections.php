@@ -9,6 +9,7 @@ $rows = $pdo->query("
         s.`Pages_Id` AS `page_id`,
         s.`Title`    AS `title`,
         s.`Order`    AS `order`,
+        s.`XPReward` AS `xp_reward`,
         EXISTS (
             SELECT 1 FROM `Components` c
             WHERE c.`Section_Id` = s.`Id`

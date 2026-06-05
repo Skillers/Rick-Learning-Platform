@@ -492,6 +492,30 @@ INSERT INTO `Sections` (`Id`, `Pages_Id`, `Title`, `Order`) VALUES
 (220, 71, 'Opgaven: Verbanden',    3);
 
 -- -------------------------------------------------------------
+-- Backfill XP + duration for seed pages/sections.
+-- Defaults are 0 so a fresh seed would have nothing to award — these
+-- UPDATEs give the demo data sensible values per PageType.
+--   1 = lesson, 2 = exercise, 3 = quiz, 4 = project
+-- -------------------------------------------------------------
+UPDATE `Pages` SET
+  `XPReward` = CASE `PageType_Id`
+    WHEN 1 THEN 20    -- les
+    WHEN 2 THEN 30    -- oefening
+    WHEN 3 THEN 50    -- quiz
+    WHEN 4 THEN 100   -- project
+    ELSE 20
+  END,
+  `EstimatedDuration` = CASE `PageType_Id`
+    WHEN 1 THEN 10
+    WHEN 2 THEN 15
+    WHEN 3 THEN 20
+    WHEN 4 THEN 60
+    ELSE 10
+  END;
+
+UPDATE `Sections` SET `XPReward` = 5;
+
+-- -------------------------------------------------------------
 -- Languages
 -- -------------------------------------------------------------
 INSERT INTO `Languages` (`Id`, `LanguageName`) VALUES
@@ -783,21 +807,22 @@ INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 (5, 40, 'Let op: Python maakt onderscheid tussen int en float. Als je 3 / 2 doet krijg je 1.5 (float), niet 1. Gebruik // voor integer-deling.', 1);
 
 -- -------------------------------------------------------------
--- PubQuiz components (quiz)
--- Component IDs 36–39
+-- PubQuiz components (quiz) — one component per question.
+-- Component IDs 36–39 + 43
 -- -------------------------------------------------------------
 INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes
-(37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting
-(38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops
-(39, 'quiz', 36, 1);   -- JS p11 s36: MC over datatypes & operators
+(36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes (Q1)
+(37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting (Q2)
+(38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops (Q3)
+(39, 'quiz', 36, 1),   -- JS p11 s36: MC over datatypes & operators (Q4)
+(43, 'quiz', 5, 5);    -- Python p2 s5: MC met meerdere goede antwoorden (Q5)
 
 INSERT INTO `PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
 (1, 'Welk datatype gebruik je in Python voor een geheel getal?', 0, 36),
 (2, 'Wat is het resultaat van int("3.5") in Python?', 0, 37),
 (3, 'Leg in je eigen woorden uit: wat is het verschil tussen een for-loop en een while-loop?', 1, 38),
 (4, 'Wat is het resultaat van typeof 42 in JavaScript?', 0, 39),
-(5, 'Welke van de volgende zijn geldige Python datatypes?', 0, 36);
+(5, 'Welke van de volgende zijn geldige Python datatypes?', 0, 43);
 
 INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
 -- Q1: datatypes

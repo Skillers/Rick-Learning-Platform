@@ -2,6 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/db.connection.php';
+require_once __DIR__ . '/../config/xp_curve.php';
 
 $username = isset($_GET['username']) ? trim($_GET['username']) : '';
 if (!$username) {
@@ -31,7 +32,7 @@ $result = [
 // handleLogin never calls login.php, so me.php is the only endpoint
 // hit on every app-boot, so it doubles as the "active today" signal.
 // Streak math is day-granular, so repeated same-day boots are no-ops.
-$stmt = $pdo->prepare("SELECT `LastLogin`, `LongestStreak`, `CurrentStreak` FROM `AccountStats` WHERE `accounts_username` = ?");
+$stmt = $pdo->prepare("SELECT `LastLogin`, `LongestStreak`, `CurrentStreak`, `TotalXP`, `Level` FROM `AccountStats` WHERE `accounts_username` = ?");
 $stmt->execute([$username]);
 $stats = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -39,11 +40,15 @@ if (!$stats) {
     // Account predates AccountStats: start the streak today.
     $current = 1;
     $longest = 1;
+    $totalXP = 0;
+    $level   = 1;
     $stmt = $pdo->prepare("INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`) VALUES (?, NOW(), 1, 1)");
     $stmt->execute([$username]);
 } else {
     $current = (int) $stats['CurrentStreak'];
     $longest = (int) $stats['LongestStreak'];
+    $totalXP = (int) $stats['TotalXP'];
+    $level   = (int) $stats['Level'];
     $gap     = (int) (new DateTime(substr($stats['LastLogin'], 0, 10)))
                       ->diff(new DateTime('today'))->days;
 
@@ -61,8 +66,33 @@ if (!$stats) {
     }
 }
 
+// Derived level from the curve — overrides any stale stored value.
+$derivedLevel = xp_level_from_total($totalXP);
+if ($derivedLevel !== $level) {
+    $pdo->prepare("UPDATE `AccountStats` SET `Level` = ? WHERE `accounts_username` = ?")
+        ->execute([$derivedLevel, $username]);
+    $level = $derivedLevel;
+}
+
+// XP earned in the last 7 days (inclusive of today) — used for the dashboard trend line.
+$stmt = $pdo->prepare(
+    "SELECT COALESCE(SUM(`RewardedAmount`), 0)
+     FROM `UserXPLog`
+     WHERE `accounts_username` = ?
+       AND `AwardedOn` >= (CURDATE() - INTERVAL 6 DAY)"
+);
+$stmt->execute([$username]);
+$weeklyXP = (int)$stmt->fetchColumn();
+
+$progress = xp_progress($totalXP);
+
 $result['currentStreak'] = $current;
 $result['longestStreak'] = $longest;
+$result['totalXP']       = $totalXP;
+$result['level']         = $level;
+$result['weeklyXP']      = $weeklyXP;
+$result['xpIntoLevel']   = $progress['into_level'];
+$result['xpForNext']     = $progress['for_next'];
 
 // For docents: return assigned courses and mentored students
 // For superadmins: null = no restrictions (bypass all scoping)

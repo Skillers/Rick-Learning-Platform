@@ -12,7 +12,7 @@
  * The sidebar entry stays on the page level.
  */
 
-import { initSidebar, syncSidebarActive, syncSidebarSection, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus } from './sidebar.js';
+import { initSidebar, syncSidebarActive, syncSidebarSection, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus, updateSidebarSectionStatus } from './sidebar.js';
 import { highlight } from './highlighter.js';
 
 
@@ -23,13 +23,50 @@ const STUDENT = {
   name:    "Student",
   initials:"ST",
   email:   "",
-  xp:      1240,
-  xpNext:  1500,
-  level:   7,
+  xp:           0,
+  level:        1,
+  xpIntoLevel:  0,
+  xpForNext:    500,
+  weeklyXP:     0,
   streak:        0,
   longestStreak: 0,
   memberSince:   "",
 };
+
+/* ── XP curve ─────────────────────────────────
+   Cost L→L+1: 500 * 1.05^(L-1)
+   Total to reach L: 10000 * (1.05^(L-1) - 1)
+═══════════════════════════════════════════════ */
+function xpLevelFromTotal(totalXP) {
+  if (totalXP <= 0) return 1;
+  return Math.floor(Math.log(totalXP / 10000 + 1) / Math.log(1.05)) + 1;
+}
+function xpToReachLevel(level) {
+  if (level <= 1) return 0;
+  return Math.round(10000 * (Math.pow(1.05, level - 1) - 1));
+}
+function xpForNextLevel(level) {
+  return Math.round(500 * Math.pow(1.05, level - 1));
+}
+function xpProgress(totalXP) {
+  const level    = xpLevelFromTotal(totalXP);
+  const base     = xpToReachLevel(level);
+  const forNext  = xpForNextLevel(level);
+  const into     = Math.max(0, totalXP - base);
+  return {
+    level,
+    intoLevel: into,
+    forNext,
+    percent:   forNext > 0 ? Math.round(into / forNext * 100) : 0,
+  };
+}
+// Recompute the derived fields after STUDENT.xp changes so render functions can read them directly.
+function refreshStudentProgress() {
+  const p = xpProgress(STUDENT.xp);
+  STUDENT.level       = p.level;
+  STUDENT.xpIntoLevel = p.intoLevel;
+  STUDENT.xpForNext   = p.forNext;
+}
 
 /* ── State ───────────────────────────────────── */
 let currentCourse   = null;
@@ -76,6 +113,12 @@ async function bootApp() {
     STUDENT.streak        = data.currentStreak ?? STUDENT.streak;
     STUDENT.longestStreak = data.longestStreak ?? STUDENT.longestStreak;
     STUDENT.memberSince   = data.memberSince   ?? STUDENT.memberSince;
+    STUDENT.xp            = data.totalXP       ?? STUDENT.xp;
+    STUDENT.level         = data.level         ?? STUDENT.level;
+    STUDENT.xpIntoLevel   = data.xpIntoLevel   ?? STUDENT.xpIntoLevel;
+    STUDENT.xpForNext     = data.xpForNext     ?? STUDENT.xpForNext;
+    STUDENT.weeklyXP      = data.weeklyXP      ?? STUDENT.weeklyXP;
+    refreshStudentProgress();
   } catch {
     // Offline / API unavailable — continue with cached data
   }
@@ -87,7 +130,6 @@ async function bootApp() {
   updateSidebarUser(STUDENT);
   buildDashboard();
   buildHeatmap();
-  buildTips();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug, " + STUDENT.name + "!");
 
@@ -394,6 +436,44 @@ function formatMemberSince(dateStr) {
   return `Lid sinds ${months[created.getMonth()]} ${created.getFullYear()}`;
 }
 
+// Dashboard XP tile. Three states: new (level 1, 0 XP), active (gaining this week), idle (no XP this week).
+function renderXPCard() {
+  const el = document.getElementById("xpStatCard");
+  if (!el) return;
+
+  const xp        = STUDENT.xp || 0;
+  const level     = STUDENT.level || 1;
+  const into      = STUDENT.xpIntoLevel || 0;
+  const forNext   = STUDENT.xpForNext || 1;
+  const weekly    = STUDENT.weeklyXP || 0;
+  const pct       = Math.max(0, Math.min(100, Math.round(into / forNext * 100)));
+  const nextLevel = level + 1;
+
+  let stateClass, trend, sparkles = "";
+  if (xp === 0) {
+    stateClass = "xp-new";
+    trend      = "Voltooi een sectie om te beginnen";
+  } else if (weekly > 0) {
+    stateClass = "xp-active";
+    trend      = `+${weekly} deze week`;
+    sparkles   = '<span class="sparkle sp1">✦</span><span class="sparkle sp2">✦</span>';
+  } else {
+    stateClass = "xp-idle";
+    trend      = "Geen XP deze week";
+  }
+
+  el.className = "stat-card " + stateClass;
+  el.innerHTML =
+    sparkles +
+    `<div class="stat-icon">⚡</div>` +
+    `<div class="stat-value">${xp}</div>` +
+    `<div class="stat-label">XP totaal</div>` +
+    `<div class="xp-card-level">Niveau ${level} → ${nextLevel}</div>` +
+    `<div class="xp-card-bar"><div class="xp-card-fill" style="width:${pct}%"></div></div>` +
+    `<div class="xp-card-progress-text">${into} / ${forNext} XP</div>` +
+    `<div class="stat-trend">${trend}</div>`;
+}
+
 // Dashboard streak tile. Always visible (unlike the topbar badge), with 4 states.
 function renderStreakCard() {
   const el = document.getElementById("streakStatCard");
@@ -448,8 +528,8 @@ function renderStreakCard() {
 function buildDashboard() {
   document.getElementById("userInitials").textContent = STUDENT.initials;
   document.getElementById("userName").textContent     = STUDENT.name;
-  document.getElementById("userLevel").textContent    = `Niveau ${STUDENT.level} · ${STUDENT.xp} XP`;
-  document.getElementById("xpMiniFill").style.width   = Math.round((STUDENT.xp / STUDENT.xpNext) * 100) + "%";
+  updateSidebarUser(STUDENT);
+  renderXPCard();
   renderStreakBadge();
   renderStreakCard();
   document.getElementById("topbarAvatar").textContent = STUDENT.initials;
@@ -496,6 +576,104 @@ function buildDashboard() {
       destEl.textContent = "";
     }
   }
+}
+
+/* ═══════════════════════════════════════════════
+   XP OVERVIEW
+═══════════════════════════════════════════════ */
+async function showXPOverview() {
+  document.getElementById("avatarMenu").classList.remove("open");
+  if (currentLesson) { leaveCurrentLesson(); currentLesson = null; currentCourse = null; }
+  setTopbar("XP overzicht", STUDENT.name);
+  showView("xp");
+
+  // Wire the filter toggle once.
+  const cb = document.getElementById("xpOnlyOpen");
+  if (cb && !cb.dataset.wired) {
+    cb.dataset.wired = "1";
+    cb.addEventListener("change", () => loadXPOverview(cb.checked));
+  }
+  loadXPOverview(cb?.checked);
+}
+
+async function loadXPOverview(onlyOpen) {
+  const body = document.getElementById("xpTableBody");
+  const empty = document.getElementById("xpEmpty");
+  body.innerHTML = `<tr><td colspan="6" class="xp-loading">Laden…</td></tr>`;
+  empty.style.display = "none";
+
+  try {
+    const q = new URLSearchParams({ username: STUDENT.name });
+    if (onlyOpen) q.set("only_open", "1");
+    const res = await fetch(`api/xp_overview.php?${q.toString()}`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    renderXPOverview(data);
+  } catch (err) {
+    console.error("[xp-overview]", err);
+    // Fall back to the empty state instead of an alarming error message —
+    // the user gets a clean page, the diagnostic stays in the console.
+    renderXPOverview({ summary: { earned: 0, available: 0, open: 0 }, rows: [] });
+  }
+}
+
+function renderXPOverview(data) {
+  // Summary cards
+  const summary = data.summary || {};
+  const grid = document.getElementById("xpSummaryGrid");
+  grid.innerHTML = `
+    <div class="xp-summary-card">
+      <div class="xp-summary-icon">⚡</div>
+      <div class="xp-summary-value">${summary.earned ?? 0}</div>
+      <div class="xp-summary-label">Verdiend</div>
+    </div>
+    <div class="xp-summary-card">
+      <div class="xp-summary-icon">🎯</div>
+      <div class="xp-summary-value">${summary.available ?? 0}</div>
+      <div class="xp-summary-label">Beschikbaar</div>
+    </div>
+    <div class="xp-summary-card xp-summary-open">
+      <div class="xp-summary-icon">📦</div>
+      <div class="xp-summary-value">${summary.open ?? 0}</div>
+      <div class="xp-summary-label">Open</div>
+    </div>`;
+
+  // Rows
+  const body  = document.getElementById("xpTableBody");
+  const empty = document.getElementById("xpEmpty");
+  const rows  = data.rows || [];
+  if (!rows.length) {
+    body.innerHTML = "";
+    empty.style.display = "";
+    return;
+  }
+  empty.style.display = "none";
+  body.innerHTML = rows.map(r => `
+    <tr class="xp-row" data-course-id="${r.course_id}" data-page-id="${r.page_id}">
+      <td>
+        <div class="xp-course-cell">
+          <span class="xp-course-icon ${r.course_color || ''}">${r.course_icon || ''}</span>
+          <span>${escHtml(r.course_name)}</span>
+        </div>
+      </td>
+      <td>${escHtml(r.page_title)}</td>
+      <td class="num">${r.earned_xp}</td>
+      <td class="num">${r.total_xp}</td>
+      <td class="num">
+        ${r.has_open
+          ? `<span class="xp-open-badge">${r.open_xp}</span>`
+          : `<span class="xp-done-badge">✓</span>`}
+      </td>
+      <td class="num"><span class="xp-row-arrow">→</span></td>
+    </tr>`).join("");
+
+  body.querySelectorAll(".xp-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const cid = parseInt(row.dataset.courseId, 10);
+      const pid = parseInt(row.dataset.pageId,  10);
+      loadLesson(cid, pid);
+    });
+  });
 }
 
 function showAccount() {
@@ -582,6 +760,7 @@ async function emailModalConfirm() {
 function showCourse(courseId) {
   const course = COURSES.find(c => c.id == courseId);
   if (!course) return;
+  if (currentLesson) { leaveCurrentLesson(); currentLesson = null; }
 
   const icon = document.getElementById("courseViewIcon");
   icon.textContent  = course.icon;
@@ -666,56 +845,6 @@ function buildCourseCard(course) {
 /* ═══════════════════════════════════════════════
    HEATMAP
 ═══════════════════════════════════════════════ */
-/* ═══════════════════════════════════════════════
-   TIPS
-═══════════════════════════════════════════════ */
-const TIPS = [
-  "Je kunt op het icoontje van een cursus in de sidebar klikken om een overzicht van alle onderdelen te zien.",
-  "De knop 'Verder leren' brengt je terug naar precies het onderdeel waar je gebleven was — ook na opnieuw inloggen.",
-  "Elke les heeft meerdere onderdelen. Je navigeert er doorheen met de pijltjes onderaan.",
-  "In de volledige weergave zie je alle onderdelen van een les op één pagina.",
-  "Je kunt direct naar een specifiek onderdeel springen door erop te klikken in de sidebar.",
-  "Het ICT Leerlijn logo linksboven brengt je altijd terug naar het dashboard.",
-  "Klik op je avatar rechtsboven om uit te loggen.",
-];
-
-let _tipIdx      = 0;
-let _tipInterval = null;
-
-function buildTips() {
-  const textEl = document.getElementById("dashTipText");
-  const dotsEl = document.getElementById("dashTipDots");
-  if (!textEl || !dotsEl) return;
-
-  dotsEl.innerHTML = "";
-  TIPS.forEach((_, i) => {
-    const d = el("div", "dash-tip-dot" + (i === 0 ? " active" : ""));
-    d.addEventListener("click", () => showTip(i));
-    dotsEl.appendChild(d);
-  });
-
-  showTip(0);
-
-  if (_tipInterval) clearInterval(_tipInterval);
-  _tipInterval = setInterval(() => showTip((_tipIdx + 1) % TIPS.length), 6000);
-}
-
-function showTip(idx) {
-  _tipIdx = idx;
-  const textEl = document.getElementById("dashTipText");
-  if (!textEl) return;
-
-  textEl.style.opacity = "0";
-  setTimeout(() => {
-    textEl.textContent   = TIPS[idx];
-    textEl.style.opacity = "1";
-  }, 200);
-
-  document.querySelectorAll(".dash-tip-dot").forEach((d, i) => {
-    d.classList.toggle("active", i === idx);
-  });
-}
-
 function buildHeatmap() {
   const c = document.getElementById("heatmap");
   c.innerHTML = "";
@@ -733,6 +862,9 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   if (!course) { console.error("[loadLesson] course not found", courseId, COURSES.map(c=>c.id)); return; }
   const lesson = course.lessons.find(l => l.id == lessonId);
   if (!lesson) { console.error("[loadLesson] lesson not found", lessonId, course.lessons.map(l=>l.id)); return; }
+
+  // Fire leave-awards for the lesson we're walking away from.
+  if (currentLesson && currentLesson.id != lessonId) leaveCurrentLesson();
 
   currentCourse = course;
   currentLesson = lesson;
@@ -756,7 +888,25 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   const tl  = TYPE_LABELS[lesson.type];
   tag.textContent = tl.label.charAt(0).toUpperCase() + tl.label.slice(1);
   tag.className   = "lesson-tag " + tl.cls;
-  document.getElementById("lessonXP").textContent = `+${lesson.xp} XP bij voltooiing`;
+  // Lesson header — duration + XP from DB. Hide when the value is 0.
+  const durEl = document.getElementById("lessonDuration");
+  const xpEl  = document.getElementById("lessonXP");
+  if (durEl) {
+    if (lesson.estimatedDuration > 0) {
+      durEl.textContent = `⏱ ~${lesson.estimatedDuration} min`;
+      durEl.style.display = "";
+    } else {
+      durEl.style.display = "none";
+    }
+  }
+  if (xpEl) {
+    if (lesson.xp > 0) {
+      xpEl.textContent = `+${lesson.xp} XP bij voltooiing`;
+      xpEl.style.display = "";
+    } else {
+      xpEl.style.display = "none";
+    }
+  }
 
   buildLessonPanel(course, lesson);
   showView("lesson");
@@ -770,8 +920,17 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   const prevBtn = document.getElementById("btnPrev");
   prevBtn.onclick = prevLesson ? () => loadLesson(courseId, prevLesson.id) : null;
 
-  // Load & paginate
-  loadLessonContent(course, lesson).then(sections => paginateSections(sections, sectionIdx));
+  // Load saved quiz submissions + already-awarded sections in parallel with
+  // content fetch. paginateSections renders the first slide synchronously, so
+  // the submissions need to be in memory by then for wireQuizzes() to see them.
+  Promise.all([
+    loadLessonContent(course, lesson),
+    loadQuizSubmissions(lessonId),
+    loadSectionAwards(lessonId),
+  ]).then(([sections]) => {
+    paginateSections(sections, sectionIdx);
+    applySectionAwardsToSidebar();
+  });
 }
 
 async function loadLessonContent(course, lesson) {
@@ -804,10 +963,26 @@ async function loadLessonContent(course, lesson) {
     }
   } catch (_) {}
 
-  return dbSections.map(s => ({
-    title: s.title,
-    html:  buildSectionHTML(componentsBySection[s.id] || []),
-  }));
+  return dbSections.map(s => {
+    const comps = componentsBySection[s.id] || [];
+    // Collect question_ids so we can decide later when this section is complete.
+    const questionIds = comps
+      .filter(c => c.type === 'quiz')
+      .map(c => { try { return JSON.parse(c.content).question_id; } catch { return null; } })
+      .filter(qid => qid != null);
+    return {
+      section_id: s.id,
+      title:      s.title,
+      xp:         +s.xp_reward || 0,
+      html:       buildSectionHTML(comps),
+      questionIds,
+    };
+  });
+}
+
+// Inline XP badge for a section heading. Hidden when XP is 0.
+function sectionXPBadge(xp) {
+  return xp > 0 ? `<span class="section-xp-badge">+${xp} XP</span>` : '';
 }
 
 function escHtml(str) {
@@ -889,18 +1064,21 @@ function renderComponent(c) {
 function renderQuiz(jsonStr, componentId) {
   let data;
   try { data = JSON.parse(jsonStr); } catch { return ''; }
-  const qId = `quiz-${componentId}`;
+  // Key the DOM by question_id, not component_id — a single component can hold
+  // multiple PQQuestions and we'd otherwise get duplicate ids in the page.
+  const questionId = data.question_id || componentId;
+  const qId = `quiz-q${questionId}`;
   const letters = ['A', 'B', 'C', 'D'];
   const letterCls = ['quiz-letter-a', 'quiz-letter-b', 'quiz-letter-c', 'quiz-letter-d'];
 
   if (data.open_question) {
-    return `<div class="quiz-box" id="${qId}">
+    return `<div class="quiz-box" id="${qId}" data-question-id="${questionId}" data-open="1">
       <span class="quiz-label">Vraag</span>
       <div class="quiz-question">${escHtml(data.question)}</div>
       ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
       <label class="quiz-input-label">Jouw antwoord</label>
       <input class="quiz-input" type="text" placeholder="Typ je antwoord hier..." id="${qId}-input">
-      <button class="quiz-check-btn" onclick="checkOpenQuiz('${qId}')">Lever in</button>
+      <button class="quiz-check-btn" data-quiz-submit="${qId}">Lever in</button>
       <div class="quiz-feedback" id="${qId}-feedback"></div>
     </div>`;
   }
@@ -914,21 +1092,21 @@ function renderQuiz(jsonStr, componentId) {
     const optId = `${qId}-opt-${i}`;
     const letter = letters[i] || String.fromCharCode(65 + i);
     const cls = letterCls[i] || letterCls[0];
-    return `<label class="quiz-option" id="${optId}" data-correct="${a.is_correct}">
+    return `<label class="quiz-option" id="${optId}" data-correct="${a.is_correct}" data-answer-id="${a.id}">
       <span class="quiz-letter ${cls}">${letter}</span>
-      <input type="${inputType}" name="${qId}" value="${i}">
+      <input type="${inputType}" name="${qId}" value="${a.id}">
       <span class="quiz-option-text">${escHtml(a.text)}</span>
       <span class="quiz-radio${isMulti ? ' quiz-check' : ''}"></span>
     </label>`;
   }).join('');
 
-  return `<div class="quiz-box" id="${qId}" data-multi="${isMulti ? '1' : '0'}">
+  return `<div class="quiz-box" id="${qId}" data-question-id="${questionId}" data-multi="${isMulti ? '1' : '0'}">
     <span class="quiz-label">Vraag</span>
     ${isMulti ? '<div class="quiz-hint">Meerdere antwoorden zijn juist</div>' : ''}
     <div class="quiz-question">${escHtml(data.question)}</div>
     ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
     <div class="quiz-options">${opts}</div>
-    <button class="quiz-check-btn" onclick="checkMcQuiz('${qId}')">Controleer →</button>
+    <button class="quiz-check-btn" data-quiz-submit="${qId}">Controleer →</button>
     <div class="quiz-feedback" id="${qId}-feedback"></div>
   </div>`;
 }
@@ -996,47 +1174,298 @@ function reportBrokenMedia(src, typeWord) {
   alert(`Bedankt! Een docent wordt op de hoogte gebracht dat deze ${typeWord} niet meer werkt.\n\n(${src})`);
 }
 
-function checkMcQuiz(qId) {
+// Map of question_id -> { picked_answer_ids: number[], open_answer: string|null }
+// Populated from the API in loadLesson, written to after each submit.
+let _quizSubmissions = {};
+
+async function loadQuizSubmissions(pageId) {
+  _quizSubmissions = {};
+  if (!STUDENT.name || !pageId) return;
+  try {
+    const res = await fetch(`api/quiz_answers.php?username=${encodeURIComponent(STUDENT.name)}&page_id=${pageId}`);
+    if (!res.ok) return;
+    const rows = await res.json();
+    rows.forEach(r => {
+      _quizSubmissions[r.question_id] = {
+        picked_answer_ids: r.picked_answer_ids || [],
+        open_answer:       r.open_answer,
+      };
+    });
+  } catch {}
+}
+
+function wireQuizzes() {
+  document.querySelectorAll('.quiz-check-btn[data-quiz-submit]').forEach(btn => {
+    if (btn.dataset.wired === '1') return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => submitQuiz(btn.dataset.quizSubmit));
+  });
+  // Replay any prior submissions so returning students see their locked answer.
+  document.querySelectorAll('.quiz-box[data-question-id]').forEach(box => {
+    const qid = parseInt(box.dataset.questionId, 10);
+    const saved = _quizSubmissions[qid];
+    if (saved) applyQuizState(box, saved);
+  });
+}
+
+function submitQuiz(qId) {
   const box = document.getElementById(qId);
   if (!box) return;
-  const isMulti = box.dataset.multi === '1';
+  const questionId = parseInt(box.dataset.questionId, 10);
+  const isOpen    = box.dataset.open === '1';
+
+  if (isOpen) {
+    const input = box.querySelector('.quiz-input');
+    const fb    = document.getElementById(qId + '-feedback');
+    const text  = input.value.trim();
+    if (!text) { fb.textContent = 'Typ een antwoord.'; fb.className = 'quiz-feedback'; return; }
+    persistQuiz(questionId, { open_answer: text }).then(() => {
+      _quizSubmissions[questionId] = { picked_answer_ids: [], open_answer: text };
+      applyQuizState(box, _quizSubmissions[questionId]);
+      maybeMarkSectionOnQuizAnswered(questionId);
+    });
+    return;
+  }
+
+  const isMulti   = box.dataset.multi === '1';
   const inputType = isMulti ? 'checkbox' : 'radio';
-  const checked = Array.from(box.querySelectorAll(`input[type="${inputType}"]:checked`));
-  const fb = document.getElementById(qId + '-feedback');
+  const checked   = Array.from(box.querySelectorAll(`input[type="${inputType}"]:checked`));
+  const fb        = document.getElementById(qId + '-feedback');
   if (!checked.length) { fb.textContent = 'Selecteer een antwoord.'; fb.className = 'quiz-feedback'; return; }
 
-  // Disable further changes
-  box.querySelectorAll(`input[type="${inputType}"]`).forEach(r => r.disabled = true);
-  box.querySelector('.quiz-check-btn').disabled = true;
-
-  // Highlight options
-  const selectedLabels = new Set(checked.map(c => c.closest('.quiz-option')));
-  box.querySelectorAll('.quiz-option').forEach(opt => {
-    if (opt.dataset.correct === '1') opt.classList.add('correct');
-    else if (selectedLabels.has(opt)) opt.classList.add('wrong');
+  const pickedIds = checked.map(c => parseInt(c.value, 10)).filter(n => !isNaN(n));
+  persistQuiz(questionId, { picked_answer_ids: pickedIds }).then(() => {
+    _quizSubmissions[questionId] = { picked_answer_ids: pickedIds, open_answer: null };
+    applyQuizState(box, _quizSubmissions[questionId]);
+    maybeMarkSectionOnQuizAnswered(questionId);
   });
+}
 
-  // Check if all correct answers were selected and no wrong ones
-  const allCorrect = box.querySelectorAll('.quiz-option[data-correct="1"]');
-  const allSelected = checked.map(c => c.closest('.quiz-option'));
-  const gotAllCorrect = Array.from(allCorrect).every(opt => selectedLabels.has(opt));
-  const noWrong = allSelected.every(opt => opt.dataset.correct === '1');
+// If this question was the last unanswered one in its section, optimistically
+// turn the sidebar marker green. The actual XP award still happens on leave
+// (so the green appears now and the toast appears when the student navigates).
+function maybeMarkSectionOnQuizAnswered(questionId) {
+  const section = _currentSections.find(s => s && s.questionIds.includes(questionId));
+  if (!section || !section.id) return;
+  if (_completedSectionIds.has(section.id)) return;
+  const allDone = section.questionIds.every(qid => _quizSubmissions[qid]);
+  if (allDone) updateSidebarSectionStatus(section.id, 'done');
+}
 
-  if (gotAllCorrect && noWrong) {
-    fb.textContent = 'Goed gedaan!'; fb.className = 'quiz-feedback correct';
-  } else {
-    fb.textContent = 'Helaas, dat is niet juist.'; fb.className = 'quiz-feedback wrong';
+async function persistQuiz(questionId, payload) {
+  if (!STUDENT.name) return;
+  try {
+    await fetch('api/quiz_submit.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        username:           STUDENT.name,
+        question_id:        questionId,
+        picked_answer_ids:  payload.picked_answer_ids || [],
+        open_answer:        payload.open_answer ?? null,
+      }),
+    });
+  } catch {}
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION / PAGE COMPLETION + XP AWARDS
+═══════════════════════════════════════════════ */
+// Built from the loaded lesson; { id, questionIds } per section in slide order.
+let _currentSections   = [];
+let _currentSectionIdx = null;  // index in _currentSections of the slide on screen, or null
+// section_ids already in UserXPLog for the current page — used to restore green marks.
+let _completedSectionIds = new Set();
+
+async function loadSectionAwards(pageId) {
+  _completedSectionIds = new Set();
+  if (!STUDENT.name || !pageId) return;
+  try {
+    const res = await fetch(`api/section_awards.php?username=${encodeURIComponent(STUDENT.name)}&page_id=${pageId}`);
+    if (!res.ok) return;
+    const ids = await res.json();
+    _completedSectionIds = new Set(ids.map(Number));
+  } catch {}
+}
+
+function applySectionAwardsToSidebar() {
+  _completedSectionIds.forEach(id => updateSidebarSectionStatus(id, 'done'));
+  // Also paint sections whose quizzes are all answered (optimistic — they'll
+  // get logged on the next leave/award round-trip, but the marker shows now).
+  _currentSections.forEach(s => {
+    if (!s || !s.id) return;
+    if (_completedSectionIds.has(s.id)) return;
+    if (s.questionIds.length === 0) return;  // text-only: only mark after award
+    if (s.questionIds.every(qid => _quizSubmissions[qid])) {
+      updateSidebarSectionStatus(s.id, 'done');
+    }
+  });
+}
+
+function markSectionCompleteVisually(sectionId) {
+  if (!sectionId) return;
+  _completedSectionIds.add(sectionId);
+  updateSidebarSectionStatus(sectionId, 'done');
+}
+
+function setCurrentSections(sections) {
+  _currentSections = sections.map(s => ({
+    id:          s.section_id || null,
+    questionIds: s.questionIds || [],
+  }));
+  _currentSectionIdx = null;
+}
+
+// Called when the visible slide changes. Fires the leave-award for the previous
+// slide's section if there was one.
+function setVisibleSectionIdx(newIdx) {
+  if (_currentSectionIdx === newIdx) return;
+  const prev = _currentSectionIdx;
+  _currentSectionIdx = newIdx;
+  if (prev !== null && _currentSections[prev]) {
+    maybeAwardSection(_currentSections[prev]);
   }
 }
 
-function checkOpenQuiz(qId) {
-  const input = document.getElementById(qId + '-input');
-  const fb = document.getElementById(qId + '-feedback');
-  if (!input.value.trim()) { fb.textContent = 'Typ een antwoord.'; fb.className = 'quiz-feedback'; return; }
-  input.disabled = true;
-  document.querySelector(`#${qId} .quiz-check-btn`).disabled = true;
-  fb.textContent = 'Antwoord ingeleverd!';
-  fb.className = 'quiz-feedback correct';
+// Called from loadLesson + showDashboard before tearing down the current
+// lesson. Awaits the section award so the in-transaction cascade has a chance
+// to fire the page award too. Only falls back to a page-only call when there
+// was no visible section (e.g. full view).
+async function leaveCurrentLesson() {
+  const lessonId = currentLesson?.id;
+  const visible  = _currentSectionIdx !== null ? _currentSections[_currentSectionIdx] : null;
+  _currentSectionIdx = null;
+  _currentSections   = [];
+
+  if (visible) {
+    await maybeAwardSection(visible);  // includes server-side page cascade
+  } else if (lessonId) {
+    await postAwardXP({ page_id: lessonId });
+  }
+}
+
+async function maybeAwardSection(section) {
+  if (!section || !section.id) return;
+  const complete = section.questionIds.length === 0
+                || section.questionIds.every(qid => _quizSubmissions[qid]);
+  if (!complete) return;
+  // Mark visually right away — even for 0-XP sections the user gets feedback
+  // for the current session. The XP request itself may no-op server-side.
+  updateSidebarSectionStatus(section.id, 'done');
+  await postAwardXP({ section_id: section.id });
+}
+
+// One endpoint, two possible parameters. Backend awards section if section_id
+// is given (and cascades to the page in the same transaction), then awards
+// the page if page_id is given. Calling with both is fine and idempotent.
+async function postAwardXP(payload) {
+  if (!STUDENT.name) return;
+  try {
+    const res = await fetch('api/award_xp.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username: STUDENT.name, ...payload }),
+    });
+    if (!res.ok) {
+      console.warn('[award_xp]', 'HTTP', res.status);
+      return;
+    }
+    handleAwardResponse(await res.json());
+  } catch (err) {
+    console.warn('[award_xp]', err);
+  }
+}
+
+
+function handleAwardResponse(data) {
+  if (data.section_award) {
+    showXPToast(data.section_award.xp, 'Sectie voltooid!');
+    markSectionCompleteVisually(data.section_award.section_id);
+  }
+  if (data.page_award) {
+    showXPToast(data.page_award.xp, 'Pagina voltooid!');
+    updatePageStatus(data.page_award.page_id, 'done');
+  }
+  if (typeof data.total_xp === 'number') {
+    const gained = Math.max(0, data.total_xp - STUDENT.xp);
+    STUDENT.xp        = data.total_xp;
+    STUDENT.level     = data.level || STUDENT.level;
+    STUDENT.weeklyXP  = (STUDENT.weeklyXP || 0) + gained;
+    refreshStudentProgress();
+    updateSidebarUser(STUDENT);
+    renderXPCard();  // keep the dashboard tile in sync too
+  }
+}
+
+// Top-of-viewport toast, slides down, auto-dismisses. Multiple awards stack.
+function showXPToast(amount, label) {
+  const layer = (() => {
+    let l = document.getElementById('xpToastLayer');
+    if (!l) {
+      l = document.createElement('div');
+      l.id = 'xpToastLayer';
+      l.className = 'xp-toast-layer';
+      document.body.appendChild(l);
+    }
+    return l;
+  })();
+  const t = el('div', 'xp-toast');
+  t.innerHTML = `<span class="xp-toast-icon">⚡</span><span class="xp-toast-amount">+${amount} XP</span><span class="xp-toast-label">${label}</span>`;
+  layer.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('visible'));
+  setTimeout(() => {
+    t.classList.remove('visible');
+    setTimeout(() => t.remove(), 350);
+  }, 3200);
+}
+
+// Render a quiz box into its post-submit state: lock inputs, highlight, show feedback.
+function applyQuizState(box, saved) {
+  const qId  = box.id;
+  const fb   = document.getElementById(qId + '-feedback');
+  const btn  = box.querySelector('.quiz-check-btn');
+  if (btn) btn.disabled = true;
+
+  if (box.dataset.open === '1') {
+    const input = box.querySelector('.quiz-input');
+    if (input) {
+      input.value    = saved.open_answer || '';
+      input.disabled = true;
+    }
+    if (fb) { fb.textContent = 'Antwoord ingeleverd!'; fb.className = 'quiz-feedback correct'; }
+    return;
+  }
+
+  const isMulti   = box.dataset.multi === '1';
+  const inputType = isMulti ? 'checkbox' : 'radio';
+  const pickedSet = new Set(saved.picked_answer_ids || []);
+
+  box.querySelectorAll(`input[type="${inputType}"]`).forEach(inp => {
+    inp.disabled = true;
+    if (pickedSet.has(parseInt(inp.value, 10))) inp.checked = true;
+  });
+
+  let gotAllCorrect = true;
+  let noWrong       = true;
+  const correctOpts = box.querySelectorAll('.quiz-option[data-correct="1"]');
+
+  box.querySelectorAll('.quiz-option').forEach(opt => {
+    const aid       = parseInt(opt.dataset.answerId, 10);
+    const isCorrect = opt.dataset.correct === '1';
+    const wasPicked = pickedSet.has(aid);
+    if (isCorrect) opt.classList.add('correct');
+    else if (wasPicked) { opt.classList.add('wrong'); noWrong = false; }
+    if (isCorrect && !wasPicked) gotAllCorrect = false;
+  });
+  if (!correctOpts.length) gotAllCorrect = false;
+
+  if (fb) {
+    if (gotAllCorrect && noWrong) {
+      fb.textContent = 'Goed gedaan!'; fb.className = 'quiz-feedback correct';
+    } else {
+      fb.textContent = 'Helaas, dat is niet juist.'; fb.className = 'quiz-feedback wrong';
+    }
+  }
 }
 
 function allQuizzesAnswered() {
@@ -1139,6 +1568,7 @@ function paginateSections(sections, startIdx = 0) {
   if (btn) btn.textContent = "Switch to full view";
   // One section per slide
   currentSlides = sections.map(s => [s]);
+  setCurrentSections(sections);
   renderSlide(Math.min(startIdx, sections.length - 1));
 }
 
@@ -1159,7 +1589,7 @@ function renderFullView() {
     return `
     <div class="page-section" data-section-key="${sectionKey}">
       <div class="section-header-row">
-        ${s.title ? `<h3 class="section-heading">${s.title}</h3>` : `<div></div>`}
+        ${s.title ? `<h3 class="section-heading">${s.title}${sectionXPBadge(s.xp)}</h3>` : `<div>${sectionXPBadge(s.xp)}</div>`}
         <button class="report-btn${reportedClass}" data-section-key="${sectionKey}" data-section-title="${s.title || "Sectie " + (globalIdx + 1)}" title="Fout melden in deze sectie">
           ${reportCount > 0 ? `<span class="report-count">${reportCount}</span>` : ""}⚑
         </button>
@@ -1171,6 +1601,7 @@ function renderFullView() {
   el.classList.add("full-view");
   el.innerHTML = sectionsHTML;
   wireReportButtons();
+  wireQuizzes();
   updateNextPageNav();
   updatePrevVisibility();
 
@@ -1190,6 +1621,9 @@ function renderFullView() {
 
 function renderSlide(idx) {
   currentSlideIdx = Math.max(0, Math.min(idx, currentSlides.length - 1));
+  // Track which section the student is now looking at — this fires the
+  // leave-award for the previous slide's section.
+  setVisibleSectionIdx(currentSlideIdx);
 
   // Update saved position with current section index
   if (currentCourse && currentLesson) {
@@ -1213,7 +1647,7 @@ function renderSlide(idx) {
     return `
     <div class="page-section" data-section-key="${sectionKey}">
       <div class="section-header-row">
-        ${s.title ? `<h3 class="section-heading">${s.title}</h3>` : `<div></div>`}
+        ${s.title ? `<h3 class="section-heading">${s.title}${sectionXPBadge(s.xp)}</h3>` : `<div>${sectionXPBadge(s.xp)}</div>`}
         <button class="report-btn${reportedClass}" data-section-key="${sectionKey}" data-section-title="${s.title || "Sectie " + (globalIdx + 1)}" title="Fout melden in deze sectie">
           ${reportCount > 0 ? `<span class="report-count">${reportCount}</span>` : ""}⚑
         </button>
@@ -1226,6 +1660,7 @@ function renderSlide(idx) {
   if (total <= 1) {
     document.getElementById("lessonContent").innerHTML = sectionsHTML;
     wireReportButtons();
+    wireQuizzes();
     updateSlideCounter(0, 1);
     updateNextPageNav();
     updatePrevVisibility();
@@ -1271,6 +1706,7 @@ function renderSlide(idx) {
     </div>`;
 
   wireReportButtons();
+  wireQuizzes();
 
   // Wire nav buttons
   document.getElementById("lessonContent").querySelectorAll("[data-slide-to]").forEach(btn => {
@@ -1506,6 +1942,9 @@ function setTopbar(title, sub) {
   document.getElementById("pageSub").textContent   = sub;
 }
 function showDashboard() {
+  if (currentLesson) leaveCurrentLesson();
+  currentLesson = null;
+  currentCourse = null;
   buildDashboard();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug! Je bent goed op weg.");
@@ -1791,8 +2230,7 @@ window.showLoginView    = showLoginView;
 window.toggleAvatarMenu  = toggleAvatarMenu;
 window.handleLogout      = handleLogout;
 window.showAccount       = showAccount;
+window.showXPOverview    = showXPOverview;
 window.closeEmailModal   = closeEmailModal;
 window.emailModalNext    = emailModalNext;
 window.emailModalConfirm = emailModalConfirm;
-window.checkMcQuiz       = checkMcQuiz;
-window.checkOpenQuiz     = checkOpenQuiz;
