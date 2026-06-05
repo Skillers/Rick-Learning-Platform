@@ -5,10 +5,12 @@ require_once __DIR__ . '/../config/db.connection.php';
 
 $rows = $pdo->query("
     SELECT
-        p.`Id`        AS `id`,
-        p.`Course_Id` AS `course_id`,
+        p.`Id`                AS `id`,
+        p.`Course_Id`         AS `course_id`,
         p.`title`,
-        pt.`Name`     AS `type`
+        pt.`Name`             AS `type`,
+        p.`XPReward`          AS `xp_reward`,
+        p.`EstimatedDuration` AS `estimated_duration`
     FROM `Pages` p
     LEFT JOIN `PageTypes` pt ON p.`PageType_Id` = pt.`Id`
     WHERE p.`published` = 1

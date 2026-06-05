@@ -187,7 +187,14 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
         },
         lessons: _pageRows
           .filter(p => p.course_id === c.id)
-          .map(p => ({ id: p.id, title: p.title, type: p.type, xp: 0, file: "" })),
+          .map(p => ({
+            id:                 p.id,
+            title:              p.title,
+            type:               p.type,
+            xp:                 +p.xp_reward          || 0,
+            estimatedDuration:  +p.estimated_duration || 0,
+            file:               "",
+          })),
       }))
   );
 
@@ -248,6 +255,7 @@ function buildLessonItem(page, onLessonClick) {
 
 function buildSectionItem(section, idx, courseId, pageId, onSectionClick) {
   const item = mkEl("div", "section-item");
+  item.dataset.sectionId = section.id;
   item.addEventListener("click", e => {
     e.stopPropagation();
     onSectionClick(courseId, pageId, idx);
@@ -257,6 +265,24 @@ function buildSectionItem(section, idx, courseId, pageId, onSectionClick) {
     : mkEl("div", "section-arrow", "›");
   item.append(indicator, mkEl("div", "section-name", section.title));
   return item;
+}
+
+/**
+ * Mark a sidebar section's indicator. status: 'done' (green) or null (reset).
+ * Quiz sections get a filled green dot, text-only sections get a bold green arrow.
+ */
+export function updateSidebarSectionStatus(sectionId, status) {
+  const item = document.querySelector(`.section-item[data-section-id="${sectionId}"]`);
+  if (!item) return;
+  const dot   = item.querySelector('.section-status');
+  const arrow = item.querySelector('.section-arrow');
+  if (status === 'done') {
+    dot?.classList.add('done');
+    arrow?.classList.add('done');
+  } else {
+    dot?.classList.remove('done');
+    arrow?.classList.remove('done');
+  }
 }
 
 export function toggleGroup(id) {
@@ -307,13 +333,21 @@ export function syncSidebarSection(lessonId, sectionIdx) {
 }
 
 export function updateSidebarUser(student) {
-  const xpPct = Math.round((student.xp / student.xpNext) * 100);
+  // Progress bar shows progress *within the current level*, not lifetime XP.
+  const intoLevel = student.xpIntoLevel || 0;
+  const forNext   = student.xpForNext   || 1;
+  const xpPct     = Math.max(0, Math.min(100, Math.round(intoLevel / forNext * 100)));
+
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set("userInitials", student.initials);
   set("userName",     student.name);
   set("userLevel",    `Niveau ${student.level} · ${student.xp} XP`);
   const fill = document.getElementById("xpMiniFill");
   if (fill) fill.style.width = xpPct + "%";
+
+  // Tooltip on the mini bar shows the exact level progress.
+  const wrap = document.querySelector(".xp-mini");
+  if (wrap) wrap.title = `${intoLevel} / ${forNext} XP naar Niveau ${student.level + 1}`;
 }
 
 function _applyPageStatus(pageId, status) {
