@@ -90,6 +90,7 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
       const list = document.getElementById("lessons-" + p.course_id);
       if (list) list.appendChild(buildLessonItem(p, onLessonClick));
     });
+    _refreshCourseBars();  // show "X pagina's · 0 secties · 0% klaar" up front
   } catch (err) {
     console.error("[Sidebar] Failed to load pages:", err);
   }
@@ -164,6 +165,7 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
         setTimeout(() => arrow.classList.remove("arrow-closing"), 200);
       });
     });
+    _refreshCourseBars();  // section counts are known now → update the text line
   } catch (err) {
     console.error("[Sidebar] Failed to load sections:", err);
   }
@@ -215,12 +217,13 @@ function buildCourseGroup(course, onLessonClick, onCourseClick) {
     icon.style.cursor = "pointer";
   }
   const info = mkEl("div", "course-info");
+  const meta = mkEl("div", "course-meta");  // "X pagina's · Y secties · Z% klaar" — filled by _refreshCourseBars
   const bar  = mkEl("div", "course-progress-line");
   const fill = mkEl("div", "course-progress-fill");
   fill.style.width      = "0%";
   fill.style.background = "var(--blue)";
   bar.appendChild(fill);
-  info.append(mkEl("div", "course-name", course.name), bar);
+  info.append(mkEl("div", "course-name", course.name), meta, bar);
   header.append(icon, info, mkEl("div", "course-chevron", "▶"));
 
   const list = mkEl("div", "lessons-list");
@@ -365,12 +368,29 @@ function _applyPageStatus(pageId, status) {
   }
 }
 
+// Total sections across every page of a course (0 until sections have loaded).
+function _courseSectionCount(courseId) {
+  return _pageRows
+    .filter(p => p.course_id === courseId)
+    .reduce((sum, p) => sum + (_sectionsByPage[p.id]?.length || 0), 0);
+}
+
+// Equal-length bars: the rail is always full width, only the fill (% complete)
+// and the text line (pages · sections · % done) vary per course.
 function _refreshCourseBars() {
   _courseRows.forEach(c => {
     const pages = _pageRows.filter(p => p.course_id === c.id);
     const done  = pages.filter(p => _progressMap[p.id] === 'done').length;
-    const fill  = document.querySelector(`#group-${c.id} .course-progress-fill`);
-    if (fill && pages.length) fill.style.width = Math.round(done / pages.length * 100) + '%';
+    const pct   = pages.length ? Math.round(done / pages.length * 100) : 0;
+
+    const fill = document.querySelector(`#group-${c.id} .course-progress-fill`);
+    if (fill && pages.length) fill.style.width = pct + '%';
+
+    const meta = document.querySelector(`#group-${c.id} .course-meta`);
+    if (meta) {
+      const secs = _courseSectionCount(c.id);
+      meta.textContent = `${done}/${pages.length} pagina's · ${secs} secties · ${pct}% klaar`;
+    }
   });
 }
 

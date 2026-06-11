@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voortgangsbalk — opties</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128; --bg4:#21262d;
+  --border:#30363d; --border2:#444c56;
+  --text:#e6edf3; --text2:#8b949e; --text3:#6e7681;
+  --accent2:#3fb950; --blue:#388bfd; --blue2:#58a6ff;
+  --sidebar-width:306px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--text);
+  padding:28px; line-height:1.5;
+}
+h1{font-size:20px;font-weight:600;margin-bottom:4px;}
+.intro{color:var(--text2);font-size:13px;max-width:760px;margin-bottom:24px;}
+.intro code{font-family:'JetBrains Mono',monospace;color:var(--blue2);}
+
+.columns{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;}
+.option{
+  width:var(--sidebar-width);
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+}
+.option-head{
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+.option-head h2{font-size:14px;font-weight:600;}
+.option-head p{font-size:11.5px;color:var(--text2);margin-top:3px;}
+.option-body{padding:8px 0;}
+
+/* ── Sidebar look (copied from main.css) ─────────── */
+.nav-section-header{
+  padding:10px 20px 4px; font-size:12px; font-weight:600;
+  color:var(--text3); letter-spacing:1px; text-transform:uppercase;
+}
+.course-group{margin:2px 0;}
+.course-header{
+  display:flex; align-items:center; gap:8px; padding:8px 20px;
+}
+.course-icon{
+  width:26px; height:26px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; font-family:'JetBrains Mono',monospace;
+  letter-spacing:.5px; flex-shrink:0; color:#fff;
+}
+.c-py{background:#3572A5;} .c-java{background:#b07219;}
+.c-web{background:#e34c26;} .c-cs{background:#178600;}
+.c-unity{background:#222c37;} .c-rek{background:#8957e5;}
+.course-info{min-width:0;flex:1;}
+.course-name{
+  font-size:15px; font-weight:500; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.course-meta{font-size:10.5px;color:var(--text3);margin-top:1px;}
+
+/* progress bars */
+.bars{margin-top:4px;display:flex;flex-direction:column;gap:2px;}
+.course-progress-line{
+  height:3px; background:var(--bg4); border-radius:2px;
+}
+.course-progress-fill{
+  height:3px; border-radius:2px; background:var(--blue);
+}
+.course-chevron{color:var(--text3);font-size:11px;flex-shrink:0;}
+
+.legend{
+  margin-top:14px;font-size:11px;color:var(--text3);
+  padding:0 20px 12px;line-height:1.6;
+}
+
+/* ── Meta-label toggle ───────────────────────────── */
+.controls{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-bottom:22px;
+}
+.controls .label{font-size:12px;color:var(--text2);margin-right:4px;}
+.seg{
+  display:inline-flex; background:var(--bg2); border:1px solid var(--border);
+  border-radius:8px; padding:3px; gap:3px;
+}
+.seg button{
+  font-family:'Space Grotesk',sans-serif; font-size:12px;
+  color:var(--text2); background:transparent; border:none;
+  padding:6px 12px; border-radius:6px; transition:all .15s;
+}
+.seg button:hover{color:var(--text);}
+.seg button.active{background:var(--blue);color:#fff;}
+</style>
+</head>
+<body>
+  <h1>Voortgangsbalk — drie lengte-opties</h1>
+  <p class="intro">
+    Dezelfde cursussen, drie manieren om de <strong>lengte</strong> van de balk te bepalen.
+    De gevulde (blauwe) deel = voltooide voortgang; de grijze rail = de totale lengte.
+    Wissel hieronder hoeveel <strong>tekst</strong> onder de cursusnaam staat — zo zie je elke
+    optie mét en zónder de pagina-/sectie-aantallen.
+  </p>
+
+  <div class="controls">
+    <span class="label">Tekstregel:</span>
+    <div class="seg" id="metaSeg">
+      <button data-meta="full">Pagina's · secties · %</button>
+      <button data-meta="noSections">Pagina's · %</button>
+      <button data-meta="pctOnly">Alleen %</button>
+      <button data-meta="none">Geen tekst</button>
+    </div>
+  </div>
+
+  <div class="columns">
+    <div class="option">
+      <div class="option-head">
+        <h2>Optie 1 — lengte op basis van pagina's</h2>
+        <p>20 pagina's = maximale lengte (bijna tot de rand). Eén balk per cursus.</p>
+      </div>
+      <div class="option-body" id="opt1"></div>
+      <div class="legend">Grote cursussen krijgen een langere balk; ≥20 pagina's vult de volle breedte.</div>
+    </div>
+
+    <div class="option">
+      <div class="option-head">
+        <h2>Optie 2 — lengte op basis van secties</h2>
+        <p>1 balk = 25 secties. Meer secties → meerdere balken onder elkaar.</p>
+      </div>
+      <div class="option-body" id="opt2"></div>
+      <div class="legend">De laatste balk is deels gevuld qua lengte als het geen veelvoud van 25 is.</div>
+    </div>
+
+    <div class="option">
+      <div class="option-head">
+        <h2>Optie 3 — alle balken even lang</h2>
+        <p>Vaste volle breedte. Alleen de vulling verschilt (huidige gedrag).</p>
+      </div>
+      <div class="option-body" id="opt3"></div>
+      <div class="legend">Simpel en rustig; lengte zegt niets over de hoeveelheid inhoud.</div>
+    </div>
+  </div>
+
+<script>
+// Realistic, varied sample data.
+const COURSES = [
+  { name:"Python Basis",      icon:"PY", cls:"c-py",    pages:8,  sections:22, pct:62 },
+  { name:"Java Introductie",  icon:"JA", cls:"c-java",  pages:20, sections:75, pct:30 },
+  { name:"Webdevelopment",    icon:"WD", cls:"c-web",   pages:14, sections:48, pct:85 },
+  { name:"C# Verdieping",     icon:"C#", cls:"c-cs",    pages:5,  sections:12, pct:45 },
+  { name:"Unity Game Dev",    icon:"U3", cls:"c-unity", pages:25, sections:92, pct:12 },
+  { name:"Rekenen 2F",        icon:"RE", cls:"c-rek",   pages:3,  sections:9,  pct:100 },
+];
+
+const MAX_PAGES = 20;       // option 1: pages for full length
+const SEC_PER_BAR = 25;     // option 2: sections per bar
+
+let META_MODE = "full";
+
+function metaLine(c){
+  switch(META_MODE){
+    case "full":       return `${c.pages} pagina's · ${c.sections} secties · ${c.pct}% klaar`;
+    case "noSections": return `${c.pages} pagina's · ${c.pct}% klaar`;
+    case "pctOnly":    return `${c.pct}% klaar`;
+    case "none":       return null;
+  }
+}
+
+function headerHTML(c){
+  const meta = metaLine(c);
+  const metaHTML = meta ? `<div class="course-meta">${meta}</div>` : "";
+  return `
+    <div class="course-header">
+      <div class="course-icon ${c.cls}">${c.icon}</div>
+      <div class="course-info">
+        <div class="course-name">${c.name}</div>
+        ${metaHTML}
+        <div class="bars">__BARS__</div>
+      </div>
+      <div class="course-chevron">▶</div>
+    </div>`;
+}
+
+function bar(widthPct, fillPct){
+  return `<div class="course-progress-line" style="width:${widthPct}%">
+            <div class="course-progress-fill" style="width:${fillPct}%"></div>
+          </div>`;
+}
+
+// Option 1 — one bar, length scales with page count (capped at 20 pages).
+function opt1(c){
+  const len  = Math.min(c.pages / MAX_PAGES, 1) * 100;
+  return bar(len, c.pct);
+}
+
+// Option 2 — one bar per 25 sections; progress fills bars left→right.
+function opt2(c){
+  const bars = Math.max(1, Math.ceil(c.sections / SEC_PER_BAR));
+  const doneSections = c.pct / 100 * c.sections;
+  let html = "";
+  for(let i=0; i<bars; i++){
+    const capacity = Math.min(SEC_PER_BAR, c.sections - i*SEC_PER_BAR); // sections in this bar
+    const lenPct   = capacity / SEC_PER_BAR * 100;                      // bar length
+    const doneHere = Math.max(0, Math.min(capacity, doneSections - i*SEC_PER_BAR));
+    const fillPct  = capacity ? doneHere / capacity * 100 : 0;
+    html += bar(lenPct, fillPct);
+  }
+  return html;
+}
+
+// Option 3 — fixed full length, only fill varies.
+function opt3(c){
+  return bar(100, c.pct);
+}
+
+function render(id, fn){
+  const el = document.getElementById(id);
+  el.innerHTML =
+    `<div class="nav-section-header">Programmeren</div>` +
+    COURSES.map(c => headerHTML(c).replace("__BARS__", fn(c))).join("");
+}
+
+function renderAll(){
+  render("opt1", opt1);
+  render("opt2", opt2);
+  render("opt3", opt3);
+}
+
+// Wire the meta toggle.
+const seg = document.getElementById("metaSeg");
+seg.querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    META_MODE = btn.dataset.meta;
+    seg.querySelectorAll("button").forEach(b => b.classList.toggle("active", b === btn));
+    renderAll();
+  });
+});
+seg.querySelector('[data-meta="full"]').classList.add("active");
+
+renderAll();
+</script>
+</body>
+</html>

@@ -587,16 +587,22 @@ async function showXPOverview() {
   setTopbar("XP overzicht", STUDENT.name);
   showView("xp");
 
-  // Wire the filter toggle once.
-  const cb = document.getElementById("xpOnlyOpen");
-  if (cb && !cb.dataset.wired) {
-    cb.dataset.wired = "1";
-    cb.addEventListener("change", () => loadXPOverview(cb.checked));
+  // Wire the filter toggles once.
+  const cbOpen   = document.getElementById("xpOnlyOpen");
+  const cbEarned = document.getElementById("xpOnlyEarned");
+  const reload   = () => loadXPOverview(cbOpen?.checked, cbEarned?.checked);
+  if (cbOpen && !cbOpen.dataset.wired) {
+    cbOpen.dataset.wired = "1";
+    cbOpen.addEventListener("change", reload);
   }
-  loadXPOverview(cb?.checked);
+  if (cbEarned && !cbEarned.dataset.wired) {
+    cbEarned.dataset.wired = "1";
+    cbEarned.addEventListener("change", reload);
+  }
+  reload();
 }
 
-async function loadXPOverview(onlyOpen) {
+async function loadXPOverview(onlyOpen, onlyEarned) {
   const body = document.getElementById("xpTableBody");
   const empty = document.getElementById("xpEmpty");
   body.innerHTML = `<tr><td colspan="6" class="xp-loading">Laden…</td></tr>`;
@@ -604,7 +610,8 @@ async function loadXPOverview(onlyOpen) {
 
   try {
     const q = new URLSearchParams({ username: STUDENT.name });
-    if (onlyOpen) q.set("only_open", "1");
+    if (onlyOpen)   q.set("only_open", "1");
+    if (onlyEarned) q.set("only_earned", "1");
     const res = await fetch(`api/xp_overview.php?${q.toString()}`);
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
@@ -649,7 +656,7 @@ function renderXPOverview(data) {
   }
   empty.style.display = "none";
   body.innerHTML = rows.map(r => `
-    <tr class="xp-row" data-course-id="${r.course_id}" data-page-id="${r.page_id}">
+    <tr class="xp-row" data-page-id="${r.page_id}">
       <td>
         <div class="xp-course-cell">
           <span class="xp-course-icon ${r.course_color || ''}">${r.course_icon || ''}</span>
@@ -664,16 +671,56 @@ function renderXPOverview(data) {
           ? `<span class="xp-open-badge">${r.open_xp}</span>`
           : `<span class="xp-done-badge">✓</span>`}
       </td>
-      <td class="num"><span class="xp-row-arrow">→</span></td>
+      <td class="num"><span class="xp-row-chevron">⌄</span></td>
     </tr>`).join("");
 
-  body.querySelectorAll(".xp-row").forEach(row => {
-    row.addEventListener("click", () => {
-      const cid = parseInt(row.dataset.courseId, 10);
-      const pid = parseInt(row.dataset.pageId,  10);
-      loadLesson(cid, pid);
-    });
+  // Clicking a row unfolds its per-section XP breakdown instead of navigating
+  // to the lesson.
+  body.querySelectorAll(".xp-row").forEach((row, i) => {
+    row.addEventListener("click", () => toggleXPDetail(row, rows[i]));
   });
+}
+
+// Insert (or remove) the expandable detail row showing per-section rewards.
+function toggleXPDetail(row, r) {
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("xp-detail-row")) {
+    next.remove();
+    row.classList.remove("expanded");
+    return;
+  }
+  row.classList.add("expanded");
+  const tr = document.createElement("tr");
+  tr.className = "xp-detail-row";
+  tr.innerHTML = `<td colspan="6">${buildXPDetail(r)}</td>`;
+  row.after(tr);
+}
+
+// Per-section reward list for one page row: section title + earned / total XP,
+// plus the page-completion bonus when the page awards one.
+function buildXPDetail(r) {
+  const line = (name, earned, xp, extraCls = "") => {
+    const cls = xp === 0 ? "none"
+              : earned >= xp ? "earned"
+              : earned > 0 ? "partial"
+              : "open";
+    const val = xp === 0 ? "Geen XP" : `+${earned} / ${xp} XP`;
+    return `<div class="xp-detail-item ${extraCls}">
+      <span class="xp-detail-name">${escHtml(name)}</span>
+      <span class="xp-detail-val xp-detail-${cls}">${val}</span>
+    </div>`;
+  };
+
+  const items = (r.sections || []).map((s, i) =>
+    line(s.title || `Sectie ${i + 1}`, s.earned, s.xp)
+  );
+  if (r.page_xp > 0) {
+    items.push(line("Pagina voltooid", r.page_earned, r.page_xp, "xp-detail-page"));
+  }
+  if (!items.length) {
+    items.push(`<div class="xp-detail-empty">Geen XP-onderdelen op deze pagina.</div>`);
+  }
+  return `<div class="xp-detail">${items.join("")}</div>`;
 }
 
 function showAccount() {
@@ -863,8 +910,13 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   const lesson = course.lessons.find(l => l.id == lessonId);
   if (!lesson) { console.error("[loadLesson] lesson not found", lessonId, course.lessons.map(l=>l.id)); return; }
 
-  // Fire leave-awards for the lesson we're walking away from.
-  if (currentLesson && currentLesson.id != lessonId) leaveCurrentLesson();
+  // Fire leave-awards for whatever we're walking away from. A different lesson
+  // cascades to the page; the same lesson (a sidebar section jump) still needs
+  // the section we were on to be awarded before we re-paginate.
+  if (currentLesson) {
+    if (currentLesson.id != lessonId) leaveCurrentLesson();
+    else leaveCurrentSection();
+  }
 
   currentCourse = course;
   currentLesson = lesson;
@@ -1274,8 +1326,18 @@ async function persistQuiz(questionId, payload) {
 // Built from the loaded lesson; { id, questionIds } per section in slide order.
 let _currentSections   = [];
 let _currentSectionIdx = null;  // index in _currentSections of the slide on screen, or null
+let _sectionEnterTime  = 0;     // Date.now() when the visible section last changed
+// True once the student clicked the footer button on the last slide while
+// sections were still unfinished — they've been redirected to mop them up, so
+// the footer shows the guided "next unfinished section / page done" button.
+let _redirectedToUnfinished = false;
 // section_ids already in UserXPLog for the current page — used to restore green marks.
 let _completedSectionIds = new Set();
+
+// Minimum time a student must spend on a text-only section before it awards XP.
+// Stops a quick scroll-through from handing out points. Quiz sections are gated
+// by their answers, not by time.
+const SECTION_MIN_DWELL_MS = 3000;
 
 async function loadSectionAwards(pageId) {
   _completedSectionIds = new Set();
@@ -1320,10 +1382,12 @@ function setCurrentSections(sections) {
 // slide's section if there was one.
 function setVisibleSectionIdx(newIdx) {
   if (_currentSectionIdx === newIdx) return;
-  const prev = _currentSectionIdx;
+  const prev      = _currentSectionIdx;
+  const prevEnter = _sectionEnterTime;
   _currentSectionIdx = newIdx;
+  _sectionEnterTime  = Date.now();
   if (prev !== null && _currentSections[prev]) {
-    maybeAwardSection(_currentSections[prev]);
+    maybeAwardSection(_currentSections[prev], Date.now() - prevEnter);
   }
 }
 
@@ -1334,25 +1398,71 @@ function setVisibleSectionIdx(newIdx) {
 async function leaveCurrentLesson() {
   const lessonId = currentLesson?.id;
   const visible  = _currentSectionIdx !== null ? _currentSections[_currentSectionIdx] : null;
+  const dwell    = _sectionEnterTime ? Date.now() - _sectionEnterTime : 0;
   _currentSectionIdx = null;
   _currentSections   = [];
 
   if (visible) {
-    await maybeAwardSection(visible);  // includes server-side page cascade
+    await maybeAwardSection(visible, dwell);  // includes server-side page cascade
   } else if (lessonId) {
     await postAwardXP({ page_id: lessonId });
   }
 }
 
-async function maybeAwardSection(section) {
+// Fire the leave-award for the visible section when staying in the same lesson
+// but jumping to another section (e.g. a sidebar section click re-runs
+// loadLesson, which then re-paginates and resets the index).
+function leaveCurrentSection() {
+  const visible = _currentSectionIdx !== null ? _currentSections[_currentSectionIdx] : null;
+  if (visible) {
+    const dwell = _sectionEnterTime ? Date.now() - _sectionEnterTime : 0;
+    maybeAwardSection(visible, dwell);
+  }
+  _currentSectionIdx = null;
+}
+
+async function maybeAwardSection(section, dwellMs = Infinity) {
   if (!section || !section.id) return;
-  const complete = section.questionIds.length === 0
-                || section.questionIds.every(qid => _quizSubmissions[qid]);
+  const isTextOnly = section.questionIds.length === 0;
+  const complete   = isTextOnly
+                  || section.questionIds.every(qid => _quizSubmissions[qid]);
   if (!complete) return;
-  // Mark visually right away — even for 0-XP sections the user gets feedback
-  // for the current session. The XP request itself may no-op server-side.
+  // Text-only sections only count once the student has actually spent time on
+  // them — a sub-5s scroll-through shouldn't hand out XP. Quiz sections are
+  // gated by their answers, so they ignore the dwell time.
+  if (isTextOnly && dwellMs < SECTION_MIN_DWELL_MS) return;
+  // Mark complete right away — optimistically logging it locally keeps the
+  // guided-navigation state consistent (no false "unfinished" while the POST is
+  // still in flight) and gives the user feedback even for 0-XP sections.
+  _completedSectionIds.add(section.id);
   updateSidebarSectionStatus(section.id, 'done');
   await postAwardXP({ section_id: section.id });
+}
+
+/* ── Guided "finish remaining sections" navigation ───
+   A section counts as done once it's been awarded (text sections, after the
+   dwell-leave) or all its quizzes are answered. */
+function isSectionComplete(section) {
+  if (!section || !section.id) return true;  // untracked → can't block progress
+  if (_completedSectionIds.has(section.id)) return true;
+  if (section.questionIds.length > 0) {
+    return section.questionIds.every(qid => _quizSubmissions[qid]);
+  }
+  return false;  // text-only, not yet dwelled + left
+}
+
+// Index of the first section (in slide order) that isn't complete, or -1.
+// skipIdx ignores a slide — pass the current one, since leaving it completes it.
+function firstUnfinishedSectionIdx(skipIdx = -1) {
+  for (let i = 0; i < _currentSections.length; i++) {
+    if (i === skipIdx) continue;
+    if (!isSectionComplete(_currentSections[i])) return i;
+  }
+  return -1;
+}
+
+function sectionName(idx) {
+  return currentSlides[idx]?.[0]?.title || `Sectie ${idx + 1}`;
 }
 
 // One endpoint, two possible parameters. Backend awards section if section_id
@@ -1547,6 +1657,58 @@ function updatePrevVisibility() {
 function updateNextPageNav() {
   const nav = document.getElementById("nextPageNav");
   if (!nav) return;
+
+  // Unfinished sections elsewhere on this page (the current slide is excluded —
+  // moving off it will complete it anyway).
+  const unfinishedIdx = firstUnfinishedSectionIdx(currentSlideIdx);
+
+  const goToSection = (idx) => {
+    if (!allQuizzesAnswered()) return;
+    renderSlide(idx);
+    document.querySelector(".main").scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Guided mode — the student was redirected to mop up skipped sections. The
+  // button either points to the next unfinished one or, once the page is fully
+  // done, advances to the next onderdeel (or back to the dashboard).
+  if (_redirectedToUnfinished) {
+    if (unfinishedIdx !== -1) {
+      nav.innerHTML = `<div class="next-page-wrap guided-nav">
+        <div class="guided-nav-msg">Je hebt nog niet alle onderdelen op deze pagina afgerond.</div>
+        <button class="btn btn-primary next-page-btn" id="btnNext">Volgende onderdeel: ${sectionName(unfinishedIdx)} →</button>
+      </div>`;
+      document.getElementById("btnNext").addEventListener("click", () => goToSection(unfinishedIdx));
+    } else {
+      const label = nextLesson ? "Ga naar volgend onderdeel →" : "← Terug naar dashboard";
+      nav.innerHTML = `<div class="next-page-wrap guided-nav guided-nav-done">
+        <div class="guided-nav-msg">Je hebt alle onderdelen op deze pagina afgerond! 🎉</div>
+        <button class="btn btn-primary next-page-btn" id="btnNext">${label}</button>
+      </div>`;
+      document.getElementById("btnNext").addEventListener("click", () => {
+        if (!allQuizzesAnswered()) return;
+        _redirectedToUnfinished = false;
+        if (nextLesson) loadLesson(currentCourse.id, nextLesson.id);
+        else showDashboard();
+      });
+    }
+    return;
+  }
+
+  // Normal mode (reached on the last slide): if sections are still unfinished,
+  // redirect to the first one and label the button with its name instead of
+  // advancing to the next page.
+  if (unfinishedIdx !== -1) {
+    nav.innerHTML = `<div class="next-page-wrap">
+      <button class="btn btn-primary next-page-btn" id="btnNext">Ga naar: ${sectionName(unfinishedIdx)} →</button>
+    </div>`;
+    document.getElementById("btnNext").addEventListener("click", () => {
+      if (!allQuizzesAnswered()) return;
+      _redirectedToUnfinished = true;
+      goToSection(unfinishedIdx);
+    });
+    return;
+  }
+
   if (nextLesson) {
     nav.innerHTML = `<div class="next-page-wrap">
       <button class="btn btn-primary next-page-btn" id="btnNext">Ga naar volgend onderdeel →</button>
@@ -1564,6 +1726,7 @@ function updateNextPageNav() {
 function paginateSections(sections, startIdx = 0) {
   currentSlideIdx = 0;
   fullView = false;
+  _redirectedToUnfinished = false;  // fresh page — start outside guided mode
   const btn = document.getElementById("viewToggleBtn");
   if (btn) btn.textContent = "Switch to full view";
   // One section per slide
@@ -1722,7 +1885,10 @@ function renderSlide(idx) {
   });
 
   updateSlideCounter(currentSlideIdx, total);
-  if (isLast) updateNextPageNav();
+  // The footer button shows on the last slide as usual, but also on every slide
+  // while in guided mode so the student can keep walking through the sections
+  // they skipped.
+  if (isLast || _redirectedToUnfinished) updateNextPageNav();
   else document.getElementById("nextPageNav").innerHTML = "";
   updatePrevVisibility();
 }
