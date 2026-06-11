@@ -146,7 +146,9 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
   font-size: 12px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
   letter-spacing: .5px; flex-shrink: 0;
 }
+.course-info { flex: 1; min-width: 0; }
 .course-name { font-size: 15px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.course-meta { font-size: 10.5px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .course-progress-line { height: 2px; background: var(--bg4); border-radius: 1px; margin-top: 3px; }
 .course-progress-fill { height: 2px; border-radius: 1px; transition: width .3s; }
 
@@ -929,6 +931,15 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 }
 .next-page-btn { font-size: 14px; padding: 10px 20px; }
 
+/* ── Guided "finish remaining sections" footer ──── */
+.next-page-wrap.guided-nav {
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.guided-nav-msg { font-size: 13px; color: var(--text2); text-align: center; }
+.guided-nav-done .guided-nav-msg { color: var(--text); font-weight: 600; }
+
 /* ── Lesson content typography ───────────────── */
 .lesson-text { font-size: 14px; color: var(--text2); line-height: 1.7; margin: 10px 0; max-width: 65ch; }
 .lesson-text strong { color: var(--text); }
@@ -1255,10 +1266,38 @@ code {
 .xp-table tr:last-child td { border-bottom: none; }
 .xp-row { cursor: pointer; transition: background .15s; }
 .xp-row:hover { background: var(--bg3); }
-.xp-row:hover .xp-row-arrow { color: var(--blue); transform: translateX(3px); }
-.xp-row-arrow {
-  color: var(--text3); transition: all .15s; display: inline-block;
+.xp-row:hover .xp-row-chevron,
+.xp-row.expanded .xp-row-chevron { color: var(--blue); }
+.xp-row.expanded { background: var(--bg3); }
+.xp-row-chevron {
+  color: var(--text3); transition: transform .15s, color .15s;
+  display: inline-block; font-size: 15px; line-height: 1;
 }
+.xp-row.expanded .xp-row-chevron { transform: rotate(180deg); }
+
+/* ── Unfolded per-section reward breakdown ─────── */
+.xp-detail-row > td { padding: 0 !important; background: var(--bg); }
+.xp-detail {
+  display: flex; flex-direction: column;
+  padding: 6px 14px 10px 44px;
+}
+.xp-detail-item {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.xp-detail-item:last-child { border-bottom: none; }
+.xp-detail-page { font-weight: 600; }
+.xp-detail-name { color: var(--text2); font-size: 13px; }
+.xp-detail-page .xp-detail-name { color: var(--text); }
+.xp-detail-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  white-space: nowrap;
+}
+.xp-detail-earned  { color: var(--accent2); }
+.xp-detail-partial { color: var(--yellow); }
+.xp-detail-open    { color: var(--text3); }
+.xp-detail-none    { color: var(--text3); font-weight: 500; }
+.xp-detail-empty   { padding: 7px 0; color: var(--text3); font-size: 13px; }
 .xp-course-cell {
   display: inline-flex; align-items: center; gap: 8px;
   font-weight: 500;
