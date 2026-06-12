@@ -15,6 +15,24 @@ let _progressMap   = {}; // pageId -> 'in-progress' | 'done'
 export function getCourses()        { return _courses; }
 export function getSectionsByPage() { return _sectionsByPage; }
 
+/* Course color: hex (#rrggbb) or legacy class (c-python, …) → inline icon style. */
+const _LEGACY_COURSE_COLORS = {
+  'c-python': '#388bfd', 'c-js': '#e3b341', 'c-java': '#f78166',
+  'c-unity': '#bc8cff', 'c-vr': '#3fb950', 'c-math': '#8b949e',
+};
+function courseHex(c) {
+  if (!c) return '#8b949e';
+  if (c[0] === '#') return c;
+  return _LEGACY_COURSE_COLORS[c] || '#8b949e';
+}
+function _courseDarken(c, f) {
+  let h = courseHex(c).replace('#', '');
+  if (h.length === 3) h = h.split('').map(x => x + x).join('');
+  const n = parseInt(h, 16);
+  return `rgb(${Math.round(((n >> 16) & 255) * f)},${Math.round(((n >> 8) & 255) * f)},${Math.round((n & 255) * f)})`;
+}
+function courseIconStyle(c) { return `background:linear-gradient(135deg, ${courseHex(c)}, ${_courseDarken(c, 0.7)});color:#fff;`; }
+
 function url(path) {
   return new URL(path, import.meta.url).href;
 }
@@ -210,7 +228,8 @@ function buildCourseGroup(course, onLessonClick, onCourseClick) {
   const header = mkEl("div", "course-header");
   header.addEventListener("click", () => toggleGroup(course.id));
 
-  const icon = mkEl("div", "course-icon " + course.color, course.icon);
+  const icon = mkEl("div", "course-icon", course.icon);
+  icon.style.cssText = courseIconStyle(course.color);
   if (onCourseClick) {
     icon.addEventListener("click", e => { e.stopPropagation(); onCourseClick(course.id); });
     icon.title = "Cursusoverzicht openen";

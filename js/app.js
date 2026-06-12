@@ -659,7 +659,7 @@ function renderXPOverview(data) {
     <tr class="xp-row" data-page-id="${r.page_id}">
       <td>
         <div class="xp-course-cell">
-          <span class="xp-course-icon ${r.course_color || ''}">${r.course_icon || ''}</span>
+          <span class="xp-course-icon" style="${courseIconStyle(r.course_color)}">${r.course_icon || ''}</span>
           <span>${escHtml(r.course_name)}</span>
         </div>
       </td>
@@ -811,7 +811,8 @@ function showCourse(courseId) {
 
   const icon = document.getElementById("courseViewIcon");
   icon.textContent  = course.icon;
-  icon.className    = "course-view-icon " + course.color;
+  icon.className    = "course-view-icon";
+  icon.style.cssText = courseIconStyle(course.color);
 
   document.getElementById("courseViewTitle").textContent = course.name;
   document.getElementById("courseViewSub").textContent   =
@@ -872,7 +873,9 @@ function buildCourseCard(course) {
   const header = el("div", "course-card-header");
   const tw = el("div");
   tw.append(el("div", "course-card-title", course.name), el("div", "course-card-cat", course.category));
-  header.append(el("div", "course-card-icon " + course.color, course.icon), tw);
+  const cardIcon = el("div", "course-card-icon", course.icon);
+  cardIcon.style.cssText = courseIconStyle(course.color);
+  header.append(cardIcon, tw);
 
   const bar  = el("div", "progress-bar");
   const fill = el("div", "progress-fill");
@@ -935,7 +938,8 @@ function loadLesson(courseId, lessonId, sectionIdx = 0) {
   document.getElementById("lessonBreadcrumb").innerHTML = `${course.name} <span>›</span> ${TYPE_LABELS[lesson.type].label}`;
   document.getElementById("lessonTitle").textContent = lesson.title;
   const header = document.querySelector(".lesson-view-header");
-  header.className = "lesson-view-header " + course.color;
+  header.className = "lesson-view-header";
+  header.style.cssText = courseTintStyle(course.color);
   const tag = document.getElementById("lessonTypeTag");
   const tl  = TYPE_LABELS[lesson.type];
   tag.textContent = tl.label.charAt(0).toUpperCase() + tl.label.slice(1);
@@ -1042,6 +1046,30 @@ function escHtml(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+/* ── Course colors ───────────────────────────────
+   A course color is now a hex (#rrggbb) chosen via the admin color picker, or a
+   legacy CSS class (c-python, …) for older courses. resolve → hex, then derive
+   the icon gradient / tint inline so any color renders without a CSS class. */
+const _LEGACY_COURSE_COLORS = {
+  'c-python': '#388bfd', 'c-js': '#e3b341', 'c-java': '#f78166',
+  'c-unity': '#bc8cff', 'c-vr': '#3fb950', 'c-math': '#8b949e',
+};
+function courseHex(c) {
+  if (!c) return '#8b949e';
+  if (c[0] === '#') return c;
+  return _LEGACY_COURSE_COLORS[c] || '#8b949e';
+}
+function _courseRGB(c) {
+  let h = courseHex(c).replace('#', '');
+  if (h.length === 3) h = h.split('').map(x => x + x).join('');
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function courseTint(c, a) { const [r, g, b] = _courseRGB(c); return `rgba(${r},${g},${b},${a})`; }
+function _courseDarken(c, f) { const [r, g, b] = _courseRGB(c); return `rgb(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)})`; }
+function courseIconStyle(c) { return `background:linear-gradient(135deg, ${courseHex(c)}, ${_courseDarken(c, 0.7)});color:#fff;`; }
+function courseTintStyle(c) { return `background:${courseTint(c, 0.08)};border-color:${courseTint(c, 0.2)};`; }
 
 function buildSectionHTML(components) {
   if (!components.length) {
