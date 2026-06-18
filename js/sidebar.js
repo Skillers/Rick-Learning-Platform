@@ -199,12 +199,9 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
         color:    c.color,
         section:  s.name,
         category: "",
-        progress: {
-          pct:   0,
-          done:  0,
-          total: _pageRows.filter(p => p.course_id === c.id).length,
-          color: "var(--blue)",
-        },
+        // Live snapshot from _progressMap; refreshed by refreshCourseProgress()
+        // whenever the dashboard re-renders so tiles match without a page reload.
+        progress: { ..._courseProgress(c.id), color: "var(--blue)" },
         lessons: _pageRows
           .filter(p => p.course_id === c.id)
           .map(p => ({
@@ -394,21 +391,37 @@ function _courseSectionCount(courseId) {
     .reduce((sum, p) => sum + (_sectionsByPage[p.id]?.length || 0), 0);
 }
 
+// Single source of truth for a course's completion, derived from _progressMap.
+// A page counts as done when _progressMap marks it 'done'.
+function _courseProgress(courseId) {
+  const total = _pageRows.filter(p => p.course_id === courseId).length;
+  const done  = _pageRows.filter(p => p.course_id === courseId && _progressMap[p.id] === 'done').length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+  return { pct, done, total };
+}
+
+// Recompute each course's dashboard progress object in place from the live
+// _progressMap. _courses entries are shared by reference with app.js's COURSES,
+// so mutating them here makes the dashboard tiles reflect new completions on the
+// next buildDashboard() — no page reload needed.
+export function refreshCourseProgress() {
+  _courses.forEach(c => Object.assign(c.progress, _courseProgress(c.id)));
+  return _courses;
+}
+
 // Equal-length bars: the rail is always full width, only the fill (% complete)
 // and the text line (pages · sections · % done) vary per course.
 function _refreshCourseBars() {
   _courseRows.forEach(c => {
-    const pages = _pageRows.filter(p => p.course_id === c.id);
-    const done  = pages.filter(p => _progressMap[p.id] === 'done').length;
-    const pct   = pages.length ? Math.round(done / pages.length * 100) : 0;
+    const { done, total, pct } = _courseProgress(c.id);
 
     const fill = document.querySelector(`#group-${c.id} .course-progress-fill`);
-    if (fill && pages.length) fill.style.width = pct + '%';
+    if (fill && total) fill.style.width = pct + '%';
 
     const meta = document.querySelector(`#group-${c.id} .course-meta`);
     if (meta) {
       const secs = _courseSectionCount(c.id);
-      meta.textContent = `${done}/${pages.length} pagina's · ${secs} secties · ${pct}% klaar`;
+      meta.textContent = `${done}/${total} pagina's · ${secs} secties · ${pct}% klaar`;
     }
   });
 }

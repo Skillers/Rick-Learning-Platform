@@ -12,7 +12,7 @@
  * The sidebar entry stays on the page level.
  */
 
-import { initSidebar, syncSidebarActive, syncSidebarSection, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus, updateSidebarSectionStatus } from './sidebar.js';
+import { initSidebar, syncSidebarActive, syncSidebarSection, toggleGroup, updateSidebarUser, getCourses, getSectionsByPage, TYPE_LABELS, updatePageStatus, updateSidebarSectionStatus, refreshCourseProgress } from './sidebar.js';
 import { highlight } from './highlighter.js';
 
 
@@ -22,6 +22,7 @@ let COURSES = [];
 const STUDENT = {
   name:    "Student",
   initials:"ST",
+  role:    "student",
   email:   "",
   xp:           0,
   level:        1,
@@ -108,6 +109,8 @@ async function bootApp() {
       return;
     }
     const data     = await res.json();
+    if (data.username) { STUDENT.name = data.username; STUDENT.initials = initials(data.username); }
+    STUDENT.role   = data.role || STUDENT.role;
     STUDENT.email  = data.email || STUDENT.email;
     if (data.email) sessionStorage.setItem("ict_email", data.email);
     STUDENT.streak        = data.currentStreak ?? STUDENT.streak;
@@ -125,6 +128,13 @@ async function bootApp() {
 
   document.getElementById("login-screen").style.display  = "none";
   document.getElementById("app-layout").style.display    = "";
+
+  // Populate avatar menu first — name + actual account role (not initials).
+  // Done before the sidebar/dashboard build so a failure there can't leave the
+  // menu showing the static "Studentnaam / student" placeholders.
+  document.getElementById("avatarMenuName").textContent = STUDENT.name;
+  document.getElementById("avatarMenuSub").textContent  = roleLabel(STUDENT.role);
+
   await initSidebar("sidebar-mount", loadLesson, showCourse, STUDENT.name);
   COURSES = getCourses();
   updateSidebarUser(STUDENT);
@@ -132,10 +142,11 @@ async function bootApp() {
   buildHeatmap();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug, " + STUDENT.name + "!");
+}
 
-  // Populate avatar menu
-  document.getElementById("avatarMenuName").textContent = STUDENT.name;
-  document.getElementById("avatarMenuSub").textContent  = STUDENT.initials;
+// Dutch display label for an account role; falls back to the raw value.
+function roleLabel(role) {
+  return { student: "Student", docent: "Docent", superadmin: "Beheerder" }[role] || role || "Student";
 }
 
 function toggleAvatarMenu() {
@@ -526,6 +537,9 @@ function renderStreakCard() {
    DASHBOARD
 ═══════════════════════════════════════════════ */
 function buildDashboard() {
+  // Pull the latest completion state into the course objects so tiles reflect
+  // progress made since load (e.g. returning from a lesson) without a reload.
+  refreshCourseProgress();
   document.getElementById("userInitials").textContent = STUDENT.initials;
   document.getElementById("userName").textContent     = STUDENT.name;
   updateSidebarUser(STUDENT);
