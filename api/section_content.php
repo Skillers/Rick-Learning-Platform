@@ -2,184 +2,136 @@
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/db.connection.php';
+require_once __DIR__ . '/_versions.php';
 
 $page_id = isset($_GET['page_id']) ? (int)$_GET['page_id'] : 0;
 if (!$page_id) { echo '[]'; exit; }
 
-// ── 1. Text, code & infobox components ──────────────────────
-$stmt = $pdo->prepare("
-    SELECT
-        c.Id            AS id,
-        c.ComponentType_ComponentTypeText      AS type,
-        c.Section_Id    AS section_id,
-        c.`Order`       AS `order`,
-        COALESCE(cs.Code, tb.Text, ib.Text) AS content,
-        l.LanguageName  AS language,
-        ib.IsWarning    AS is_warning,
-        es.BeforeLineSpace AS es_before,
-        es.AfterLineSpace  AS es_after,
-        es.table1_LineType AS es_linetype
-    FROM Components c
-    JOIN  Sections      s   ON s.Id            = c.Section_Id
-    LEFT JOIN CodeSnippets  cs  ON cs.Components_Id = c.Id
-    LEFT JOIN Languages     l   ON l.Id             = cs.Languages_Id
-    LEFT JOIN TextBLocks    tb  ON tb.Component_Id  = c.Id
-    LEFT JOIN InfoBoxes ib ON ib.components_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
-    WHERE s.Pages_Id = ?
-      AND c.ComponentType_ComponentTypeText NOT IN ('quiz','multimedia')
-    ORDER BY c.Section_Id, c.`Order`
-");
-$stmt->execute([$page_id]);
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Which snapshot to load: ?version_id / ?status / default live.
+$versionId = resolve_requested_version($pdo, $page_id);
+if (!$versionId) { echo '[]'; exit; }
 
-// Map infobox components to tip/warning type based on IsWarning flag
-// and build emptyspace object
-foreach ($rows as &$row) {
-    if ($row['is_warning'] !== null) {
-        $row['type'] = $row['is_warning'] ? 'warning' : 'tip';
-    }
-    unset($row['is_warning']);
-    $row['emptyspace'] = null;
-    if ($row['es_linetype'] && $row['es_linetype'] !== 'nothing') {
-        $row['emptyspace'] = [
-            'before' => (int)$row['es_before'],
-            'after'  => $row['es_after'] !== null ? (int)$row['es_after'] : null,
-            'type'   => $row['es_linetype'],
+// ── 1. The version's component membership ───────────────────
+// section_id + component_id + order come from the two junctions; a component's
+// position is sections_has_components.Order, a section's is PageVersion_has_sections.Order.
+$memStmt = $pdo->prepare("
+    SELECT
+        pvs.`sections_Id`  AS section_id,
+        shc.`components_Id` AS component_id,
+        shc.`Order`        AS `order`,
+        c.`ComponentType_ComponentTypeText` AS type
+    FROM `PageVersion_has_sections` pvs
+    JOIN `sections_has_components` shc ON shc.`sections_Id` = pvs.`sections_Id`
+    JOIN `components` c ON c.`Id` = shc.`components_Id`
+    WHERE pvs.`PageVersion_Id` = ?
+    ORDER BY pvs.`Order`, shc.`Order`
+");
+$memStmt->execute([$versionId]);
+$members = $memStmt->fetchAll(PDO::FETCH_ASSOC);
+if (!$members) { echo '[]'; exit; }
+
+$compIds = array_values(array_unique(array_map(fn($m) => (int)$m['component_id'], $members)));
+$ph = implode(',', array_fill(0, count($compIds), '?'));
+
+/** Fetch rows for $compIds and index them by a given column. */
+$indexBy = function (string $sql, string $key) use ($pdo, $compIds) {
+    $st = $pdo->prepare($sql);
+    $st->execute($compIds);
+    $out = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $out[(int)$r[$key]] = $r; }
+    return $out;
+};
+
+// ── 2. Detail rows, each keyed by component id ──────────────
+$textById  = $indexBy("SELECT `Component_Id`, `Text` FROM `TextBLocks` WHERE `Component_Id` IN ($ph)", 'Component_Id');
+$codeById  = $indexBy("SELECT cs.`Components_Id`, cs.`Code`, l.`LanguageName`
+                       FROM `CodeSnippets` cs LEFT JOIN `Languages` l ON l.`Id` = cs.`Languages_Id`
+                       WHERE cs.`Components_Id` IN ($ph)", 'Components_Id');
+$infoById  = $indexBy("SELECT `components_Id`, `Text`, `IsWarning` FROM `InfoBoxes` WHERE `components_Id` IN ($ph)", 'components_Id');
+$emptyById = $indexBy("SELECT `components_Id`, `BeforeLineSpace`, `AfterLineSpace`, `table1_LineType`
+                       FROM `EmptySpace` WHERE `components_Id` IN ($ph)", 'components_Id');
+$mediaById = $indexBy("SELECT `components_Id`, `URL`, `Uploaded`, `MultiMediaType_MultiMediaType`
+                       FROM `MultiMedia` WHERE `components_Id` IN ($ph)", 'components_Id');
+
+// Quiz question + answers.
+$quizById = $indexBy("SELECT `component_Id`, `Id`, `Question`, `Image`, `OpenQuestion`
+                      FROM `PQQuestion` WHERE `component_Id` IN ($ph)", 'component_Id');
+$answersByQ = [];
+if ($quizById) {
+    $qIds = array_map(fn($q) => (int)$q['Id'], $quizById);
+    $qph = implode(',', array_fill(0, count($qIds), '?'));
+    $aSt = $pdo->prepare("SELECT `Id`, `PQQuestion_Id`, `AnswerOption`, `IsCorrect`
+                          FROM `PQAnswer` WHERE `PQQuestion_Id` IN ($qph) ORDER BY `Id`");
+    $aSt->execute($qIds);
+    foreach ($aSt->fetchAll(PDO::FETCH_ASSOC) as $a) {
+        $answersByQ[(int)$a['PQQuestion_Id']][] = [
+            'id'         => (int)$a['Id'],
+            'text'       => $a['AnswerOption'],
+            'is_correct' => (int)$a['IsCorrect'],
         ];
-    } elseif ($row['es_before'] > 0) {
-        $row['emptyspace'] = [
-            'before' => (int)$row['es_before'],
-            'after'  => null,
-            'type'   => 'nothing',
-        ];
     }
-    unset($row['es_before'], $row['es_after'], $row['es_linetype']);
 }
-unset($row);
 
-// ── 2b. Multimedia components ───────────────────────────────
-$stmtM = $pdo->prepare("
-    SELECT
-        c.Id            AS component_id,
-        c.Section_Id    AS section_id,
-        c.`Order`       AS `order`,
-        m.URL           AS url,
-        m.Uploaded      AS uploaded,
-        m.MultiMediaType_MultiMediaType AS media_type,
-        es.BeforeLineSpace AS es_before,
-        es.AfterLineSpace  AS es_after,
-        es.table1_LineType AS es_linetype
-    FROM Components c
-    JOIN  Sections  s ON s.Id = c.Section_Id
-    JOIN  MultiMedia m ON m.components_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
-    WHERE s.Pages_Id = ?
-      AND c.ComponentType_ComponentTypeText = 'multimedia'
-    ORDER BY c.Section_Id, c.`Order`
-");
-$stmtM->execute([$page_id]);
-$mediaRows = $stmtM->fetchAll(PDO::FETCH_ASSOC);
-
-foreach ($mediaRows as $mr) {
-    $es = null;
-    if ($mr['es_linetype'] && $mr['es_linetype'] !== 'nothing') {
-        $es = ['before' => (int)$mr['es_before'], 'after' => $mr['es_after'] !== null ? (int)$mr['es_after'] : null, 'type' => $mr['es_linetype']];
-    } elseif ((int)$mr['es_before'] > 0) {
-        $es = ['before' => (int)$mr['es_before'], 'after' => null, 'type' => 'nothing'];
+/** Build the editor's emptyspace object from an EmptySpace detail row. */
+$buildEmptyspace = function (?array $es) {
+    if (!$es) return null;
+    if ($es['table1_LineType'] && $es['table1_LineType'] !== 'nothing') {
+        return ['before' => (int)$es['BeforeLineSpace'],
+                'after'  => $es['AfterLineSpace'] !== null ? (int)$es['AfterLineSpace'] : null,
+                'type'   => $es['table1_LineType']];
     }
+    if ((int)$es['BeforeLineSpace'] > 0) {
+        return ['before' => (int)$es['BeforeLineSpace'], 'after' => null, 'type' => 'nothing'];
+    }
+    return null;
+};
+
+// ── 3. Assemble one row per (section, component) ────────────
+$rows = [];
+foreach ($members as $m) {
+    $cid  = (int)$m['component_id'];
+    $type = $m['type'];
+    $emptyspace = $buildEmptyspace($emptyById[$cid] ?? null);
+
+    $content  = '';
+    $language = null;
+
+    if ($type === 'multimedia') {
+        $mr = $mediaById[$cid] ?? null;
+        $content = json_encode([
+            'url'        => $mr['URL'] ?? '',
+            'uploaded'   => (int)($mr['Uploaded'] ?? 0),
+            'media_type' => $mr['MultiMediaType_MultiMediaType'] ?? 'image',
+        ], JSON_UNESCAPED_UNICODE);
+    } elseif ($type === 'quiz') {
+        $q = $quizById[$cid] ?? null;
+        $content = json_encode([
+            'question_id'   => (int)($q['Id'] ?? 0),
+            'question'      => $q['Question'] ?? '',
+            'image'         => $q['Image'] ?? null,
+            'open_question' => (int)($q['OpenQuestion'] ?? 0),
+            'answers'       => $answersByQ[(int)($q['Id'] ?? 0)] ?? [],
+        ], JSON_UNESCAPED_UNICODE);
+    } elseif (isset($infoById[$cid])) {
+        // InfoBox is authoritative for tip vs warning.
+        $type    = ((int)$infoById[$cid]['IsWarning']) ? 'warning' : 'tip';
+        $content = $infoById[$cid]['Text'];
+    } elseif (isset($codeById[$cid])) {
+        $content  = $codeById[$cid]['Code'];
+        $language = $codeById[$cid]['LanguageName'];
+    } elseif (isset($textById[$cid])) {
+        $content = $textById[$cid]['Text'];
+    }
+
     $rows[] = [
-        'id'         => (int)$mr['component_id'],
-        'type'       => 'multimedia',
-        'section_id' => (int)$mr['section_id'],
-        'order'      => (int)$mr['order'],
-        'content'    => json_encode([
-            'url'        => $mr['url'],
-            'uploaded'   => (int)$mr['uploaded'],
-            'media_type' => $mr['media_type'],
-        ], JSON_UNESCAPED_UNICODE),
-        'language'   => null,
-        'emptyspace' => $es,
+        'id'         => $cid,
+        'type'       => $type,
+        'section_id' => (int)$m['section_id'],
+        'order'      => (int)$m['order'],
+        'content'    => $content,
+        'language'   => $language,
+        'emptyspace' => $emptyspace,
     ];
 }
-
-// ── 2. Quiz components (question + answers) ────────────────
-$stmtQ = $pdo->prepare("
-    SELECT
-        c.Id            AS component_id,
-        c.Section_Id    AS section_id,
-        c.`Order`       AS `order`,
-        q.Id            AS question_id,
-        q.Question      AS question,
-        q.Image         AS image,
-        q.OpenQuestion  AS open_question,
-        es.BeforeLineSpace AS es_before,
-        es.AfterLineSpace  AS es_after,
-        es.table1_LineType AS es_linetype
-    FROM Components c
-    JOIN  Sections s ON s.Id = c.Section_Id
-    JOIN  PQQuestion q ON q.component_Id = c.Id
-    LEFT JOIN EmptySpace es ON es.components_Id = c.Id
-    WHERE s.Pages_Id = ?
-      AND c.ComponentType_ComponentTypeText = 'quiz'
-    ORDER BY c.Section_Id, c.`Order`
-");
-$stmtQ->execute([$page_id]);
-$questions = $stmtQ->fetchAll(PDO::FETCH_ASSOC);
-
-if ($questions) {
-    // Fetch all answers for these questions
-    $qIds = array_column($questions, 'question_id');
-    $placeholders = implode(',', array_fill(0, count($qIds), '?'));
-    $stmtA = $pdo->prepare("
-        SELECT Id AS answer_id, PQQuestion_Id AS question_id, AnswerOption AS answer, IsCorrect AS is_correct
-        FROM PQAnswer
-        WHERE PQQuestion_Id IN ($placeholders)
-        ORDER BY Id
-    ");
-    $stmtA->execute($qIds);
-    $allAnswers = $stmtA->fetchAll(PDO::FETCH_ASSOC);
-
-    // Group answers by question
-    $answersByQ = [];
-    foreach ($allAnswers as $a) {
-        $answersByQ[$a['question_id']][] = [
-            'id'         => (int)$a['answer_id'],
-            'text'       => $a['answer'],
-            'is_correct' => (int)$a['is_correct'],
-        ];
-    }
-
-    // Build quiz rows in the same format as other components
-    foreach ($questions as $q) {
-        $es = null;
-        if ($q['es_linetype'] && $q['es_linetype'] !== 'nothing') {
-            $es = ['before' => (int)$q['es_before'], 'after' => $q['es_after'] !== null ? (int)$q['es_after'] : null, 'type' => $q['es_linetype']];
-        } elseif ((int)$q['es_before'] > 0) {
-            $es = ['before' => (int)$q['es_before'], 'after' => null, 'type' => 'nothing'];
-        }
-        $rows[] = [
-            'id'         => (int)$q['component_id'],
-            'type'       => 'quiz',
-            'section_id' => (int)$q['section_id'],
-            'order'      => (int)$q['order'],
-            'content'    => json_encode([
-                'question_id'   => (int)$q['question_id'],
-                'question'      => $q['question'],
-                'image'         => $q['image'],
-                'open_question' => (int)$q['open_question'],
-                'answers'       => $answersByQ[$q['question_id']] ?? [],
-            ], JSON_UNESCAPED_UNICODE),
-            'language'   => null,
-            'emptyspace' => $es,
-        ];
-    }
-
-}
-
-// Re-sort all components by section_id, then order
-usort($rows, function ($a, $b) {
-    return ($a['section_id'] - $b['section_id']) ?: ($a['order'] - $b['order']);
-});
 
 echo json_encode($rows, JSON_UNESCAPED_UNICODE);

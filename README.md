@@ -145,9 +145,21 @@ ict-leerlijn/
 |-- api/
 |   |-- subjects.php           <- GET: alle vakgroepen
 |   |-- courses.php            <- GET: alle cursussen met vakgroep
-|   |-- pages.php              <- GET: gepubliceerde pagina's
-|   |-- sections.php           <- GET: secties per pagina
+|   |-- pages.php              <- GET: live pagina's (zichtbaar voor studenten) / alle (admin)
+|   |-- sections.php           <- GET: secties per pagina (via de live of gekozen versie)
 |   |-- section_content.php    <- GET: componenten per sectie (tekst, code, quiz, etc.)
+|   |-- page_versions.php      <- GET: versies van een pagina (concept/live/archived)
+|   |-- create_concept.php     <- POST: maak het concept (kloon van live)
+|   |-- save_page.php          <- POST: concept bewerken (copy-on-write)
+|   |-- update_live.php        <- POST: live versie ter plekke bewerken (alleen tekst)
+|   |-- set_live_version.php   <- POST: versie live zetten (+ snapshot vorige live)
+|   |-- delete_version.php     <- POST: gearchiveerde/concept-versie verwijderen
+|   |-- set_page_enabled.php   <- POST: pagina zichtbaar/verborgen voor studenten
+|   |-- delete_page.php        <- POST: pagina + al haar versies verwijderen
+|   |-- award_xp.php           <- POST: XP toekennen (sectie/pagina, via live versie)
+|   |-- xp_overview.php        <- GET: XP-overzicht per student
+|   |-- _versions.php          <- helper: kies welke versie te lezen
+|   |-- _clone.php             <- helper: diepe kopie van een versie-inhoud (snapshot)
 |   |-- login.php              <- POST: inloggen met gebruikersnaam/wachtwoord
 |   |-- register.php           <- POST: nieuw account registreren
 |   |-- me.php                 <- GET: huidige gebruiker + scope (cursussen, studenten)
@@ -184,32 +196,38 @@ ict-leerlijn/
 ## Databaseschema
 
 ```
-Subjects --> Courses --> Pages --> Sections --> Components
-                |                                  |
-                |                          +-------+-------+
-                |                          |       |       |
-                |                     TextBlocks CodeSnippets PQQuestion --> PQAnswer
-                |                          |       |       |
-                |                     InfoBoxes MultiMedia Assigments
+Subjects --> Courses --> Pages --> PageVersion (concept | live | archived)
+                |                        |
+                |             PageVersion_has_sections   (Order, XPReward)
+                |                        |
+                |                     Sections
+                |                        |
+                |             sections_has_components    (Order)
+                |                        |
+                |                    Components
+                |                        |
+                |        +--------+------+------+--------+
+                |   TextBlocks CodeSnippets PQQuestion-->PQAnswer
+                |   InfoBoxes  MultiMedia   Assigments
                 |
-     Student_Has_Course              Accounts_have_assignments
-                |                              |
-            Accounts ------------- AC_Did_Question --> AC_Picked_Answer
+            Accounts ----------- AC_Did_Question --> AC_Picked_Answer
                 |
-    +-----------+-----------+
-    |           |           |
-Teacher_     Teacher_    Student_
-Participates guides     BelongsTo
-In_Course   Student     Group
-                           |
-                        Groups --> Group_has_Teacher
+   Student_Has_Course / Teacher_* / Groups / Accounts_opened_pages / ...
 ```
 
-**30 tabellen** georganiseerd rond drie kernconcepten:
+**Versiebeheer:** een `Pages`-rij is alleen nog *identiteit* (cursus, volgorde,
+type, zichtbaarheid). De inhoud hangt aan **`PageVersion`** met status
+`concept` / `live` / `archived`. `Sections` en `Components` zijn **gedeelde
+inhoud**; welke secties een versie vormen (en hun volgorde/XP) staat in
+`PageVersion_has_sections`, welke componenten een sectie vormen in
+`sections_has_components`. Zo blijft de voortgang van studenten behouden bij een
+nieuwe publicatie. Volledige uitleg: `devlog/2026-06-18-page-versioning.md`.
+
+**33 tabellen** georganiseerd rond drie kernconcepten:
 
 | Concept | Tabellen |
 |---|---|
-| **Lesinhoud** | Subjects, Courses, PageTypes, Pages, Sections, ComponentType, Components, TextBlocks, CodeSnippets, InfoBoxes, MultiMedia, MultiMediaType, Languages, EmptySpace, EmptySpaceTypes |
+| **Lesinhoud & versies** | Subjects, Courses, PageTypes, Pages, **PageVersion**, **PageVersion_has_sections**, Sections, **sections_has_components**, ComponentType, Components, TextBlocks, CodeSnippets, InfoBoxes, MultiMedia, MultiMediaType, Languages, EmptySpace, EmptySpaceTypes |
 | **Opdrachten & quizzen** | Assigments, Accounts_have_assignments, PQQuestion, PQAnswer, QuestionContext, AC_Did_Question, AC_Picked_Answer |
 | **Gebruikers & rollen** | Accounts, Student_Has_Course, Accounts_opened_pages, Teacher_ParticipatesIn_Course, Teacher_guides_Student, Groups, Group_has_Teacher, Student_BelongsTo_Group |
 
@@ -378,11 +396,18 @@ Groepen (SD1A, SD1B, etc.) zijn aangemaakt in de database voor toekomstige koppe
 
 ## Een les toevoegen
 
-1. Voeg de pagina toe in de database (`Pages`-tabel) met de juiste `Course_Id`, `title`, `order`, `published = 1` en `PageType_Id`.
-2. Voeg de secties toe in de `Sections`-tabel met de bijbehorende `Pages_Id`, `Title` en `Order`.
-3. De sidebar en lesweergave laden de nieuwe pagina automatisch bij de volgende refresh.
+Gebruik de **Lesontwerper** (`admin.html`):
 
-Of gebruik de **Lesontwerper** (`admin.html`) om pagina's en secties visueel aan te maken.
+1. Maak een nieuwe pagina aan in een cursus. Die start als **concept** (alleen voor jou zichtbaar).
+2. Voeg secties en componenten toe en bewerk de inhoud — het concept slaat automatisch op.
+3. Klik **Maak deze versie live** om te publiceren; bij de eerste publicatie wordt de pagina zichtbaar voor studenten.
+4. Latere wijzigingen: pas kleine teksten direct op de **live** versie aan, of maak een **nieuw concept** voor structurele wijzigingen (secties/componenten toevoegen of verwijderen) en publiceer dat. Oude versies blijven als **archief** bewaard en kun je terugzetten of verwijderen.
+
+> Sinds versiebeheer hangt lesinhoud aan een `PageVersion`, niet rechtstreeks aan
+> `Pages`. Handmatig via SQL toevoegen vereist dus ook een `PageVersion` (status
+> `live`) plus de koppeltabellen `PageVersion_has_sections` en
+> `sections_has_components` — de Lesontwerper regelt dit voor je. Zie
+> `devlog/2026-06-18-page-versioning.md`.
 
 ---
 

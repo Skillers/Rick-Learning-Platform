@@ -287,6 +287,44 @@
     .status-btn.active { background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
     .status-btn-pub.active { background: var(--accent2); color: #fff; box-shadow: none; }
 
+    /* ── Version control (concept / live / archived) ── */
+    .version-bar { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .ver-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ver-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 600; padding: 6px 12px;
+      background: var(--bg3); color: var(--text2);
+      border: 1px solid var(--border); border-radius: 8px; transition: all .12s;
+    }
+    .ver-chip:hover { color: var(--text); border-color: var(--text3); }
+    .ver-chip.active { background: var(--bg); color: var(--text); border-color: var(--accent2); }
+    /* dot-in-ring status indicator */
+    .ver-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text3); box-shadow: 0 0 0 2px rgba(255,255,255,.07);
+    }
+    .ver-live     .ver-dot { background: #2ecf6f; box-shadow: 0 0 0 2px rgba(46,207,111,.25); }
+    .ver-concept  .ver-dot { background: #e0a52e; box-shadow: 0 0 0 2px rgba(224,165,46,.25); }
+    .ver-archived .ver-dot { background: var(--text3); box-shadow: 0 0 0 2px rgba(255,255,255,.06); }
+    .ver-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .btn-pub { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+    .btn-pub:hover { filter: brightness(1.08); }
+    .ver-chip-wrap { display: inline-flex; align-items: stretch; }
+    .ver-chip-wrap:has(.ver-del) .ver-chip { border-radius: 8px 0 0 8px; }
+    .ver-del {
+      border: 1px solid var(--border); border-left: none; background: var(--bg3);
+      color: var(--text3); font-size: 11px; padding: 0 9px; border-radius: 0 8px 8px 0;
+      transition: all .12s; cursor: pointer;
+    }
+    .ver-del:hover { color: #fff; background: var(--red); border-color: var(--red); }
+    .ver-visibility {
+      display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--border); font-size: 12px; color: var(--text2);
+    }
+    .ver-visibility .btn { margin-left: auto; }
+    .ver-dot.vis-on  { background: #2ecf6f; box-shadow: 0 0 0 2px rgba(46,207,111,.25); }
+    .ver-dot.vis-off { background: var(--text3); box-shadow: 0 0 0 2px rgba(255,255,255,.06); }
+
     .course-select-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
     .course-select-name {
       font-size: 14px; font-weight: 600; color: var(--text);
@@ -1573,17 +1611,39 @@ async function openPageAndScrollToSection(pageId, sectionDbId) {
 }
 
 /* ═══ PAGE EDITOR ═══ */
-async function openPageFromDb(pageId, keepFocus) {
+async function openPageFromDb(pageId, keepFocus, versionId = null) {
+  // Save edits to the page we're leaving before swapping activePage, otherwise
+  // a still-pending debounced autosave would fire against the wrong page (or be
+  // dropped) and the edits would be lost.
+  await flushPendingSave();
   if (!keepFocus) focusedSectionDbId = null;
   activePageId = pageId;
   const dbPage = PAGES.find(p => p.id == pageId);
   if (!dbPage) return;
 
-  // Fetch real components from DB
-  const pageSections = SECTIONS.filter(s => s.page_id == pageId);
+  // Load this page's versions, then decide which one to show: an explicit
+  // versionId, else the concept (if any), else live, else the newest.
+  let versions = [];
+  try {
+    const vr = await fetch(`api/page_versions.php?page_id=${pageId}`);
+    if (vr.ok) versions = await vr.json();
+  } catch (_) {}
+  const view = (versionId ? versions.find(v => v.id == versionId) : null)
+    || versions.find(v => v.status === 'concept')
+    || versions.find(v => v.status === 'live')
+    || versions[0] || null;
+  const viewVersionId = view ? view.id : null;
+  const vparam = viewVersionId ? `&version_id=${viewVersionId}` : '';
+
+  // Fetch the chosen version's sections + components.
+  let pageSections = [];
+  try {
+    const sr = await fetch(`api/sections.php?page_id=${pageId}${vparam}`);
+    if (sr.ok) pageSections = await sr.json();
+  } catch (_) {}
   let dbComponents = [];
   try {
-    const res = await fetch(`api/section_content.php?page_id=${pageId}`);
+    const res = await fetch(`api/section_content.php?page_id=${pageId}${vparam}`);
     if (res.ok) dbComponents = await res.json();
   } catch (_) {}
 
@@ -1632,13 +1692,29 @@ async function openPageFromDb(pageId, keepFocus) {
     compsBySection[secId].push(makeComp(type, content, meta));
   });
 
+  const hasConcept = versions.some(v => v.status === 'concept');
+  // Edit mode: concept = full edit; live without a concept = content-only in
+  // place; live-with-concept and archived = read-only.
+  const editMode = !view ? 'readonly'
+    : view.status === 'concept' ? 'concept'
+    : (view.status === 'live' && !hasConcept) ? 'live'
+    : 'readonly';
+
   activePage = {
     id: uid(), dbId: pageId,
     courseId: dbPage.course_id,
-    title: dbPage.title,
-    type: dbPage.type || 'lesson',
+    title: (view && view.title != null) ? view.title : dbPage.title,
+    type: (view && view.type) ? view.type : (dbPage.type || 'lesson'),
     published: dbPage.published != null ? +dbPage.published : 0,
-    xp: dbPage.xp_reward != null ? dbPage.xp_reward : 60,
+    enabled: dbPage.enabled != null ? +dbPage.enabled : 1,
+    xp: (view && view.xp_reward != null) ? view.xp_reward
+        : (dbPage.xp_reward != null ? dbPage.xp_reward : 60),
+    versions,
+    viewVersionId,
+    viewStatus: view ? view.status : 'live',
+    editable: editMode === 'concept' || editMode === 'live',
+    editMode,
+    structuralLocked: editMode === 'live',
     sections: pageSections.map(s => ({
       id: uid(), dbId: s.id, title: s.title,
       components: compsBySection[parseInt(s.id)] || []
@@ -1658,6 +1734,9 @@ async function openPageFromDb(pageId, keepFocus) {
 function renderEditor() {
   if (!activePage) return;
   setFloatingPanelVisible(true);
+  // The component-add palette only makes sense when adding is allowed (concept).
+  const fpb = document.getElementById('fpButtons');
+  if (fpb) fpb.style.display = activePage.editMode === 'concept' ? '' : 'none';
   const main = document.getElementById("editorMain");
 
   const sectionsToRender = focusedSectionDbId
@@ -1700,18 +1779,7 @@ function renderEditor() {
             <input class="field-input" id="metaXP" type="number" value="${activePage.xp}" min="0" max="500" oninput="updateMeta('xp',parseInt(this.value)||0)" />
           </div>
         </div>
-        <div class="page-status-row">
-          <div>
-            <div class="field-label" style="margin-bottom:4px;">Status</div>
-            <div class="page-status-hint" id="pageStatusHint">${activePage.published
-              ? 'Actief — zichtbaar voor studenten. Zet op Concept om te bewerken.'
-              : 'Concept — alleen voor jou zichtbaar. Zet op Actief om te publiceren.'}</div>
-          </div>
-          <div class="status-toggle" id="statusToggle">
-            <button class="status-btn ${!activePage.published ? 'active' : ''}" onclick="setPagePublished(0)">Concept</button>
-            <button class="status-btn status-btn-pub ${activePage.published ? 'active' : ''}" onclick="setPagePublished(1)">Actief</button>
-          </div>
-        </div>
+        ${renderVersionBar()}
         <div style="display:flex;justify-content:flex-end;margin-top:14px;">
           <button class="btn btn-danger btn-sm" onclick="deletePage()">Pagina verwijderen</button>
         </div>
@@ -1723,7 +1791,7 @@ function renderEditor() {
         ${sectionsToRender.map((s,si) => renderSectionCard(s,si)).join("")}
       </div>
 
-      ${!isFocused ? `
+      ${!isFocused && activePage.editMode === 'concept' ? `
       <!-- Add section -->
       <button class="add-section-btn" onclick="addSection()">＋ Sectie toevoegen</button>
       ` : ''}
@@ -1736,15 +1804,16 @@ function renderSectionCard(section, si) {
   return `
   <div class="section-card" data-section-id="${section.id}" onmouseenter="lastHoveredSectionId='${section.id}'">
     <div class="section-card-header">
-      <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
+      ${activePage.editMode === 'concept' ? `<span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>` : ''}
       <input class="section-title-input" value="${esc(section.title)}"
         placeholder="Sectienaam (bijv. For-loop, Opdrachten...)"
         data-section-id="${section.id}" oninput="updateSectionTitle(this)" />
+      ${activePage.editMode === 'concept' ? `
       <div class="section-actions">
         <button class="icon-btn" onclick="moveSection('${section.id}',-1)" title="Omhoog">↑</button>
         <button class="icon-btn" onclick="moveSection('${section.id}',1)"  title="Omlaag">↓</button>
         <button class="icon-btn" style="color:var(--red)" onclick="deleteSection('${section.id}')" title="Verwijderen">✕</button>
-      </div>
+      </div>` : ''}
     </div>
 
     <div class="components-list" data-section-id="${section.id}">
@@ -1801,6 +1870,7 @@ function clearHoverHighlight() {
 
 function addComponentFromFloating(type) {
   if (!activePage) return;
+  if (!structuralAllowed()) return;
   if (!activePage.sections.length) {
     alert("Er is nog geen sectie. Maak eerst een sectie aan.");
     return;
@@ -2284,12 +2354,13 @@ function renderCompCard(comp, sectionId, ci) {
   return `
   <div class="component-card" data-comp-id="${comp.id}">
     <div class="component-header">
-      <span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>
+      ${activePage.editMode === 'concept' ? `<span class="section-drag-handle" title="Versleep om te herordenen">⋮⋮</span>` : ''}
       <span class="component-type-badge ${typeMeta.cls}">${typeMeta.label}</span>
       <div style="flex:1"></div>
+      ${activePage.editMode === 'concept' ? `
       <button class="icon-btn" onclick="moveComp('${sectionId}','${comp.id}',-1)" title="Omhoog">↑</button>
       <button class="icon-btn" onclick="moveComp('${sectionId}','${comp.id}',1)"  title="Omlaag">↓</button>
-      <button class="icon-btn" style="color:var(--red)" onclick="deleteComp('${sectionId}','${comp.id}')" title="Verwijderen">✕</button>
+      <button class="icon-btn" style="color:var(--red)" onclick="deleteComp('${sectionId}','${comp.id}')" title="Verwijderen">✕</button>` : ''}
     </div>
     <div class="component-body">${body}</div>
   </div>`;
@@ -2687,35 +2758,123 @@ function updateMeta(field, value) {
   }
 }
 
-// Concept (0) ↔ Actief (1). Active pages are student-visible and become
-// read-only for structural saves (save_page.php rejects them); toggle back to
-// Concept to edit.
-async function setPagePublished(published) {
-  if (!activePage || !activePage.dbId) return;
-  if (+activePage.published === +published) return;
+// ── Version control: concept / live / archived ──────────────────────────────
+// Renders the version cycler + actions inside the page-settings card. A page
+// has at most one live and one concept; archived versions are read-only.
+function renderVersionBar() {
+  const vs  = activePage.versions || [];
+  const cur = activePage.viewVersionId;
+  const conceptV = vs.find(v => v.status === 'concept');
+  const viewed   = vs.find(v => v.id == cur) || null;
+  const isLive   = !!viewed && viewed.status === 'live';
+  const STATUS_NL = { concept: 'Concept', live: 'Live', archived: 'Archief' };
+
+  const enabled = !!activePage.enabled;
+
+  const chips = vs.map(v => {
+    const main = `<button class="ver-chip ver-${v.status} ${v.id == cur ? 'active' : ''}"
+            onclick="viewVersion(${v.id})" title="${esc(v.title || '')}">
+      <span class="ver-dot"></span>${STATUS_NL[v.status] || v.status} v${v.version_no}
+    </button>`;
+    const del = v.status === 'archived'
+      ? `<button class="ver-del" title="Verwijder deze gearchiveerde versie" onclick="deleteVersion(${v.id})">✕</button>`
+      : '';
+    return `<span class="ver-chip-wrap">${main}${del}</span>`;
+  }).join('');
+
+  const hint =
+    activePage.editMode === 'concept' ? 'Concept — vrij te bewerken; publiceer om live te zetten.'
+    : activePage.editMode === 'live'  ? 'Live — pas hier direct tekst aan. Onderdelen toevoegen of verwijderen? Maak een concept.'
+    : isLive                          ? 'Live — er bestaat al een concept. Bewerk dat en publiceer.'
+    :                                   'Gearchiveerde versie — alleen-lezen. Maak live om terug te zetten.';
+
+  return `
+    <div class="version-bar">
+      <div class="field-label" style="margin-bottom:6px;">Versies</div>
+      <div class="ver-chips">${chips || '<span style="color:var(--text3);font-size:12px;">Geen versies</span>'}</div>
+      <div class="ver-actions">
+        ${viewed && !isLive ? `<button class="btn btn-sm btn-pub" onclick="makeVersionLive(${cur})">Maak deze versie live</button>` : ''}
+        ${conceptV
+          ? (activePage.editable ? '' : `<button class="btn btn-sm" onclick="viewVersion(${conceptV.id})">Naar concept</button>`)
+          : `<button class="btn btn-sm" onclick="createConcept()">Nieuw concept</button>`}
+      </div>
+      <div class="page-status-hint" style="margin-top:8px;">${hint}</div>
+      <div class="ver-visibility">
+        <span class="ver-dot ${enabled ? 'vis-on' : 'vis-off'}"></span>
+        <span>${enabled ? 'Zichtbaar voor studenten' : 'Verborgen voor studenten'}</span>
+        <button class="btn btn-sm" onclick="togglePageEnabled()">${enabled ? 'Verbergen' : 'Zichtbaar maken'}</button>
+      </div>
+    </div>`;
+}
+
+// Delete an archived version (its private content is GC'd server-side).
+async function deleteVersion(versionId) {
+  if (!confirm('Deze gearchiveerde versie definitief verwijderen?')) return;
   try {
-    const res = await fetch('api/set_page_published.php', {
+    const res = await fetch('api/delete_version.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page_id: activePage.dbId, published }),
+      body: JSON.stringify({ version_id: versionId }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) { alert(data.error || 'Status wijzigen mislukt.'); return; }
+    if (!res.ok || !data.ok) { alert(data.error || 'Verwijderen mislukt.'); return; }
+    const wasViewing = activePage.viewVersionId === versionId;
+    await openPageFromDb(activePage.dbId, false, wasViewing ? null : activePage.viewVersionId);
+  } catch (err) { alert('Verwijderen mislukt: ' + err.message); }
+}
 
-    activePage.published = data.published;
+// Toggle whether the whole page is visible to students.
+async function togglePageEnabled() {
+  if (!activePage || !activePage.dbId) return;
+  const next = activePage.enabled ? 0 : 1;
+  try {
+    const res = await fetch('api/set_page_enabled.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_id: activePage.dbId, enabled: next }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { alert(data.error || 'Wijzigen mislukt.'); return; }
+    activePage.enabled = data.enabled;
     const p = PAGES.find(pg => pg.id == activePage.dbId);
-    if (p) p.published = data.published;
+    if (p) p.enabled = data.enabled;
+    renderEditor();
+  } catch (err) { alert('Wijzigen mislukt: ' + err.message); }
+}
 
-    const btns = document.querySelectorAll('#statusToggle .status-btn');
-    btns[0]?.classList.toggle('active', !data.published);
-    btns[1]?.classList.toggle('active', !!data.published);
-    const hint = document.getElementById('pageStatusHint');
-    if (hint) hint.textContent = data.published
-      ? 'Actief — zichtbaar voor studenten. Zet op Concept om te bewerken.'
-      : 'Concept — alleen voor jou zichtbaar. Zet op Actief om te publiceren.';
-    setSaveStatus(data.published ? 'readonly' : 'saved');
-  } catch (err) {
-    alert('Status wijzigen mislukt: ' + err.message);
-  }
+// View (load) a specific version of the current page.
+async function viewVersion(versionId) {
+  if (!activePage) return;
+  await openPageFromDb(activePage.dbId, false, versionId);
+}
+
+// Start the single editable concept (cloned from live), then open it.
+async function createConcept() {
+  if (!activePage || !activePage.dbId) return;
+  try {
+    const res = await fetch('api/create_concept.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_id: activePage.dbId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { alert(data.error || 'Concept maken mislukt.'); return; }
+    await openPageFromDb(activePage.dbId, false, data.version_id);
+  } catch (err) { alert('Concept maken mislukt: ' + err.message); }
+}
+
+// Promote a version to live (archives the current live one).
+async function makeVersionLive(versionId) {
+  if (!versionId) return;
+  if (!confirm('Deze versie live zetten? De huidige live versie wordt gearchiveerd.')) return;
+  try {
+    const res = await fetch('api/set_live_version.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version_id: versionId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { alert(data.error || 'Live zetten mislukt.'); return; }
+    const p = PAGES.find(pg => pg.id == data.page_id);
+    if (p) { p.published = 1; p.live_version_id = versionId; }
+    await openPageFromDb(activePage.dbId, false, versionId);
+  } catch (err) { alert('Live zetten mislukt: ' + err.message); }
 }
 
 function updateMetaSubject(subjectId) {
@@ -2893,8 +3052,21 @@ function findComp(compId) {
   return null;
 }
 
+// False (and warns) when the active view is a live in-place edit — no adding,
+// removing or reordering of sections/components is allowed there.
+function structuralAllowed() {
+  if (!activePage) return false;
+  if (activePage.editMode !== 'concept') {
+    if (activePage.editMode === 'live')
+      alert('Op een live versie kun je alleen tekst aanpassen. Maak een concept om onderdelen of secties toe te voegen, te verwijderen of te herordenen.');
+    return false;
+  }
+  return true;
+}
+
 function addSection() {
   if (!activePage) return;
+  if (!structuralAllowed()) return;
   activePage.sections.push(makeSection("Nieuwe sectie", []));
   markUnsaved(); debounceSave(); renderEditor(); buildCourseSidebar();
   // Focus the new section title
@@ -2905,6 +3077,7 @@ function addSection() {
 
 function deleteSection(sectionId) {
   if (!activePage) return;
+  if (!structuralAllowed()) return;
   if (!confirm("Sectie verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
   activePage.sections = activePage.sections.filter(s => s.id !== sectionId);
   markUnsaved(); debounceSave(); renderEditor(); buildCourseSidebar();
@@ -2912,6 +3085,7 @@ function deleteSection(sectionId) {
 
 function moveSection(sectionId, dir) {
   if (!activePage) return;
+  if (!structuralAllowed()) return;
   const idx = activePage.sections.findIndex(s => s.id === sectionId);
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= activePage.sections.length) return;
@@ -2920,6 +3094,7 @@ function moveSection(sectionId, dir) {
 }
 
 function addComponent(sectionId, type) {
+  if (!structuralAllowed()) return;
   const section = activePage?.sections.find(s => s.id === sectionId);
   if (!section) return;
   const defaults = {
@@ -2934,6 +3109,7 @@ function addComponent(sectionId, type) {
 }
 
 function deleteComp(sectionId, compId) {
+  if (!structuralAllowed()) return;
   const section = activePage?.sections.find(s => s.id === sectionId);
   if (!section) return;
   section.components = section.components.filter(c => c.id !== compId);
@@ -2941,6 +3117,7 @@ function deleteComp(sectionId, compId) {
 }
 
 function moveComp(sectionId, compId, dir) {
+  if (!structuralAllowed()) return;
   const section = activePage?.sections.find(s => s.id === sectionId);
   if (!section) return;
   const idx = section.components.findIndex(c => c.id === compId);
@@ -2985,7 +3162,15 @@ let saveTimer;
 function debounceSave() {
   clearTimeout(saveTimer);
   setSaveStatus('saving');
-  saveTimer = setTimeout(() => { savePages(); persistActivePage(); }, 800);
+  saveTimer = setTimeout(() => { saveTimer = null; savePages(); persistActivePage(); }, 800);
+}
+
+// Persist a pending (debounced) autosave right now. Called before navigating
+// away so edits to the page you're leaving aren't lost to the 800ms race.
+async function flushPendingSave() {
+  if (!saveTimer) return;
+  clearTimeout(saveTimer); saveTimer = null;
+  await persistActivePage();
 }
 
 // Small topbar status pill.
@@ -3009,7 +3194,8 @@ function setSaveStatus(state) {
 function buildPagePayload() {
   if (!activePage) return null;
   return {
-    db_id:     activePage.dbId || null,
+    db_id:      activePage.dbId || null,
+    version_id: activePage.viewVersionId || null,
     course_id: parseInt(activePage.courseId, 10),
     title:     activePage.title || 'Naamloze pagina',
     type:      activePage.type || 'lesson',
@@ -3030,27 +3216,40 @@ function buildPagePayload() {
 // are replace-all saved and we refresh the section ids from the response.
 let _persisting = false;
 async function persistActivePage() {
+  if (!activePage) return;
+  // Only the concept is editable; viewing live/archived is read-only.
+  if (!activePage.editable) { setSaveStatus('readonly'); return; }
   const payload = buildPagePayload();
   if (!payload) return;
+  // Safety: never let an autosave persist an empty tree (e.g. a transient load
+  // failure) — that would wipe the version. A real page always has a section.
+  if (!payload.sections.length) { setSaveStatus('saved'); return; }
   if (_persisting) return;            // a save is already in flight; the next edit re-triggers
   _persisting = true;
+  // Concept → full replace-with-fork; live → in-place content-only update.
+  const url = activePage.editMode === 'live' ? 'api/update_live.php' : 'api/save_page.php';
   try {
-    const res  = await fetch('api/save_page.php', {
+    const res  = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data.structural) {
+      setSaveStatus('error');
+      alert('Op een live versie kun je alleen tekst aanpassen. Maak een concept om onderdelen toe te voegen, te verwijderen of te herordenen.');
+      return;
+    }
     if (res.status === 409) { setSaveStatus('readonly'); return; }
-    if (!res.ok || !data.ok) { setSaveStatus('error'); console.warn('[save_page]', data); return; }
+    if (!res.ok || !data.ok) { setSaveStatus('error'); console.warn('[persist]', data); return; }
 
-    activePage.dbId = data.db_id;
-    // Replace-all reassigns section ids — keep the local model in sync.
+    if (data.db_id) activePage.dbId = data.db_id;
+    // Keep local section ids in sync with whatever the server returned.
     (data.sections || []).forEach((id, i) => { if (activePage.sections[i]) activePage.sections[i].dbId = id; });
     markSaved();
     setSaveStatus('saved');
   } catch (err) {
-    console.warn('[save_page]', err);
+    console.warn('[persist]', err);
     setSaveStatus('error');
   } finally {
     _persisting = false;

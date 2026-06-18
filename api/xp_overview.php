@@ -18,29 +18,31 @@ if (!$username) {
 $stmt = $pdo->prepare("
     SELECT
         p.`Id`        AS page_id,
-        p.`title`     AS page_title,
+        lv.`Title`    AS page_title,
         p.`Course_Id` AS course_id,
         c.`Name`      AS course_name,
         c.`Icon`      AS course_icon,
         c.`Color`     AS course_color,
-        p.`XPReward`  AS page_xp,
-        COALESCE((SELECT SUM(s.`XPReward`)
-                  FROM `sections` s
-                  WHERE s.`Pages_Id` = p.`Id`), 0) AS sections_xp,
+        lv.`XpReward` AS page_xp,
+        COALESCE((SELECT SUM(pvs.`XPReward`)
+                  FROM `PageVersion_has_sections` pvs
+                  WHERE pvs.`PageVersion_Id` = lv.`Id`), 0) AS sections_xp,
         COALESCE((SELECT SUM(`RewardedAmount`)
                   FROM `UserXPLog`
                   WHERE `accounts_username` = :u_earned
                     AND (`pages_Id` = p.`Id`
-                         OR `sections_Id` IN (SELECT `Id` FROM `sections` WHERE `Pages_Id` = p.`Id`))), 0) AS earned_xp,
+                         OR `sections_Id` IN (SELECT pvs.`sections_Id` FROM `PageVersion_has_sections` pvs
+                                              WHERE pvs.`PageVersion_Id` = lv.`Id`))), 0) AS earned_xp,
         COALESCE((SELECT SUM(`RewardedAmount`)
                   FROM `UserXPLog`
                   WHERE `accounts_username` = :u_page
                     AND `Source` = 'Page'
                     AND `pages_Id` = p.`Id`), 0) AS page_earned
-    FROM `Pages` p
+    FROM `pages` p
     JOIN `courses` c ON c.`Id` = p.`Course_Id`
-    WHERE p.`published` = 1
-      AND EXISTS (SELECT 1 FROM `sections` s WHERE s.`Pages_Id` = p.`Id`)
+    JOIN `PageVersion` lv ON lv.`pages_Id` = p.`Id` AND lv.`Status` = 'live'
+    WHERE p.`Published` = 1
+      AND EXISTS (SELECT 1 FROM `PageVersion_has_sections` pvs WHERE pvs.`PageVersion_Id` = lv.`Id`)
     ORDER BY c.`Name`, p.`order`
 ");
 $stmt->execute([':u_earned' => $username, ':u_page' => $username]);
@@ -50,18 +52,21 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // has earned per section. Grouped by page so the front-end can unfold a row.
 $secStmt = $pdo->prepare("
     SELECT
-        s.`Pages_Id` AS page_id,
-        s.`Title`    AS title,
-        s.`XPReward` AS xp,
+        lv.`pages_Id` AS page_id,
+        s.`Title`     AS title,
+        pvs.`XPReward` AS xp,
         COALESCE(u.earned, 0) AS earned
-    FROM `sections` s
+    FROM `PageVersion` lv
+    JOIN `PageVersion_has_sections` pvs ON pvs.`PageVersion_Id` = lv.`Id`
+    JOIN `sections` s ON s.`Id` = pvs.`sections_Id`
     LEFT JOIN (
         SELECT `sections_Id`, SUM(`RewardedAmount`) AS earned
         FROM `UserXPLog`
         WHERE `accounts_username` = :u AND `Source` = 'Section'
         GROUP BY `sections_Id`
     ) u ON u.`sections_Id` = s.`Id`
-    ORDER BY s.`Pages_Id`, s.`Order`
+    WHERE lv.`Status` = 'live'
+    ORDER BY lv.`pages_Id`, pvs.`Order`
 ");
 $secStmt->execute([':u' => $username]);
 $sectionsByPage = [];
