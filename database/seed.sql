@@ -5,6 +5,11 @@
 
 USE `Rick Learning Platform`;
 
+-- Seed data is internally consistent, but it loads component/section *content*
+-- before the link tables that tie everything to a version. Disable FK checks
+-- for the load (same approach as the create script); re-enabled at the end.
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- -------------------------------------------------------------
 -- Page types
 -- -------------------------------------------------------------
@@ -37,7 +42,13 @@ INSERT INTO `Courses` (`Name`, `Icon`, `Color`, `Subject_Id`) VALUES
 -- -------------------------------------------------------------
 -- Pages  (71 rows; IDs assigned in insertion order)
 -- -------------------------------------------------------------
-INSERT INTO `Pages` (`Course_Id`, `title`, `order`, `published`, `PageType_Id`) VALUES
+-- Staged so page titles survive into PageVersion (pages itself no longer
+-- stores a title). Auto-increment Id matches the real pages.Id we insert below.
+CREATE TEMPORARY TABLE `_page_seed` (
+  `Id` INT AUTO_INCREMENT PRIMARY KEY, `Course_Id` INT, `Title` VARCHAR(45),
+  `Order` INT, `Published` INT, `PageType_Id` INT);
+
+INSERT INTO `_page_seed` (`Course_Id`, `Title`, `Order`, `Published`, `PageType_Id`) VALUES
 
 -- Python (course 1) → pages 1–10
 (1, 'Introductie Python',    1, 1, 1),
@@ -127,7 +138,11 @@ INSERT INTO `Pages` (`Course_Id`, `title`, `order`, `published`, `PageType_Id`) 
 -- -------------------------------------------------------------
 -- Sections  (3–4 per page, explicit IDs required by schema)
 -- -------------------------------------------------------------
-INSERT INTO `Sections` (`Id`, `Pages_Id`, `Title`, `Order`) VALUES
+-- Staged in a temp table so we can split content (sections) from placement
+-- (Order/XP, which now live on PageVersion_has_sections) without restating it.
+CREATE TEMPORARY TABLE `_sec_seed` (`Id` INT, `Pages_Id` INT, `Title` VARCHAR(45), `Order` INT);
+
+INSERT INTO `_sec_seed` (`Id`, `Pages_Id`, `Title`, `Order`) VALUES
 
 -- Page 1 — Introductie Python
 (1,  1, 'Wat is Python?',          1),
@@ -492,28 +507,36 @@ INSERT INTO `Sections` (`Id`, `Pages_Id`, `Title`, `Order`) VALUES
 (220, 71, 'Opgaven: Verbanden',    3);
 
 -- -------------------------------------------------------------
--- Backfill XP + duration for seed pages/sections.
--- Defaults are 0 so a fresh seed would have nothing to award — these
--- UPDATEs give the demo data sensible values per PageType.
+-- Snapshot each page into a live PageVersion, then wire up the
+-- version → section link table.  pages = identity only now; title,
+-- xp and duration live on PageVersion.
 --   1 = lesson, 2 = exercise, 3 = quiz, 4 = project
 -- -------------------------------------------------------------
-UPDATE `Pages` SET
-  `XPReward` = CASE `PageType_Id`
-    WHEN 1 THEN 20    -- les
-    WHEN 2 THEN 30    -- oefening
-    WHEN 3 THEN 50    -- quiz
-    WHEN 4 THEN 100   -- project
-    ELSE 20
-  END,
-  `EstimatedDuration` = CASE `PageType_Id`
-    WHEN 1 THEN 10
-    WHEN 2 THEN 15
-    WHEN 3 THEN 20
-    WHEN 4 THEN 60
-    ELSE 10
-  END;
+INSERT INTO `pages` (`Id`, `Course_Id`, `order`, `PageType_Id`, `Published`)
+  SELECT `Id`, `Course_Id`, `Order`, `PageType_Id`, `Published` FROM `_page_seed`;
 
-UPDATE `Sections` SET `XPReward` = 5;
+-- One live version per page; title from staging, xp/duration by page type.
+INSERT INTO `PageVersion`
+  (`pages_Id`, `VersionNo`, `Status`, `Title`, `XpReward`, `EstimatedDuration`, `CreatedAt`, `PublishedAt`)
+  SELECT `Id`, 1, 'live', `Title`,
+    CASE `PageType_Id` WHEN 1 THEN 20 WHEN 2 THEN 30 WHEN 3 THEN 50 WHEN 4 THEN 100 ELSE 20 END,
+    CASE `PageType_Id` WHEN 1 THEN 10 WHEN 2 THEN 15 WHEN 3 THEN 20 WHEN 4 THEN 60 ELSE 10 END,
+    NOW(), NOW()
+  FROM `_page_seed` ORDER BY `Id`;
+
+DROP TEMPORARY TABLE `_page_seed`;
+
+-- Real sections — content only (id + title; order + XP live on the link table).
+INSERT INTO `sections` (`Id`, `Title`)
+  SELECT `Id`, `Title` FROM `_sec_seed`;
+
+-- Link each section to its page's live version (Order from the seed, XP = 5).
+INSERT INTO `PageVersion_has_sections` (`PageVersion_Id`, `sections_Id`, `Order`, `XPReward`)
+  SELECT pv.`Id`, ss.`Id`, ss.`Order`, 5
+  FROM `_sec_seed` ss
+  JOIN `PageVersion` pv ON pv.`pages_Id` = ss.`Pages_Id` AND pv.`Status` = 'live';
+
+DROP TEMPORARY TABLE `_sec_seed`;
 
 -- -------------------------------------------------------------
 -- Languages
@@ -560,9 +583,12 @@ INSERT INTO `QuestionContext` (`ContextType`) VALUES
 ('refresher');
 
 -- -------------------------------------------------------------
--- Components
+-- Components  (staged in a temp table so content can be split from the
+-- section/order link — sections_has_components — without restating rows)
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
+CREATE TEMPORARY TABLE `_comp_seed` (`Id` INT, `Type` VARCHAR(45), `section_Id` INT, `Order` INT);
+
+INSERT INTO `_comp_seed` (`Id`, `Type`, `section_Id`, `Order`) VALUES
 
 -- Python — page 1 (Introductie Python)
 (1,  'text', 1,  1),   -- Wat is Python?       — intro tekst
@@ -619,7 +645,41 @@ INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`,
 -- Java p21: JDK uitleg
 (30, 'text', 67, 1),   -- JDK installeren      — uitleg
 -- C# p36: Je eerste script uitleg
-(31, 'text', 114, 1);  -- Je eerste script     — uitleg (code becomes order 2)
+(31, 'text', 114, 1),  -- Je eerste script     — uitleg (code becomes order 2)
+
+-- InfoBox components (tip / warning) — ids 32–35, 40
+(32, 'tip',     1,  2),
+(33, 'warning', 9,  3),
+(34, 'tip',     34, 3),
+(35, 'warning', 41, 2),
+(40, 'warning', 5,  2),
+
+-- Quiz components — ids 36–39, 43
+(36, 'quiz', 5,  1),
+(37, 'quiz', 6,  1),
+(38, 'quiz', 7,  2),
+(39, 'quiz', 36, 1),
+(43, 'quiz', 5,  5),
+
+-- MultiMedia components — ids 41, 42
+(41, 'multimedia', 5, 3),
+(42, 'multimedia', 5, 4),
+
+-- Assignment components — ids 100–104
+(100, 'assignment',   9, 4),
+(101, 'assignment',   4, 3),
+(102, 'assignment',  35, 3),
+(103, 'assignment',  78, 3),
+(104, 'assignment', 164, 2);
+
+-- Materialise component content + section links BEFORE any detail rows
+-- (TextBLocks / CodeSnippets / InfoBoxes / …) reference them, so the inserts
+-- satisfy their FK constraints even if the client ignores FOREIGN_KEY_CHECKS.
+INSERT INTO `components` (`Id`, `ComponentType_ComponentTypeText`)
+  SELECT `Id`, `Type` FROM `_comp_seed`;
+INSERT INTO `sections_has_components` (`sections_Id`, `components_Id`, `Order`)
+  SELECT `section_Id`, `Id`, `Order` FROM `_comp_seed`;
+DROP TEMPORARY TABLE `_comp_seed`;
 
 -- -------------------------------------------------------------
 -- TextBLocks  (content for 'text' type components)
@@ -792,13 +852,6 @@ public class BeweegScript : MonoBehaviour
 -- InfoBox components (tip / warning)
 -- Component IDs 32–35
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(32, 'tip',     1,  2),   -- Python p1 s1: tip na "Wat is Python?" tekst
-(33, 'warning', 9,  3),   -- Python p3 s9: while-loop oneindige-loop waarschuwing
-(34, 'tip',     34, 3),   -- JS p11 s34: tip na "Wat is JavaScript?" tekst
-(35, 'warning', 41, 2),   -- JS p13 s41: DOM waarschuwing
-(40, 'warning', 5,  2);   -- Python p2 s5: waarschuwing bij datatypes
-
 INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 (1, 32, 'Python is een van de meest populaire talen om mee te beginnen. De syntax lijkt op gewoon Engels, waardoor het makkelijker te lezen is dan veel andere talen.', 0),
 (2, 33, 'Vergeet niet de teller te verhogen in een while-loop! Als de conditie altijd waar blijft, loopt je programma oneindig door en moet je het geforceerd stoppen (Ctrl+C).', 1),
@@ -810,13 +863,6 @@ INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES
 -- PubQuiz components (quiz) — one component per question.
 -- Component IDs 36–39 + 43
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(36, 'quiz', 5, 1),    -- Python p2 s5: MC over datatypes (Q1)
-(37, 'quiz', 6, 1),    -- Python p2 s6: MC over type casting (Q2)
-(38, 'quiz', 7, 2),    -- Python p3 s7: open vraag over loops (Q3)
-(39, 'quiz', 36, 1),   -- JS p11 s36: MC over datatypes & operators (Q4)
-(43, 'quiz', 5, 5);    -- Python p2 s5: MC met meerdere goede antwoorden (Q5)
-
 INSERT INTO `PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALUES
 (1, 'Welk datatype gebruik je in Python voor een geheel getal?', 0, 36),
 (2, 'Wat is het resultaat van int("3.5") in Python?', 0, 37),
@@ -862,10 +908,6 @@ INSERT INTO `MultiMediaType` (`MultiMediaType`) VALUES
 -- MultiMedia components
 -- Component IDs 41–42
 -- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(41, 'multimedia', 5, 3),   -- Python p2 s5: image bij datatypes
-(42, 'multimedia', 5, 4);   -- Python p2 s5: video bij datatypes
-
 INSERT INTO `MultiMedia` (`Id`, `URL`, `components_Id`, `Uploaded`, `MultiMediaType_MultiMediaType`) VALUES
 (1, 'https://deadlock.wiki/images/b/b8/Shiv_card.png?20250819031257', 41, 0, 'image'),
 (2, 'https://www.youtube.com/watch?v=YonS9_QJbp8', 42, 0, 'video');
@@ -924,17 +966,6 @@ INSERT INTO `Student_Has_Course` (`accounts_username`, `courses_Id`, `Enrolled_a
 ('Thomas',    3, '2024-09-04 11:05:00'),
 ('Thomas',    7, '2024-09-04 11:05:00'),
 ('Yusuf',     1, '2024-10-01 08:50:00');
-
--- -------------------------------------------------------------
--- Assignment components
--- Ids 100-104 to avoid clashing with existing 1-42.
--- -------------------------------------------------------------
-INSERT INTO `Components` (`Id`, `ComponentType_ComponentTypeText`, `section_Id`, `Order`) VALUES
-(100, 'assignment',   9, 4),   -- Python p3 s9  (while-loop)          — FizzBuzz
-(101, 'assignment',   4, 3),   -- Python p2 s4  (variabelen)          — Variabelen-oefening
-(102, 'assignment',  35, 3),   -- JS     p11 s35 (variabelen)         — Console-opdracht
-(103, 'assignment',  78, 3),   -- Java   p25 s78 (klassen & objecten) — Klasse Hond
-(104, 'assignment', 164, 2);   -- N4     p53 s164 (procenten)         — Procenten berekenen
 
 -- -------------------------------------------------------------
 -- Assigments
@@ -1083,3 +1114,6 @@ INSERT INTO `Student_BelongsTo_Group` (`accounts_username`, `Groups_GroupNames`,
 ('Priya',     'SD1B', '2024-09-03 09:05:00'),
 ('Thomas',    'SD2A', '2024-09-04 11:00:00'),
 ('Yusuf',     'SD1A', '2024-10-01 08:45:00');
+
+-- Re-enable referential integrity now that all link tables are populated.
+SET FOREIGN_KEY_CHECKS = 1;

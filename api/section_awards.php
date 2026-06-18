@@ -18,10 +18,13 @@ if (!$username || !$page_id) {
 $stmt = $pdo->prepare(
     "SELECT u.`sections_Id` AS section_id
      FROM `UserXPLog` u
-     JOIN `sections` s ON s.`Id` = u.`sections_Id`
      WHERE u.`accounts_username` = ?
        AND u.`Source` = 'Section'
-       AND s.`Pages_Id` = ?"
+       AND EXISTS (
+           SELECT 1 FROM `PageVersion_has_sections` pvs
+           JOIN `PageVersion` pv ON pv.`Id` = pvs.`PageVersion_Id`
+           WHERE pvs.`sections_Id` = u.`sections_Id`
+             AND pv.`pages_Id` = ? AND pv.`Status` = 'live')"
 );
 $stmt->execute([$username, $page_id]);
 $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));

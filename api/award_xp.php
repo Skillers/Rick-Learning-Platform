@@ -26,7 +26,14 @@ if (!$username || (!$section_id && !$page_id)) {
  * or XPReward = 0 (we skip logging 0-XP so a later raise is still claimable).
  */
 function award_section(PDO $pdo, string $username, int $sectionId): int {
-    $stmt = $pdo->prepare("SELECT XPReward FROM sections WHERE Id = ?");
+    // Section XP now lives on the live version's link row.
+    $stmt = $pdo->prepare(
+        "SELECT pvs.`XPReward`
+         FROM `PageVersion_has_sections` pvs
+         JOIN `PageVersion` pv ON pv.`Id` = pvs.`PageVersion_Id`
+         WHERE pvs.`sections_Id` = ? AND pv.`Status` = 'live'
+         LIMIT 1"
+    );
     $stmt->execute([$sectionId]);
     $reward = $stmt->fetchColumn();
     if ($reward === false) return 0;
@@ -61,10 +68,15 @@ function award_page(PDO $pdo, string $username, int $pageId): int {
     // distinct slot, so we can't reuse :pid twice in one statement.
     $stmt = $pdo->prepare(
         "SELECT
-            (SELECT COUNT(*) FROM sections WHERE Pages_Id = ? AND XPReward > 0)
-          - (SELECT COUNT(*) FROM UserXPLog
-             WHERE accounts_username = ? AND Source = 'Section'
-               AND sections_Id IN (SELECT Id FROM sections WHERE Pages_Id = ? AND XPReward > 0))
+            (SELECT COUNT(*) FROM `PageVersion_has_sections` pvs
+               JOIN `PageVersion` pv ON pv.`Id` = pvs.`PageVersion_Id`
+               WHERE pv.`pages_Id` = ? AND pv.`Status` = 'live' AND pvs.`XPReward` > 0)
+          - (SELECT COUNT(*) FROM `UserXPLog`
+             WHERE `accounts_username` = ? AND `Source` = 'Section'
+               AND `sections_Id` IN (
+                   SELECT pvs.`sections_Id` FROM `PageVersion_has_sections` pvs
+                   JOIN `PageVersion` pv ON pv.`Id` = pvs.`PageVersion_Id`
+                   WHERE pv.`pages_Id` = ? AND pv.`Status` = 'live' AND pvs.`XPReward` > 0))
          AS missing"
     );
     $stmt->execute([$pageId, $username, $pageId]);
@@ -77,7 +89,7 @@ function award_page(PDO $pdo, string $username, int $pageId): int {
     )->execute([$username, $pageId]);
 
     // Award page XP if there is any.
-    $stmt = $pdo->prepare("SELECT XPReward FROM pages WHERE Id = ?");
+    $stmt = $pdo->prepare("SELECT `XpReward` FROM `PageVersion` WHERE `pages_Id` = ? AND `Status` = 'live' LIMIT 1");
     $stmt->execute([$pageId]);
     $reward = (int)$stmt->fetchColumn();
     if ($reward === 0) return 0;
@@ -102,7 +114,11 @@ try {
 
     if ($section_id) {
         // Find the page this section belongs to so we can attempt the cascade.
-        $stmt = $pdo->prepare("SELECT Pages_Id FROM sections WHERE Id = ?");
+        $stmt = $pdo->prepare(
+            "SELECT pv.`pages_Id` FROM `PageVersion_has_sections` pvs
+             JOIN `PageVersion` pv ON pv.`Id` = pvs.`PageVersion_Id`
+             WHERE pvs.`sections_Id` = ? AND pv.`Status` = 'live' LIMIT 1"
+        );
         $stmt->execute([$section_id]);
         $parentPageId = (int)$stmt->fetchColumn();
 

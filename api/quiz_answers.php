@@ -14,17 +14,18 @@ if (!$username || !$page_id) {
 
 // Pull every section-context attempt this user has on questions belonging to this page.
 $stmt = $pdo->prepare("
-    SELECT
+    SELECT DISTINCT
         dq.Id            AS did_question_id,
         dq.PQQuestion_Id AS question_id,
         dq.OpenAnswer    AS open_answer
     FROM AC_Did_Question dq
-    JOIN PQQuestion q   ON q.Id = dq.PQQuestion_Id
-    JOIN Components c   ON c.Id = q.component_Id
-    JOIN Sections s     ON s.Id = c.Section_Id
+    JOIN PQQuestion q ON q.Id = dq.PQQuestion_Id
+    JOIN sections_has_components shc ON shc.components_Id = q.component_Id
+    JOIN PageVersion_has_sections pvs ON pvs.sections_Id = shc.sections_Id
+    JOIN PageVersion pv ON pv.Id = pvs.PageVersion_Id AND pv.Status = 'live'
     WHERE dq.accounts_username           = ?
       AND dq.QuestionContext_ContextType = 'section'
-      AND s.Pages_Id                     = ?
+      AND pv.pages_Id                    = ?
 ");
 $stmt->execute([$username, $page_id]);
 $attempts = $stmt->fetchAll(PDO::FETCH_ASSOC);

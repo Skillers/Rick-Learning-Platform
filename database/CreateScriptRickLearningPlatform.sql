@@ -63,12 +63,9 @@ DEFAULT CHARACTER SET = utf8mb4;
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`pages` (
   `Id` INT(11) NOT NULL AUTO_INCREMENT,
   `Course_Id` INT(11) NOT NULL,
-  `title` VARCHAR(45) NOT NULL,
   `order` INT(11) NULL DEFAULT NULL,
-  `published` TINYINT(1) NOT NULL,
   `PageType_Id` INT(11) NOT NULL,
-  `XPReward` INT(3) NOT NULL DEFAULT 20,
-  `EstimatedDuration` INT(3) NOT NULL DEFAULT 10,
+  `Published` TINYINT NOT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_Pages_Courses1_idx` (`Course_Id` ASC),
   INDEX `fk_Pages_PageTypes1_idx` (`PageType_Id` ASC),
@@ -91,17 +88,8 @@ DEFAULT CHARACTER SET = utf8mb4;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`sections` (
   `Id` INT(11) NOT NULL,
-  `Pages_Id` INT(11) NOT NULL,
   `Title` VARCHAR(45) NOT NULL,
-  `Order` INT(11) NOT NULL,
-  `XPReward` INT(3) NOT NULL DEFAULT 5,
-  PRIMARY KEY (`Id`),
-  INDEX `fk_Sections_Pages1_idx` (`Pages_Id` ASC),
-  CONSTRAINT `fk_Sections_Pages1`
-    FOREIGN KEY (`Pages_Id`)
-    REFERENCES `rick learning platform`.`pages` (`Id`)
-    ON DELETE CASCADE
-    ON UPDATE NO ACTION)
+  PRIMARY KEY (`Id`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
 
@@ -120,17 +108,9 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`components` (
   `Id` INT(11) NOT NULL,
-  `section_Id` INT(11) NOT NULL,
-  `Order` INT NOT NULL,
   `ComponentType_ComponentTypeText` VARCHAR(45) NULL,
   PRIMARY KEY (`Id`),
-  INDEX `fk_components_sections1_idx` (`section_Id` ASC),
   INDEX `fk_components_ComponentType1_idx` (`ComponentType_ComponentTypeText` ASC),
-  CONSTRAINT `fk_components_sections1`
-    FOREIGN KEY (`section_Id`)
-    REFERENCES `rick learning platform`.`sections` (`Id`)
-    ON DELETE CASCADE
-    ON UPDATE NO ACTION,
   CONSTRAINT `fk_components_ComponentType1`
     FOREIGN KEY (`ComponentType_ComponentTypeText`)
     REFERENCES `rick learning platform`.`ComponentType` (`ComponentTypeText`)
@@ -254,7 +234,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`accounts` (
   `username` VARCHAR(25) NOT NULL,
   `Password` VARCHAR(255) NOT NULL,
   `Email` VARCHAR(120) NOT NULL,
-  `Role` VARCHAR(25) NOT NULL,
+  `Role` ENUM('User', 'Teacher', 'Superadmin') NOT NULL DEFAULT 'User',
   `CreatedAt` DATETIME NOT NULL,
   `Active` TINYINT NOT NULL,
   PRIMARY KEY (`username`),
@@ -649,6 +629,78 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`UserXPLog` (
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`PageVersion`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`PageVersion` (
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `pages_Id` INT(11) NOT NULL,
+  `VersionNo` INT NOT NULL DEFAULT 1,
+  `Status` ENUM('concept', 'live', 'archived') NOT NULL DEFAULT 'concept',
+  `Title` VARCHAR(45) NULL,
+  `XpReward` INT(3) NOT NULL DEFAULT 10,
+  `EstimatedDuration` INT(3) NOT NULL DEFAULT 10,
+  `CreatedAt` DATETIME NOT NULL,
+  `PublishedAt` DATETIME NULL,
+  `ArchivedAt` DATETIME NULL,
+  PRIMARY KEY (`Id`),
+  INDEX `fk_PageVersion_pages1_idx` (`pages_Id` ASC),
+  CONSTRAINT `fk_PageVersion_pages1`
+    FOREIGN KEY (`pages_Id`)
+    REFERENCES `rick learning platform`.`pages` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`PageVersion_has_sections`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`PageVersion_has_sections` (
+  `PageVersion_Id` INT NOT NULL,
+  `sections_Id` INT(11) NOT NULL,
+  `Order` INT NOT NULL,
+  `XPReward` INT NOT NULL,
+  PRIMARY KEY (`PageVersion_Id`, `sections_Id`),
+  INDEX `fk_PageVersion_has_sections_sections1_idx` (`sections_Id` ASC),
+  INDEX `fk_PageVersion_has_sections_PageVersion1_idx` (`PageVersion_Id` ASC),
+  CONSTRAINT `fk_PageVersion_has_sections_PageVersion1`
+    FOREIGN KEY (`PageVersion_Id`)
+    REFERENCES `rick learning platform`.`PageVersion` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_PageVersion_has_sections_sections1`
+    FOREIGN KEY (`sections_Id`)
+    REFERENCES `rick learning platform`.`sections` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`sections_has_components`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`sections_has_components` (
+  `sections_Id` INT(11) NOT NULL,
+  `components_Id` INT(11) NOT NULL,
+  `Order` INT NOT NULL,
+  PRIMARY KEY (`sections_Id`, `components_Id`),
+  INDEX `fk_sections_has_components_components1_idx` (`components_Id` ASC),
+  INDEX `fk_sections_has_components_sections1_idx` (`sections_Id` ASC),
+  CONSTRAINT `fk_sections_has_components_sections1`
+    FOREIGN KEY (`sections_Id`)
+    REFERENCES `rick learning platform`.`sections` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_sections_has_components_components1`
+    FOREIGN KEY (`components_Id`)
+    REFERENCES `rick learning platform`.`components` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
 
 
 SET SQL_MODE=@OLD_SQL_MODE;
