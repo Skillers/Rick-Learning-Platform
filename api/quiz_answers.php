@@ -17,7 +17,10 @@ $stmt = $pdo->prepare("
     SELECT DISTINCT
         dq.Id            AS did_question_id,
         dq.PQQuestion_Id AS question_id,
-        dq.OpenAnswer    AS open_answer
+        dq.OpenAnswer    AS open_answer,
+        dq.Verdict       AS verdict,
+        dq.ReviewFeedback AS feedback,
+        dq.ReviewedAt    AS reviewed_at
     FROM AC_Did_Question dq
     JOIN PQQuestion q ON q.Id = dq.PQQuestion_Id
     JOIN sections_has_components shc ON shc.components_Id = q.component_Id
@@ -57,6 +60,9 @@ foreach ($attempts as $a) {
         'question_id'       => (int)$a['question_id'],
         'open_answer'       => $a['open_answer'],
         'picked_answer_ids' => $picksByDid[$didId] ?? [],
+        'verdict'           => $a['verdict'],       // 'none' | 'V' | 'X'
+        'feedback'          => $a['feedback'],
+        'reviewed_at'       => $a['reviewed_at'],
     ];
 }
 

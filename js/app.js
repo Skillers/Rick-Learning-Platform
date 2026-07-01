@@ -22,7 +22,8 @@ let COURSES = [];
 const STUDENT = {
   name:    "Student",
   initials:"ST",
-  role:    "student",
+  role:    "User",
+  unread:  0,
   email:   "",
   xp:           0,
   level:        1,
@@ -78,6 +79,10 @@ let fullView        = false;
 let prevLesson      = null;
 let nextLesson      = null;
 let _fullViewObserver = null;
+// Section ids the student has actually scrolled into view while in full view.
+// Full view shows every section at once, so there's no per-slide "leave" to
+// award them — we award the ones that were genuinely seen on lesson exit.
+let _fullViewSeen = new Set();
 
 /* ── Init ────────────────────────────────────── */
 let _stopLoginAnim = null;
@@ -111,6 +116,7 @@ async function bootApp() {
     const data     = await res.json();
     if (data.username) { STUDENT.name = data.username; STUDENT.initials = initials(data.username); }
     STUDENT.role   = data.role || STUDENT.role;
+    STUDENT.unread = data.unreadNotifications ?? STUDENT.unread;
     STUDENT.email  = data.email || STUDENT.email;
     if (data.email) sessionStorage.setItem("ict_email", data.email);
     STUDENT.streak        = data.currentStreak ?? STUDENT.streak;
@@ -134,6 +140,7 @@ async function bootApp() {
   // menu showing the static "Studentnaam / student" placeholders.
   document.getElementById("avatarMenuName").textContent = STUDENT.name;
   document.getElementById("avatarMenuSub").textContent  = roleLabel(STUDENT.role);
+  initStudentNotifications();
 
   await initSidebar("sidebar-mount", loadLesson, showCourse, STUDENT.name);
   COURSES = getCourses();
@@ -142,11 +149,22 @@ async function bootApp() {
   buildHeatmap();
   showView("dashboard");
   setTopbar("Dashboard", "Welkom terug, " + STUDENT.name + "!");
+  openLessonFromDeepLink();
+}
+
+// Arrived from a "Beoordeeld" notification on another page (?course=&page=)?
+// Open that lesson, then strip the params so a manual reload stays on the dashboard.
+function openLessonFromDeepLink() {
+  const p = new URLSearchParams(location.search);
+  const courseId = p.get("course"), pageId = p.get("page");
+  if (!courseId || !pageId) return;
+  history.replaceState(null, "", location.pathname);
+  loadLesson(courseId, pageId);
 }
 
 // Dutch display label for an account role; falls back to the raw value.
 function roleLabel(role) {
-  return { student: "Student", docent: "Docent", superadmin: "Beheerder" }[role] || role || "Student";
+  return { User: "Student", Teacher: "Docent", Superadmin: "Beheerder" }[role] || role || "Student";
 }
 
 function toggleAvatarMenu() {
@@ -168,6 +186,22 @@ document.addEventListener("click", (e) => {
     document.getElementById("avatarMenu")?.classList.remove("open");
   }
 });
+
+// Notifications: the bell + dashboard tile are driven by the shared
+// js/notifications.js component (window.Notifications), used on every page so
+// behaviour is identical. The student view passes an onItem hook so clicking a
+// graded notification opens the page in-app instead of a full navigation.
+function initStudentNotifications() {
+  if (!window.Notifications) return;
+  Notifications.init(STUDENT.name, {
+    onItem: (n) => {
+      // A teacher viewing the main page can have To_grade items — those belong on
+      // the grading page, not the in-app lesson view.
+      if (n.type === "To_grade") { window.location = "./HomeworkManager?did=" + n.did_question_id; return; }
+      if (n.course_id && n.page_id) loadLesson(n.course_id, n.page_id);
+    },
+  });
+}
 
 function handleLogin(e) {
   e.preventDefault();
@@ -540,6 +574,7 @@ function buildDashboard() {
   // Pull the latest completion state into the course objects so tiles reflect
   // progress made since load (e.g. returning from a lesson) without a reload.
   refreshCourseProgress();
+  if (window.Notifications) Notifications.refresh();   // refresh tile + bell count
   document.getElementById("userInitials").textContent = STUDENT.initials;
   document.getElementById("userName").textContent     = STUDENT.name;
   updateSidebarUser(STUDENT);
@@ -911,6 +946,7 @@ function buildCourseCard(course) {
 ═══════════════════════════════════════════════ */
 function buildHeatmap() {
   const c = document.getElementById("heatmap");
+  if (!c) return;   // heatmap is optional — don't let a missing element abort bootApp
   c.innerHTML = "";
   Array.from({ length: 84 }, (_, i) => {
     const r = Math.random(), rec = i / 84;
@@ -1283,6 +1319,8 @@ async function loadQuizSubmissions(pageId) {
       _quizSubmissions[r.question_id] = {
         picked_answer_ids: r.picked_answer_ids || [],
         open_answer:       r.open_answer,
+        verdict:           r.verdict,       // 'none' | 'V' | 'X'
+        feedback:          r.feedback,
       };
     });
   } catch {}
@@ -1441,14 +1479,24 @@ async function leaveCurrentLesson() {
   const lessonId = currentLesson?.id;
   const visible  = _currentSectionIdx !== null ? _currentSections[_currentSectionIdx] : null;
   const dwell    = _sectionEnterTime ? Date.now() - _sectionEnterTime : 0;
+  const sections = _currentSections;   // capture before reset
+  const seen     = _fullViewSeen;
   _currentSectionIdx = null;
   _currentSections   = [];
 
-  if (visible) {
-    await maybeAwardSection(visible, dwell);  // includes server-side page cascade
-  } else if (lessonId) {
-    await postAwardXP({ page_id: lessonId });
+  // Section view: award the slide we're leaving (text is dwell-gated).
+  if (visible) await maybeAwardSection(visible, dwell);
+
+  // Full view: award each section the student actually scrolled into view.
+  // maybeAwardSection still enforces completion, so quiz sections only count
+  // once answered; text sections count because they were genuinely seen.
+  for (const s of sections) {
+    if (s && s.id && seen.has(s.id)) await maybeAwardSection(s, Infinity);
   }
+
+  // Page award — section awards already cascade, but this also covers the
+  // "everything was already awarded" and 0-section cases.
+  if (lessonId) await postAwardXP({ page_id: lessonId });
 }
 
 // Fire the leave-award for the visible section when staying in the same lesson
@@ -1584,7 +1632,19 @@ function applyQuizState(box, saved) {
       input.value    = saved.open_answer || '';
       input.disabled = true;
     }
-    if (fb) { fb.textContent = 'Antwoord ingeleverd!'; fb.className = 'quiz-feedback correct'; }
+    if (fb) {
+      const v = saved.verdict;
+      const fbBlock = saved.feedback
+        ? `<div class="quiz-review-feedback"><span class="quiz-review-label">Feedback docent</span>${escHtml(saved.feedback)}</div>`
+        : '';
+      if (v === 'V' || v === 'X') {
+        fb.className   = 'quiz-feedback ' + (v === 'V' ? 'correct' : 'wrong');
+        fb.innerHTML   = `Beoordeeld: <strong>${v === 'V' ? 'voldoende' : 'onvoldoende'}</strong>` + fbBlock;
+      } else {
+        fb.className   = 'quiz-feedback';
+        fb.textContent = 'Antwoord ingeleverd — wordt nagekeken.';
+      }
+    }
     return;
   }
 
@@ -1713,7 +1773,9 @@ function updateNextPageNav() {
   // Guided mode — the student was redirected to mop up skipped sections. The
   // button either points to the next unfinished one or, once the page is fully
   // done, advances to the next onderdeel (or back to the dashboard).
-  if (_redirectedToUnfinished) {
+  // Skipped in full view: every section is already on screen, so a redirect to
+  // an "unfinished" one is meaningless — the button is just next page / dashboard.
+  if (!fullView && _redirectedToUnfinished) {
     if (unfinishedIdx !== -1) {
       nav.innerHTML = `<div class="next-page-wrap guided-nav">
         <div class="guided-nav-msg">Je hebt nog niet alle onderdelen op deze pagina afgerond.</div>
@@ -1738,8 +1800,8 @@ function updateNextPageNav() {
 
   // Normal mode (reached on the last slide): if sections are still unfinished,
   // redirect to the first one and label the button with its name instead of
-  // advancing to the next page.
-  if (unfinishedIdx !== -1) {
+  // advancing to the next page. Not in full view — see note above.
+  if (!fullView && unfinishedIdx !== -1) {
     nav.innerHTML = `<div class="next-page-wrap">
       <button class="btn btn-primary next-page-btn" id="btnNext">Ga naar: ${sectionName(unfinishedIdx)} →</button>
     </div>`;
@@ -1769,6 +1831,7 @@ function paginateSections(sections, startIdx = 0) {
   currentSlideIdx = 0;
   fullView = false;
   _redirectedToUnfinished = false;  // fresh page — start outside guided mode
+  _fullViewSeen = new Set();        // fresh page — nothing seen in full view yet
   const btn = document.getElementById("viewToggleBtn");
   if (btn) btn.textContent = "Switch to full view";
   // One section per slide
@@ -1818,6 +1881,9 @@ function renderFullView() {
       if (entry.isIntersecting) {
         const idx = Array.from(sections).indexOf(entry.target);
         if (idx >= 0 && currentLesson) syncSidebarSection(currentLesson.id, idx);
+        // Remember this section was genuinely scrolled into view so we can award
+        // it (per section) when the student leaves the lesson.
+        if (idx >= 0 && _currentSections[idx]?.id) _fullViewSeen.add(_currentSections[idx].id);
       }
     });
   }, { root: document.querySelector(".main"), threshold: 0.3 });

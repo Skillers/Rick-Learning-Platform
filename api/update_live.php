@@ -101,7 +101,7 @@ try {
     $updCode  = $pdo->prepare("UPDATE `CodeSnippets` SET `Code` = ?, `Languages_Id` = ? WHERE `Components_Id` = ?");
     $updInfo  = $pdo->prepare("UPDATE `InfoBoxes` SET `Text` = ?, `IsWarning` = ? WHERE `components_Id` = ?");
     $updMedia = $pdo->prepare("UPDATE `MultiMedia` SET `URL` = ?, `Uploaded` = ?, `MultiMediaType_MultiMediaType` = ? WHERE `components_Id` = ?");
-    $updQ     = $pdo->prepare("UPDATE `PQQuestion` SET `Question` = ?, `Image` = ?, `OpenQuestion` = ? WHERE `component_Id` = ?");
+    $updQ     = $pdo->prepare("UPDATE `PQQuestion` SET `Question` = ?, `Image` = ?, `OpenQuestion` = ?, `ExpectedResult` = ? WHERE `component_Id` = ?");
 
     foreach ($sections as $sec) {
         $secId = (int)($sec['db_id'] ?? 0);
@@ -158,7 +158,9 @@ try {
                     $question = mb_substr((string)($qd['question'] ?? $content), 0, 255);
                     $isOpen   = !empty($qd['open_question']) ? 1 : 0;
                     $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : null;
-                    $updQ->execute([$question, $image, $isOpen, $cid]);
+                    $expected = ($isOpen && trim((string)($qd['expected_result'] ?? '')) !== '')
+                              ? (string)$qd['expected_result'] : null;
+                    $updQ->execute([$question, $image, $isOpen, $expected, $cid]);
                     // Update existing answers in place (no add/remove → student picks stay valid).
                     $qIdStmt = $pdo->prepare("SELECT `Id` FROM `PQQuestion` WHERE `component_Id` = ?");
                     $qIdStmt->execute([$cid]);

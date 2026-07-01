@@ -7,6 +7,11 @@ require_once __DIR__ . '/_versions.php';
 $page_id = isset($_GET['page_id']) ? (int)$_GET['page_id'] : 0;
 if (!$page_id) { echo '[]'; exit; }
 
+// Editor calls pass ?edit=1 to receive teacher-only fields (e.g. open-question
+// ExpectedResult). The student read path omits them so the marking guide / model
+// answer is never shipped to students.
+$editMode = !empty($_GET['edit']);
+
 // Which snapshot to load: ?version_id / ?status / default live.
 $versionId = resolve_requested_version($pdo, $page_id);
 if (!$versionId) { echo '[]'; exit; }
@@ -54,11 +59,13 @@ $mediaById = $indexBy("SELECT `components_Id`, `URL`, `Uploaded`, `MultiMediaTyp
                        FROM `MultiMedia` WHERE `components_Id` IN ($ph)", 'components_Id');
 
 // Quiz question + answers.
-$quizById = $indexBy("SELECT `component_Id`, `Id`, `Question`, `Image`, `OpenQuestion`
+$quizById = $indexBy("SELECT `component_Id`, `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult`
                       FROM `PQQuestion` WHERE `component_Id` IN ($ph)", 'component_Id');
 $answersByQ = [];
 if ($quizById) {
-    $qIds = array_map(fn($q) => (int)$q['Id'], $quizById);
+    // array_values: $quizById is keyed by component_id, and positional PDO
+    // params with native prepares choke on non-sequential integer keys.
+    $qIds = array_values(array_map(fn($q) => (int)$q['Id'], $quizById));
     $qph = implode(',', array_fill(0, count($qIds), '?'));
     $aSt = $pdo->prepare("SELECT `Id`, `PQQuestion_Id`, `AnswerOption`, `IsCorrect`
                           FROM `PQAnswer` WHERE `PQQuestion_Id` IN ($qph) ORDER BY `Id`");
@@ -110,6 +117,8 @@ foreach ($members as $m) {
             'question'      => $q['Question'] ?? '',
             'image'         => $q['Image'] ?? null,
             'open_question' => (int)($q['OpenQuestion'] ?? 0),
+            // Teacher-only marking guide — never expose on the student read path.
+            'expected_result' => $editMode ? ($q['ExpectedResult'] ?? '') : null,
             'answers'       => $answersByQ[(int)($q['Id'] ?? 0)] ?? [],
         ], JSON_UNESCAPED_UNICODE);
     } elseif (isset($infoById[$cid])) {

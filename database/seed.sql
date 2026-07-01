@@ -870,6 +870,11 @@ INSERT INTO `PQQuestion` (`Id`, `Question`, `OpenQuestion`, `component_Id`) VALU
 (4, 'Wat is het resultaat van typeof 42 in JavaScript?', 0, 39),
 (5, 'Welke van de volgende zijn geldige Python datatypes?', 0, 43);
 
+-- Expected-answer guidance for the teacher. Only PQQuestion 3 is an open question.
+UPDATE `PQQuestion`
+   SET `ExpectedResult` = 'Noem het kernverschil: een for-loop gebruik je bij een vooraf bekend aantal herhalingen (itereren over een reeks), terwijl een while-loop herhaalt zolang een voorwaarde waar is. Een goed antwoord geeft van beide een kort voorbeeld.'
+ WHERE `Id` = 3;
+
 INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES
 -- Q1: datatypes
 (1, 'int',    1),
@@ -924,14 +929,14 @@ INSERT INTO `EmptySpace` (`BeforeLineSpace`, `AfterLineSpace`, `table1_LineType`
 -- Password hash = bcrypt of 'wachtwoord123' for all demo users
 -- -------------------------------------------------------------
 INSERT INTO `accounts` (`username`, `Password`, `Email`, `Role`, `CreatedAt`, `Active`) VALUES
-('Rick',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'Rick.nl@hotmail.com',         'superadmin', '2024-09-01 08:00:00', 1),
-('Marloes',   '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'marloes@ictcollege.nl',       'docent',     '2024-09-01 08:30:00', 1),
-('JanWillem', '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'jan.willem@student.rocmn.nl', 'student',    '2024-09-02 10:15:00', 1),
-('Fatima',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'fatima@student.rocmn.nl',     'student',    '2024-09-02 10:20:00', 1),
-('Daan',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'daan@student.rocmn.nl',       'student',    '2024-09-03 09:00:00', 1),
-('Priya',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'priya@student.rocmn.nl',      'student',    '2024-09-03 09:05:00', 1),
-('Thomas',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'thomas@student.rocmn.nl',     'student',    '2024-09-04 11:00:00', 1),
-('Yusuf',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'yusuf@student.rocmn.nl',      'student',    '2024-10-01 08:45:00', 0);
+('Rick',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'Rick.nl@hotmail.com',         'Superadmin', '2024-09-01 08:00:00', 1),
+('Marloes',   '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'marloes@ictcollege.nl',       'Teacher',     '2024-09-01 08:30:00', 1),
+('JanWillem', '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'jan.willem@student.rocmn.nl', 'User', '2024-09-02 10:15:00', 1),
+('Fatima',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'fatima@student.rocmn.nl',     'User','2024-09-02 10:20:00', 1),
+('Daan',      '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'daan@student.rocmn.nl',       'User','2024-09-03 09:00:00', 1),
+('Priya',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'priya@student.rocmn.nl',      'User','2024-09-03 09:05:00', 1),
+('Thomas',    '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'thomas@student.rocmn.nl',     'User','2024-09-04 11:00:00', 1),
+('Yusuf',     '$2y$10$eRXfKe1YN6Y0iaq4whGirulR3FvOeUeeHGsXN7PPFH85F3ie/Xn9e', 'yusuf@student.rocmn.nl',      'User','2024-10-01 08:45:00', 0);
 
 -- -------------------------------------------------------------
 -- AccountStats  (login streaks — demo data spans all 4 badge states)
@@ -1046,10 +1051,28 @@ INSERT INTO `Accounts_have_assignments`
  '2024-11-25 10:00:00');
 
 -- -------------------------------------------------------------
+-- Grading sample data  (Verdict: 'none' = nog na te kijken, 'V' = voldoende, 'X' = onvoldoende)
+-- Marloes is docent voor Python (1) en JavaScript (2), dus zij kijkt deze na.
+-- Twee inzendingen alvast beoordeeld; de rest blijft 'none' = de "na te kijken"-wachtrij.
+-- -------------------------------------------------------------
+UPDATE `Accounts_have_assignments`
+   SET `Verdict` = 'V',
+       `Feedback` = 'Netjes opgelost en goed gebruik van template literals. Prima werk!',
+       `FeedbackDate` = '2025-01-16 09:00:00',
+       `GradedBy` = 'Marloes'
+ WHERE `account_username` = 'Priya' AND `Assigment_Id` = 3;
+
+UPDATE `Accounts_have_assignments`
+   SET `Verdict` = 'X',
+       `Feedback` = 'FizzBuzz klopt nog niet voor veelvouden van 15: check eerst op 15 (of op % 3 én % 5) voordat je op 3 of 5 test.',
+       `FeedbackDate` = '2025-01-15 11:00:00',
+       `GradedBy` = 'Marloes'
+ WHERE `account_username` = 'Daan' AND `Assigment_Id` = 1;
+
+-- -------------------------------------------------------------
 -- Quiz: open-question attempts  (AC_Did_Question)
 -- Only PQQuestion 3 has OpenQuestion = 1 in the seed.
--- OpenAnswer and ReviewFeedback ≤ 45 chars (current VARCHAR(45)).
--- 3 unreviewed, 2 already reviewed by docent/admin.
+-- 3 unreviewed (Verdict stays 'none'), 2 already reviewed (Verdict set below).
 -- -------------------------------------------------------------
 INSERT INTO `AC_Did_Question`
   (`accounts_username`, `PQQuestion_Id`, `QuestionContext_ContextType`,
@@ -1074,6 +1097,12 @@ INSERT INTO `AC_Did_Question`
 ('Thomas',    3, 'section', '2025-01-03 11:00:00',
  'for heeft teller, while heeft conditie',
  'Rick', '2025-01-06 09:15:00', 'Bijna. Controleer de loops.');
+
+-- Verdicts for the two reviewed open answers (mirrors the V/X on the assignment side).
+UPDATE `AC_Did_Question` SET `Verdict` = 'V'
+ WHERE `accounts_username` = 'Daan'   AND `PQQuestion_Id` = 3 AND `QuestionContext_ContextType` = 'section';
+UPDATE `AC_Did_Question` SET `Verdict` = 'X'
+ WHERE `accounts_username` = 'Thomas' AND `PQQuestion_Id` = 3 AND `QuestionContext_ContextType` = 'section';
 
 -- -------------------------------------------------------------
 -- Teacher ↔ Course assignments

@@ -2,8 +2,8 @@
 /**
  * update_course.php — rename a course (and optionally icon/color) from the admin.
  *
- * Input (JSON POST): { course_id:int, name:string, icon?:string, color?:string }
- * Output: { ok:true, course: { id, name, icon, color } }
+ * Input (JSON POST): { course_id:int, name:string, icon?:string, color?:string, subject_id?:int }
+ * Output: { ok:true, course: { id, name, icon, color, subject_id? } }
  */
 header('Content-Type: application/json; charset=utf-8');
 
@@ -47,12 +47,30 @@ try {
         }
     }
 
-    $pdo->prepare("UPDATE Courses SET Name = ?, Icon = ?, Color = ? WHERE Id = ?")
-        ->execute([$name, $icon, $color, $courseId]);
+    // Optional: move the course to a different subject (validated against subjects).
+    $subjectId  = isset($in['subject_id']) ? (int)$in['subject_id'] : 0;
+    $setSubject = '';
+    $params     = [$name, $icon, $color];
+    if ($subjectId > 0) {
+        $chk = $pdo->prepare("SELECT 1 FROM subjects WHERE id = ?");
+        $chk->execute([$subjectId]);
+        if (!$chk->fetchColumn()) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Onbekend vak']);
+            exit;
+        }
+        $setSubject = ', Subject_Id = ?';
+        $params[]   = $subjectId;
+    }
+    $params[] = $courseId;
+
+    $pdo->prepare("UPDATE Courses SET Name = ?, Icon = ?, Color = ?{$setSubject} WHERE Id = ?")
+        ->execute($params);
 
     echo json_encode([
         'ok' => true,
-        'course' => ['id' => $courseId, 'name' => $name, 'icon' => $icon, 'color' => $color],
+        'course' => ['id' => $courseId, 'name' => $name, 'icon' => $icon, 'color' => $color]
+                    + ($subjectId > 0 ? ['subject_id' => $subjectId] : []),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Throwable $e) {
     http_response_code(500);

@@ -76,6 +76,31 @@ try {
         }
     }
 
+    // Open answers need a teacher review. Create ONE course-scoped "to grade"
+    // notification — its audience (the course's teachers + superadmins) is derived
+    // at read time, so it stays correct as course assignments change.
+    if ($isOpen) {
+        $cs = $pdo->prepare(
+            "SELECT p.`Course_Id`
+             FROM `PQQuestion` q
+             JOIN `components` cp                ON q.`component_Id`   = cp.`Id`
+             JOIN `sections_has_components` shc  ON shc.`components_Id` = cp.`Id`
+             JOIN `PageVersion_has_sections` pvs ON pvs.`sections_Id`  = shc.`sections_Id`
+             JOIN `PageVersion` pv               ON pv.`Id` = pvs.`PageVersion_Id` AND pv.`Status` = 'live'
+             JOIN `pages` p                      ON p.`Id` = pv.`pages_Id`
+             WHERE q.`Id` = ? LIMIT 1");
+        $cs->execute([$question_id]);
+        $courseId = $cs->fetchColumn();
+        if ($courseId !== false) {
+            // INSERT IGNORE + the unique (AC_Did_Question_Id, Type) dedupes any retry.
+            $pdo->prepare(
+                "INSERT IGNORE INTO `Notifications`
+                    (`Recipient`, `Type`, `AC_Did_Question_Id`, `CreatedAt`, `courses_Id`)
+                 VALUES (NULL, 'To_grade', ?, NOW(), ?)"
+            )->execute([$didId, (int)$courseId]);
+        }
+    }
+
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();

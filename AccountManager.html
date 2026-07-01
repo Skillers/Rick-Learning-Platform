@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Account Manager — ICT Leerlijn</title>
   <link rel="stylesheet" href="css/main.css">
+  <script src="js/notifications.js?v=3"></script>
   <style>
     /* ── Layout ── */
     button { cursor:pointer; }
@@ -98,9 +99,9 @@
       font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px;
       text-transform:uppercase; letter-spacing:.3px; display:inline-block;
     }
-    .role-badge.superadmin { background:rgba(188,140,255,.15); color:var(--purple2); }
-    .role-badge.docent { background:rgba(56,139,253,.15); color:var(--blue2); }
-    .role-badge.student { background:rgba(46,160,67,.15); color:var(--accent2); }
+    .role-badge.Superadmin { background:rgba(188,140,255,.15); color:var(--purple2); }
+    .role-badge.Teacher { background:rgba(56,139,253,.15); color:var(--blue2); }
+    .role-badge.User { background:rgba(46,160,67,.15); color:var(--accent2); }
 
     /* ── Status dot ── */
     .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
@@ -381,7 +382,13 @@
       <a href="./HomeworkManager" class="btn btn-ghost btn-sm btn-nav">Huiswerkbeheer</a>
       <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
       <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
-      <button class="notif-btn" title="Meldingen">🔔</button>
+      <div class="notif-wrap">
+        <button class="notif-btn" title="Meldingen" onclick="toggleNotifMenu()">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+        <div class="avatar-menu notif-menu" id="notifMenu">
+          <div class="notif-menu-head"><span>Meldingen</span></div>
+          <div class="notif-list" id="notifList"><div class="notif-empty">Geen meldingen</div></div>
+        </div>
+      </div>
       <div class="avatar-wrap">
         <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
              onclick="toggleAvatarMenu()">??</div>
@@ -424,9 +431,9 @@
         <input type="text" class="filter-input" id="searchInput" placeholder="Zoek op gebruikersnaam of e-mail...">
         <select class="filter-select" id="roleFilter">
           <option value="">Alle rollen</option>
-          <option value="student">Student</option>
-          <option value="docent">Docent</option>
-          <option value="superadmin">Super Admin</option>
+          <option value="User">Student</option>
+          <option value="Teacher">Docent</option>
+          <option value="Superadmin">Super Admin</option>
         </select>
         <select class="filter-select" id="statusFilter">
           <option value="">Alle statussen</option>
@@ -595,15 +602,15 @@ let ADMIN_USER = null;
     if (!res.ok) { window.location.href = "./"; return; }
     const data = await res.json();
 
-    if (data.role !== "superadmin" && data.role !== "docent") {
+    if (data.role !== "Superadmin" && data.role !== "Teacher") {
       window.location.href = "./";
       return;
     }
 
     ADMIN_USER = data.username;
 
-    // Store teacher scope for docents
-    if (data.role === 'docent') {
+    // Store teacher scope for Teachers
+    if (data.role === 'Teacher') {
       TEACHER_SCOPE = {
         courses:  data.courses  || [],
         students: data.students || []
@@ -614,13 +621,14 @@ let ADMIN_USER = null;
 
     // Brand chip reflects role
     const chip = document.querySelector('.brand-chip');
-    if (chip) chip.textContent = data.role === 'superadmin' ? 'SUPER ADMIN' : 'ADMIN';
+    if (chip) chip.textContent = data.role === 'Superadmin' ? 'SUPER ADMIN' : 'ADMIN';
 
     // Populate avatar
     const ini = data.username.substring(0,2).toUpperCase();
     document.getElementById("topbarAvatar").textContent = ini;
     document.getElementById("avatarMenuName").textContent = data.username;
     document.getElementById("avatarMenuSub").textContent = data.role;
+    if (window.Notifications) Notifications.init(data.username);
     init();
   } catch {
     window.location.href = "./";
@@ -683,10 +691,15 @@ function formatDate(str) {
   return d.toLocaleDateString('nl-NL', { day:'2-digit', month:'short', year:'numeric' });
 }
 
+/* ── Role display label (Dutch) for the stored role tokens ── */
+function roleLabel(role) {
+  return { User: 'Student', Teacher: 'Docent', Superadmin: 'Super Admin' }[role] || role || 'Student';
+}
+
 /* ── Scope helpers ── */
 function isStudentVisible(account) {
   if (!TEACHER_SCOPE) return true; // superadmin sees all
-  if (account.role !== 'student') return true; // docents/admins always visible
+  if (account.role !== 'User') return true; // docents/admins always visible
   // Student visible if: in one of my courses OR is my mentored student
   const enrollments = getUserEnrollments(account.username);
   const inMyCourse = enrollments.some(e => TEACHER_SCOPE.courses.includes(Number(e.course_id)));
@@ -735,8 +748,8 @@ function render() {
 function updateStats() {
   const all = DATA.accounts;
   document.getElementById('statTotal').textContent = all.length;
-  document.getElementById('statActive').textContent = all.filter(a => a.active == 1 && a.role === 'student').length;
-  document.getElementById('statDocent').textContent = all.filter(a => a.role === 'docent' || a.role === 'superadmin').length;
+  document.getElementById('statActive').textContent = all.filter(a => a.active == 1 && a.role === 'User').length;
+  document.getElementById('statDocent').textContent = all.filter(a => a.role === 'Teacher' || a.role === 'Superadmin').length;
   document.getElementById('statInactive').textContent = all.filter(a => a.active == 0).length;
 }
 
@@ -757,7 +770,7 @@ function renderTable(filtered) {
       <td class="check-cell"><input type="checkbox" class="row-check" ${isChecked?'checked':''} onchange="toggleSelect('${a.username}', this.checked)"></td>
       <td><strong>${a.username}</strong></td>
       <td style="color:var(--text2);font-size:12px;">${a.email}</td>
-      <td><span class="role-badge ${a.role}">${a.role}</span></td>
+      <td><span class="role-badge ${a.role}">${roleLabel(a.role)}</span></td>
       <td><span class="status-dot ${a.active==1?'active':'inactive'}"></span>${a.active==1?'Actief':'Inactief'}</td>
       <td><div class="course-chips">${enrollments.map(e =>
         `<span class="course-chip ${e.course_color}">${e.course_icon}</span>`
@@ -1008,7 +1021,7 @@ function renderCourseDetail() {
   // Show only students by default; could expand later. Keep docents visible too.
   const search = courseDetailSearch.toLowerCase();
   const canManage = canManageCourse(activeCourseId);
-  const candidates = DATA.accounts.filter(a => a.role === 'student' && a.active == 1)
+  const candidates = DATA.accounts.filter(a => a.role === 'User' && a.active == 1)
     .filter(a => isStudentVisible(a))
     .filter(a => !search || a.username.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
     .sort((a,b) => {

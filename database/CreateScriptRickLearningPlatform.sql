@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`PQQuestion` (
   `Image` VARCHAR(255) NULL DEFAULT NULL,
   `OpenQuestion` TINYINT NOT NULL,
   `component_Id` INT(11) NOT NULL,
+  `ExpectedResult` TEXT NULL,
   PRIMARY KEY (`Id`),
   INDEX `fk_PQQuestion_components1_idx` (`component_Id` ASC),
   CONSTRAINT `fk_PQQuestion_components1`
@@ -331,9 +332,14 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`Accounts_have_assignments` 
   `FileName` VARCHAR(255) NULL DEFAULT NULL,
   `FilePath` VARCHAR(255) NULL DEFAULT NULL,
   `SubmittedOn` DATETIME NULL DEFAULT NULL,
+  `Feedback` TEXT NULL,
+  `FeedbackDate` DATETIME NULL,
+  `Verdict` ENUM('none', 'X', 'V') NOT NULL DEFAULT 'none',
+  `GradedBy` VARCHAR(25) NULL,
   PRIMARY KEY (`account_username`, `Assigment_Id`),
   INDEX `fk_accounts_has_Assigments_Assigments1_idx` (`Assigment_Id` ASC),
   INDEX `fk_accounts_has_Assigments_accounts1_idx` (`account_username` ASC),
+  INDEX `fk_Accounts_have_assignments_accounts1_idx` (`GradedBy` ASC),
   CONSTRAINT `fk_accounts_has_Assigments_accounts1`
     FOREIGN KEY (`account_username`)
     REFERENCES `rick learning platform`.`accounts` (`username`)
@@ -342,6 +348,11 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`Accounts_have_assignments` 
   CONSTRAINT `fk_accounts_has_Assigments_Assigments1`
     FOREIGN KEY (`Assigment_Id`)
     REFERENCES `rick learning platform`.`Assigments` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Accounts_have_assignments_accounts1`
+    FOREIGN KEY (`GradedBy`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
@@ -368,8 +379,9 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Did_Question` (
   `AttemptDate` DATETIME NOT NULL,
   `ReviewedBy` VARCHAR(45) NULL,
   `ReviewedAt` DATETIME NULL,
-  `OpenAnswer` VARCHAR(45) NULL,
-  `ReviewFeedback` VARCHAR(45) NULL,
+  `OpenAnswer` TEXT NULL,
+  `ReviewFeedback` TEXT NULL,
+  `Verdict` ENUM('none', 'X', 'V') NOT NULL DEFAULT 'none',
   INDEX `fk_accounts_has_PQQuestion_PQQuestion1_idx` (`PQQuestion_Id` ASC),
   INDEX `fk_accounts_has_PQQuestion_accounts1_idx` (`accounts_username` ASC),
   PRIMARY KEY (`Id`),
@@ -701,6 +713,40 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`sections_has_components` (
     ON UPDATE NO ACTION)
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Notifications`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Notifications` (
+  `Id` INT NOT NULL AUTO_INCREMENT,
+  `Recipient` VARCHAR(25) NULL,
+  `Type` ENUM('Grade', 'To_grade') NOT NULL,
+  `AC_Did_Question_Id` INT NOT NULL,
+  `CreatedAt` DATETIME NOT NULL,
+  `ReadAt_GradeAt` DATETIME NULL,
+  `courses_Id` INT(11) NOT NULL,
+  PRIMARY KEY (`Id`),
+  INDEX `fk_Notifications_accounts1_idx` (`Recipient` ASC),
+  INDEX `fk_Notifications_AC_Did_Question1_idx` (`AC_Did_Question_Id` ASC),
+  UNIQUE INDEX `uq_Notifications` (`AC_Did_Question_Id` ASC, `Type` ASC),
+  INDEX `fk_Notifications_courses1_idx` (`courses_Id` ASC),
+  CONSTRAINT `fk_Notifications_accounts1`
+    FOREIGN KEY (`Recipient`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Notifications_AC_Did_Question1`
+    FOREIGN KEY (`AC_Did_Question_Id`)
+    REFERENCES `rick learning platform`.`AC_Did_Question` (`Id`)
+    ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_Notifications_courses1`
+    FOREIGN KEY (`courses_Id`)
+    REFERENCES `rick learning platform`.`courses` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
 
 
 SET SQL_MODE=@OLD_SQL_MODE;

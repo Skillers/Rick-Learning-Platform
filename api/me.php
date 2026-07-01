@@ -86,6 +86,24 @@ $weeklyXP = (int)$stmt->fetchColumn();
 
 $progress = xp_progress($totalXP);
 
+// Unread notifications — drives the bell badge without a second request.
+// Grade items addressed to me + To_grade items for courses I teach (all if super).
+$isSuper = ($row['Role'] === 'Superadmin') ? 1 : 0;
+// Unread older than a month stays unread but no longer counts toward the badge.
+$stmt = $pdo->prepare(
+    "SELECT
+        (SELECT COUNT(*) FROM `Notifications`
+           WHERE `Type` = 'Grade' AND `Recipient` = :me AND `ReadAt_GradeAt` IS NULL
+             AND `CreatedAt` >= (NOW() - INTERVAL 1 MONTH))
+      + (SELECT COUNT(*) FROM `Notifications`
+           WHERE `Type` = 'To_grade' AND `ReadAt_GradeAt` IS NULL
+             AND `CreatedAt` >= (NOW() - INTERVAL 1 MONTH)
+             AND (:is_super = 1
+                  OR `courses_Id` IN (SELECT `courses_Id` FROM `Teacher_ParticipatesIn_Course` WHERE `accounts_username` = :me2)))
+     AS c");
+$stmt->execute(['me' => $username, 'is_super' => $isSuper, 'me2' => $username]);
+$result['unreadNotifications'] = (int)$stmt->fetchColumn();
+
 $result['currentStreak'] = $current;
 $result['longestStreak'] = $longest;
 $result['totalXP']       = $totalXP;
@@ -96,7 +114,7 @@ $result['xpForNext']     = $progress['for_next'];
 
 // For docents: return assigned courses and mentored students
 // For superadmins: null = no restrictions (bypass all scoping)
-if ($row['Role'] === 'docent') {
+if ($row['Role'] === 'Teacher') {
     $stmt = $pdo->prepare("SELECT `courses_Id` FROM `Teacher_ParticipatesIn_Course` WHERE `accounts_username` = ?");
     $stmt->execute([$username]);
     $result['courses'] = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
@@ -108,7 +126,7 @@ if ($row['Role'] === 'docent') {
     $stmt = $pdo->prepare("SELECT `Groups_GroupNames` FROM `Group_has_Teacher` WHERE `accounts_username` = ?");
     $stmt->execute([$username]);
     $result['groups'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
-} elseif ($row['Role'] === 'superadmin') {
+} elseif ($row['Role'] === 'Superadmin') {
     $result['courses']  = null;
     $result['students'] = null;
     $result['groups']   = null;

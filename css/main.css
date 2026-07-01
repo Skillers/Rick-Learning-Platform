@@ -326,6 +326,93 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 }
 .avatar-menu-item:hover { background: var(--bg3); }
 
+/* ── Notifications: bell badge + dropdown + dashboard tile ── */
+.notif-wrap { position: relative; }
+.notif-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box;
+  border-radius: 8px; background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+}
+.notif-menu { width: 320px; min-width: 320px; }
+.notif-menu-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+.notif-list { max-height: 360px; overflow-y: auto; }
+.notif-item {
+  position: relative; display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 24px 10px 14px; border: none; border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent; background: none; color: var(--text);
+}
+.notif-item:hover { background: var(--bg3); }
+/* Unread: blue left bar + tint + bold title + a dot top-right (clearly "new"). */
+.notif-item.unread { background: rgba(56,139,253,.10); border-left-color: var(--blue); }
+.notif-item.unread .notif-item-title { font-weight: 600; }
+.notif-item.unread::after {
+  content: ""; position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--blue);
+}
+/* Read: faded, no accent, no dot. */
+.notif-item.read { opacity: .5; }
+.notif-item-title { font-size: 13px; color: var(--text); margin-bottom: 2px; }
+.notif-item-sub { font-size: 11px; color: var(--text3); }
+.notif-empty { padding: 22px 14px; text-align: center; color: var(--text3); font-size: 12px; }
+
+.notif-card { display: flex; flex-direction: column; align-items: stretch; text-align: left; }
+.notif-card-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.notif-card-count { color: var(--blue); font-weight: 700; }
+.notif-card-list { flex: 1; max-height: 124px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.notif-card-item {
+  font-size: 11px; color: var(--text2); cursor: pointer;
+  background: var(--bg3); border-left: 2px solid var(--blue); border-radius: 4px;
+  padding: 5px 8px; line-height: 1.35;
+}
+.notif-card-item:hover { color: var(--text); }
+.notif-card-item.read { border-left-color: var(--border2); opacity: .75; }
+.notif-card-head-right { display: flex; align-items: center; gap: 8px; }
+.notif-card-more {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.notif-card-more:hover { color: var(--text); }
+
+/* ── Notifications: enlarged "all meldingen" modal ── */
+.notif-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(3px);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.notif-modal-overlay.visible { display: flex; }
+.notif-modal-box {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius2); width: 100%; max-width: 620px; max-height: 80vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5); animation: modalSlideIn .18s ease;
+}
+.notif-modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 600; color: var(--text);
+}
+.notif-modal-close { background: none; border: none; color: var(--text3); font-size: 15px; cursor: pointer; }
+.notif-modal-close:hover { color: var(--text); }
+.notif-modal-box .notif-list { max-height: none; flex: 1; overflow-y: auto; }
+.notif-group-head {
+  position: sticky; top: 0; z-index: 1;
+  padding: 6px 16px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .8px;
+  color: var(--blue2); background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+.notif-card-more-btn {
+  width: 100%; margin-top: 4px; padding: 6px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg3); color: var(--text2); font-size: 11px; font-weight: 600;
+}
+.notif-card-more-btn:hover { color: var(--text); border-color: var(--border2); }
+
 .streak-badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 11px;
@@ -1188,6 +1275,16 @@ code {
 }
 .quiz-feedback.correct { color: var(--accent2); }
 .quiz-feedback.wrong   { color: var(--red); }
+.quiz-review-feedback {
+  margin-top: 8px; padding: 8px 12px; border-radius: var(--radius);
+  background: var(--bg3); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 400; color: var(--text2);
+  white-space: pre-wrap; line-height: 1.5;
+}
+.quiz-review-label {
+  display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .4px; color: var(--text3); margin-bottom: 4px;
+}
 
 /* ── Quiz warning popup ── */
 .quiz-warning-overlay {

@@ -96,6 +96,8 @@ function payload_canonical(array $comp, array $LANG): ?array {
             $question = mb_substr((string)($qd['question'] ?? $content), 0, 255);
             $isOpen   = !empty($qd['open_question']) ? 1 : 0;
             $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : '';
+            // Expected-answer guidance is only meaningful for open questions.
+            $expected = $isOpen ? (string)($qd['expected_result'] ?? '') : '';
             $answers  = [];
             if (!$isOpen) {
                 foreach (($qd['answers'] ?? []) as $ans) {
@@ -104,7 +106,7 @@ function payload_canonical(array $comp, array $LANG): ?array {
                     $answers[] = [mb_substr($t, 0, 255), !empty($ans['is_correct']) ? 1 : 0];
                 }
             }
-            return [$dbType, $question, $isOpen, $image, $answers];
+            return [$dbType, $question, $isOpen, $image, $answers, $expected];
     }
     return null;
 }
@@ -150,7 +152,7 @@ function db_section_components_canonical(PDO $pdo, int $sectionId): array {
                 break;
             case 'quiz':
             case 'assignment':
-                $t = $pdo->prepare("SELECT `Id`, `Question`, `Image`, `OpenQuestion` FROM `PQQuestion` WHERE `component_Id` = ?");
+                $t = $pdo->prepare("SELECT `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult` FROM `PQQuestion` WHERE `component_Id` = ?");
                 $t->execute([$cid]);
                 $q = $t->fetch(PDO::FETCH_ASSOC) ?: [];
                 $answers = [];
@@ -161,7 +163,8 @@ function db_section_components_canonical(PDO $pdo, int $sectionId): array {
                         $answers[] = [(string)$ans['AnswerOption'], (int)$ans['IsCorrect']];
                     }
                 }
-                $out[] = [$r['type'], (string)($q['Question'] ?? ''), (int)($q['OpenQuestion'] ?? 0), (string)($q['Image'] ?? ''), $answers];
+                $expected = !empty($q['OpenQuestion']) ? (string)($q['ExpectedResult'] ?? '') : '';
+                $out[] = [$r['type'], (string)($q['Question'] ?? ''), (int)($q['OpenQuestion'] ?? 0), (string)($q['Image'] ?? ''), $answers, $expected];
                 break;
         }
     }
@@ -247,7 +250,7 @@ try {
     $insCode    = $pdo->prepare("INSERT INTO `CodeSnippets` (`Id`, `Components_Id`, `Languages_Id`, `Code`) VALUES (?,?,?,?)");
     $insInfo    = $pdo->prepare("INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES (?,?,?,?)");
     $insMedia   = $pdo->prepare("INSERT INTO `MultiMedia` (`Id`, `URL`, `components_Id`, `Uploaded`, `MultiMediaType_MultiMediaType`) VALUES (?,?,?,?,?)");
-    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`, `Question`, `Image`, `OpenQuestion`, `component_Id`) VALUES (?,?,?,?,?)");
+    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`, `Question`, `Image`, `OpenQuestion`, `component_Id`, `ExpectedResult`) VALUES (?,?,?,?,?,?)");
     $insA       = $pdo->prepare("INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES (?,?,?)");
 
     // Insert all components of a section (rows + detail + ordering links).
@@ -288,8 +291,11 @@ try {
                     $question = mb_substr((string)($qd['question'] ?? $content), 0, 255);
                     $isOpen   = !empty($qd['open_question']) ? 1 : 0;
                     $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : null;
+                    // Expected-answer guidance: only stored for open questions, NULL when empty.
+                    $expected = ($isOpen && trim((string)($qd['expected_result'] ?? '')) !== '')
+                              ? (string)$qd['expected_result'] : null;
                     $qId      = $newId('PQQuestion');
-                    $insQ->execute([$qId, $question, $image, $isOpen, $compId]);
+                    $insQ->execute([$qId, $question, $image, $isOpen, $compId, $expected]);
                     if (!$isOpen) {
                         foreach (($qd['answers'] ?? []) as $ans) {
                             $t = trim((string)($ans['text'] ?? ''));

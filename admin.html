@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lesontwerper — ICT Leerlijn Admin</title>
   <link rel="stylesheet" href="css/main.css">
+  <script src="js/notifications.js?v=3"></script>
   <style>
     /* ── Admin-specific overrides ── */
     button { cursor:pointer; }
@@ -377,6 +378,14 @@
       font-size: 11px; color: var(--text3); letter-spacing: .6px;
       text-transform: uppercase; font-weight: 600; margin-bottom: 6px;
     }
+    .course-subject-select {
+      font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--text3); cursor: pointer;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 6px;
+    }
+    .course-subject-select:hover { color: var(--text); border-color: var(--border2); }
+    .course-subject-select:focus { outline: none; border-color: var(--blue); }
     .course-overview-title {
       font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1;
       display: inline-flex; align-items: center; gap: 10px;
@@ -1036,7 +1045,13 @@
         <a href="./HomeworkManager" class="btn btn-ghost btn-sm btn-nav">Huiswerkbeheer</a>
         <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
         <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
-        <button class="notif-btn" title="Meldingen">🔔</button>
+        <div class="notif-wrap">
+          <button class="notif-btn" title="Meldingen" onclick="toggleNotifMenu()">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+          <div class="avatar-menu notif-menu" id="notifMenu">
+            <div class="notif-menu-head"><span>Meldingen</span></div>
+            <div class="notif-list" id="notifList"><div class="notif-empty">Geen meldingen</div></div>
+          </div>
+        </div>
         <div class="avatar-wrap">
           <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
                onclick="toggleAvatarMenu()">??</div>
@@ -1320,7 +1335,7 @@ function showCourseOverview() {
       <div class="subject-courses-grid">`;
 
     if (!g.courses.length) {
-      html += `<div style="color:var(--text3);font-size:12px;padding:8px 4px;">Nog geen cursussen — <a href="#" onclick="showNewCourseModal();return false;" style="color:var(--blue);">maak er een aan</a>.</div>`;
+      html += `<div style="color:var(--text3);font-size:12px;padding:8px 4px;">Nog geen cursussen<br><a href="#" onclick="showNewCourseModal();return false;" style="color:var(--blue);">maak er een aan</a>.</div>`;
     }
     g.courses.forEach(c => {
       const pageCount = PAGES.filter(p => p.course_id == c.id).length;
@@ -1453,6 +1468,40 @@ async function commitCourseTitle() {
   renderCourseOverview();
 }
 
+// Subject selector shown in the course header — lets you move a course to another vak.
+function courseSubjectEyebrow() {
+  if (!activeCourse) return '';
+  const opts = SUBJECTS.map(s =>
+    `<option value="${s.id}"${s.id == activeCourse.subject_id ? ' selected' : ''}>${esc(s.name)}</option>`
+  ).join('');
+  return `<select class="course-subject-select" title="Verplaats deze cursus naar een ander vak"
+            onchange="commitCourseSubject(this.value)">${opts}</select>`;
+}
+
+async function commitCourseSubject(subjectId) {
+  subjectId = parseInt(subjectId, 10);
+  if (!activeCourse || !subjectId || subjectId == activeCourse.subject_id) return;
+  setSaveStatus('saving');
+  try {
+    const res = await fetch('api/update_course.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ course_id: activeCourse.id, name: activeCourse.name, subject_id: subjectId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  } catch (err) {
+    setSaveStatus('error');
+    alert('Vak wijzigen mislukt: ' + err.message);
+    renderCourseOverview();
+    return;
+  }
+  activeCourse.subject_id = subjectId;
+  const c = COURSES.find(co => co.id == activeCourse.id);
+  if (c) c.subject_id = subjectId;
+  setSaveStatus('saved');
+  renderCourseOverview();
+}
+
 /* ═══ SELECT COURSE → build sidebar ═══ */
 function selectCourse(courseId) {
   activeCourse = COURSES.find(c => c.id == courseId);
@@ -1486,7 +1535,7 @@ function renderCourseOverview() {
         <div class="course-overview-header">
           <div class="course-hero-logo" style="${courseIconStyle(activeCourse.color)}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
           <div class="course-hero-text">
-            <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
+            <div class="course-overview-eyebrow">${courseSubjectEyebrow()}</div>
             <div class="course-overview-title" id="courseTitleDisplay">
               <span class="course-title-text">${esc(activeCourse.name)}</span>
               <button class="course-title-edit" onclick="startEditCourseTitle()" title="Cursusnaam wijzigen">✎</button>
@@ -1534,7 +1583,7 @@ function renderCourseOverview() {
       <div class="course-overview-header">
         <div class="course-hero-logo" style="${courseIconStyle(activeCourse.color)}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
         <div class="course-hero-text">
-          <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
+          <div class="course-overview-eyebrow">${courseSubjectEyebrow()}</div>
           <div class="course-overview-title" id="courseTitleDisplay">
             <span class="course-title-text">${esc(activeCourse.name)}</span>
             <button class="course-title-edit" onclick="startEditCourseTitle()" title="Cursusnaam wijzigen">✎</button>
@@ -1643,7 +1692,9 @@ async function openPageFromDb(pageId, keepFocus, versionId = null) {
   } catch (_) {}
   let dbComponents = [];
   try {
-    const res = await fetch(`api/section_content.php?page_id=${pageId}${vparam}`);
+    // edit=1 → include teacher-only fields (e.g. open-question ExpectedResult)
+    // that must NOT be sent to the student read path.
+    const res = await fetch(`api/section_content.php?page_id=${pageId}${vparam}&edit=1`);
     if (res.ok) dbComponents = await res.json();
   } catch (_) {}
 
@@ -2323,7 +2374,11 @@ function renderCompCard(comp, sectionId, ci) {
         placeholder="Stel de vraag...">${esc(question)}</textarea>
 
       ${isOpen
-        ? `<div class="quiz-hint">De student typt een vrij antwoord — geen goede/foute opties.</div>`
+        ? `<div class="quiz-hint">De student typt een vrij antwoord — geen goede/foute opties.</div>
+           <div class="quiz-hint" style="margin-top:8px;">Verwacht antwoord (kijkwijzer) — alleen zichtbaar voor docenten bij het nakijken.</div>
+           <textarea class="comp-textarea" rows="3"
+             oninput="updateQuizExpected('${comp.id}', this.value)"
+             placeholder="Beschrijf wat je in een goed antwoord verwacht...">${esc(qd.expected_result || '')}</textarea>`
         : mcBlock}`;
   }
 
@@ -2968,6 +3023,12 @@ function updateQuizQuestion(compId, value) {
   markUnsaved(); debounceSave();   // no re-render → keep textarea focus
 }
 
+function updateQuizExpected(compId, value) {
+  const comp = findComp(compId); if (!comp) return;
+  quizDataOf(comp).expected_result = value;
+  markUnsaved(); debounceSave();   // no re-render → keep textarea focus
+}
+
 function addQuizAnswer(compId) {
   const comp = findComp(compId); if (!comp) return;
   quizDataOf(comp).answers.push({ text: '', is_correct: 0 });
@@ -3493,10 +3554,10 @@ async function loadUser() {
     const res = await fetch("api/me.php?username=" + encodeURIComponent(name));
     if (!res.ok) { window.location = "./"; return null; }
     const data = await res.json();
-    if (data.role !== "superadmin" && data.role !== "docent") {
+    if (data.role !== "Superadmin" && data.role !== "Teacher") {
       window.location = "./"; return null;
     }
-    if (data.role === "docent") {
+    if (data.role === "Teacher") {
       TEACHER_SCOPE = { courses: data.courses || [], students: data.students || [] };
     }
     return { name: data.username, initials: data.username.slice(0,2).toUpperCase(), role: data.role };
@@ -3531,6 +3592,7 @@ document.addEventListener("click", (e) => {
   document.getElementById("topbarAvatar").textContent = user.initials;
   document.getElementById("avatarMenuName").textContent = user.name;
   document.getElementById("avatarMenuSub").textContent = user.role;
+  if (window.Notifications) Notifications.init(user.name);
 
   try {
     const [subjRes, courseRes, pageRes, secRes] = await Promise.all([

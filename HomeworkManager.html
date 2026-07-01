@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Huiswerkbeheer — ICT Leerlijn</title>
   <link rel="stylesheet" href="css/main.css">
+  <script src="js/notifications.js?v=3"></script>
   <style>
     /* ── Layout ── */
     button { cursor:pointer; }
@@ -122,6 +123,25 @@
     }
     .status-badge.pending { background:rgba(227,179,65,.12); color:var(--yellow); border:1px solid rgba(227,179,65,.25); }
     .status-badge.graded  { background:rgba(46,160,67,.12);  color:var(--accent2); border:1px solid rgba(46,160,67,.25); }
+    .status-badge.ok      { background:rgba(46,160,67,.12);  color:var(--accent2); border:1px solid rgba(46,160,67,.25); }
+    .status-badge.bad     { background:rgba(248,81,73,.12);  color:var(--red);     border:1px solid rgba(248,81,73,.25); }
+
+    /* ── Grade form ── */
+    .grade-box { margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+    .grade-verdicts { display:flex; gap:8px; margin-bottom:10px; }
+    .verdict-btn {
+      padding:6px 14px; border-radius:var(--radius); font-size:12px; font-weight:600;
+      border:1px solid var(--border); background:var(--bg2); color:var(--text2); transition:all .15s;
+    }
+    .verdict-btn:hover { border-color:var(--border2); color:var(--text); }
+    .verdict-btn.v.selected { background:rgba(46,160,67,.15); color:var(--accent2); border-color:rgba(46,160,67,.5); }
+    .verdict-btn.x.selected { background:rgba(248,81,73,.15); color:var(--red);     border-color:rgba(248,81,73,.5); }
+    .grade-feedback {
+      width:100%; box-sizing:border-box; min-height:64px; resize:vertical;
+      padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg2); color:var(--text); font-size:13px; line-height:1.5; margin-bottom:10px;
+    }
+    .grade-feedback:focus { outline:none; border-color:var(--blue); }
 
     /* ── Type icon ── */
     .type-icon { font-size:14px; opacity:.75; }
@@ -198,7 +218,13 @@
       <a href="./AccountManager" class="btn btn-ghost btn-sm btn-nav">AccountManagement</a>
       <a href="./" class="btn btn-ghost btn-sm btn-nav">Studentenview</a>
       <button class="notif-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Wissel thema">🌙</button>
-      <button class="notif-btn" title="Meldingen">🔔</button>
+      <div class="notif-wrap">
+        <button class="notif-btn" title="Meldingen" onclick="toggleNotifMenu()">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button>
+        <div class="avatar-menu notif-menu" id="notifMenu">
+          <div class="notif-menu-head"><span>Meldingen</span></div>
+          <div class="notif-list" id="notifList"><div class="notif-empty">Geen meldingen</div></div>
+        </div>
+      </div>
       <div class="avatar-wrap">
         <div class="user-avatar" id="topbarAvatar" style="width:32px;height:32px;font-size:12px;cursor:pointer;"
              onclick="toggleAvatarMenu()">??</div>
@@ -222,7 +248,7 @@
     <!-- Info banner (explains current scope) -->
     <div class="info-banner">
       <span class="info-banner-icon">&#9432;</span>
-      <span>Alle ingeleverde opdrachten worden hier getoond als <strong>na te kijken</strong>. Beoordelen met score en feedback komt in een volgende versie.</span>
+      <span>Ingeleverde opdrachten en open vragen kun je hier beoordelen met <strong>voldoende</strong> of <strong>onvoldoende</strong> en feedback. Open een rij om na te kijken.</span>
     </div>
 
     <!-- Stats -->
@@ -247,12 +273,14 @@
       <select class="filter-select" id="statusFilter">
         <option value="">Alle inzendingen</option>
         <option value="pending">Na te kijken</option>
+        <option value="graded">Beoordeeld</option>
         <option value="recent">Laatste 7 dagen</option>
       </select>
       <select class="filter-select" id="typeFilter">
         <option value="">Alle types</option>
         <option value="text">Met tekst</option>
         <option value="file">Met bestand</option>
+        <option value="open">Open vraag</option>
       </select>
     </div>
 
@@ -331,15 +359,15 @@ let ADMIN_USER = null;
     if (!res.ok) { window.location.href = "./"; return; }
     const data = await res.json();
 
-    if (data.role !== "superadmin" && data.role !== "docent") {
+    if (data.role !== "Superadmin" && data.role !== "Teacher") {
       window.location.href = "./";
       return;
     }
 
     ADMIN_USER = data.username;
 
-    // Store teacher scope for docents; null = superadmin (no restrictions)
-    if (data.role === 'docent') {
+    // Store teacher scope for Teachers; null = Superadmin (no restrictions)
+    if (data.role === 'Teacher') {
       TEACHER_SCOPE = {
         courses:  data.courses  || [],
         students: data.students || []
@@ -353,6 +381,7 @@ let ADMIN_USER = null;
     document.getElementById("topbarAvatar").textContent = ini;
     document.getElementById("avatarMenuName").textContent = data.username;
     document.getElementById("avatarMenuSub").textContent = data.role;
+    if (window.Notifications) Notifications.init(data.username);
     init();
   } catch {
     window.location.href = "./";
@@ -383,16 +412,36 @@ function isVisible(s) {
 
 /* ── Init ── */
 async function init() {
-  const [subsRes, courseRes] = await Promise.all([
-    fetch('api/submissions.php').then(r => r.json()),
-    fetch('api/courses.php').then(r => r.json())
+  const [subsRes, openRes, courseRes] = await Promise.all([
+    fetch('api/submissions.php').then(r => r.json()).catch(() => []),
+    fetch('api/reviews_open.php').then(r => r.json()).catch(() => []),
+    fetch('api/courses.php').then(r => r.json()).catch(() => [])
   ]);
-  const allSubs = Array.isArray(subsRes) ? subsRes : [];
-  // Pre-filter by teacher scope
-  SUBMISSIONS = allSubs.filter(isVisible);
+  // Unify assignments + open-question answers into one gradeable list.
+  const asg  = (Array.isArray(subsRes) ? subsRes : []).map(s => ({ ...s, kind: 'assignment',    title: s.assignment_title }));
+  const open = (Array.isArray(openRes) ? openRes : []).map(o => ({ ...o, kind: 'open_question', title: o.question_text }));
+  SUBMISSIONS = asg.concat(open)
+    .filter(isVisible)
+    .sort((a, b) => String(b.submitted_on || '').localeCompare(String(a.submitted_on || ''))); // newest first
   allCourses = courseRes;
   populateCourseFilter();
   render();
+  openFromDeepLink();
+}
+
+// Came in from a "Na te kijken" notification (?did=<AC_Did_Question_Id>)?
+// Auto-expand that open-question row and scroll to it.
+function openFromDeepLink() {
+  const did = new URLSearchParams(location.search).get('did');
+  if (!did) return;
+  const key = 'o::' + did;
+  if (!SUBMISSIONS.some(s => submissionKey(s) === key)) return;
+  expandedKey = key;
+  render();
+  setTimeout(() => {
+    document.querySelector(`tr.student-row[data-key="${key}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 60);
 }
 
 function populateCourseFilter() {
@@ -430,8 +479,12 @@ function formatDate(str) {
 }
 
 function submissionKey(s) {
-  return s.username + '::' + s.assignment_id;
+  return s.kind === 'open_question'
+    ? 'o::' + s.did_question_id
+    : 'a::' + s.username + '::' + s.assignment_id;
 }
+
+function isGraded(s) { return s.verdict && s.verdict !== 'none'; }
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -454,18 +507,21 @@ function getFiltered() {
     if (scope === 'students' && !isMyStudent(s))    return false;
 
     if (search) {
-      const hay = (s.username + ' ' + (s.assignment_title||'') + ' ' + (s.page_title||'')).toLowerCase();
+      const hay = (s.username + ' ' + (s.title||'') + ' ' + (s.page_title||'')).toLowerCase();
       if (!hay.includes(search)) return false;
     }
     if (course && String(s.course_id) !== String(course)) return false;
     if (status === 'pending') {
-      // all submissions are pending in this iteration
+      if (isGraded(s)) return false;
+    } else if (status === 'graded') {
+      if (!isGraded(s)) return false;
     } else if (status === 'recent') {
       const d = daysSince(s.submitted_on);
       if (d === null || d > 7) return false;
     }
-    if (type === 'text' && !s.text_answer) return false;
-    if (type === 'file' && !s.file_name) return false;
+    if (type === 'text' && !(s.kind === 'assignment' && s.text_answer)) return false;
+    if (type === 'file' && !(s.kind === 'assignment' && s.file_name)) return false;
+    if (type === 'open' && s.kind !== 'open_question') return false;
     return true;
   });
 }
@@ -480,9 +536,9 @@ function render() {
 function updateStats() {
   const all = SUBMISSIONS;
   document.getElementById('statTotal').textContent = all.length;
-  // "Na te kijken" = submissions in my courses (not mentor-only)
-  const gradeable = all.filter(s => !isMentorOnly(s)).length;
-  document.getElementById('statPending').textContent = gradeable;
+  // "Na te kijken" = gradeable items in my courses that aren't graded yet
+  const pending = all.filter(s => !isMentorOnly(s) && !isGraded(s)).length;
+  document.getElementById('statPending').textContent = pending;
   const recent = all.filter(s => {
     const d = daysSince(s.submitted_on);
     return d !== null && d <= 7;
@@ -506,39 +562,47 @@ function renderTable(filtered) {
   filtered.forEach(s => {
     const key = submissionKey(s);
     const isExpanded = expandedKey === key;
-    const mentorOnly = isMentorOnly(s);
-    const hasText = !!s.text_answer;
-    const hasFile = !!s.file_name;
-    const typeIcon = hasFile && hasText ? '📄&#8203;📎'
+    const isOpen = s.kind === 'open_question';
+    const hasText = !isOpen && !!s.text_answer;
+    const hasFile = !isOpen && !!s.file_name;
+    const typeIcon = isOpen          ? '❓'
+                   : hasFile && hasText ? '📄&#8203;📎'
                    : hasFile             ? '📎'
                    : hasText             ? '📄'
                                          : '—';
     const courseCls = s.course_color || '';
 
-    // Status badge: "Na te kijken" (gradeable) vs "Alleen inzien" (mentor-only)
-    const statusBadge = mentorOnly
-      ? '<span class="status-badge graded">Alleen inzien</span>'
-      : '<span class="status-badge pending">Na te kijken</span>';
-
-    html += `<tr class="student-row" data-key="${escapeHtml(key)}">
-      <td style="text-align:center;cursor:pointer;" onclick="toggleExpand('${escapeHtml(key)}')">
+    html += `<tr class="student-row" data-key="${escapeHtml(key)}" style="cursor:pointer;" onclick="toggleExpand('${escapeHtml(key)}')">
+      <td style="text-align:center;">
         <span style="font-size:11px;color:var(--text3);transition:transform .2s;display:inline-block;${isExpanded?'transform:rotate(90deg)':''}">&#9654;</span>
       </td>
       <td><strong>${escapeHtml(s.username)}</strong></td>
-      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.assignment_title||'')}">${escapeHtml(s.assignment_title || '—')}</td>
+      <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.title||'')}">${escapeHtml(s.title || '—')}</td>
       <td><span class="course-chip ${courseCls}">${escapeHtml(s.course_icon || '')}</span></td>
       <td style="color:var(--text2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(s.page_title||'')}">${escapeHtml(s.page_title || '—')}</td>
       <td style="font-size:12px;color:var(--text2);">${formatDate(s.submitted_on)}</td>
       <td><span class="type-icon">${typeIcon}</span></td>
-      <td>${statusBadge}</td>
+      <td>${verdictBadge(s)}</td>
     </tr>`;
 
-    // Grading button: disabled + different tooltip based on mentor-only vs normal
-    const gradeBtn = mentorOnly
-      ? '<button class="btn btn-ghost btn-sm" disabled title="Je bent mentor, niet de cursus-docent">Alleen inzien</button><span class="expand-hint">Je kunt de voortgang bekijken, maar niet nakijken voor deze cursus.</span>'
-      : '<button class="btn btn-primary btn-sm" disabled title="Binnenkort beschikbaar">Markeer als nagekeken</button><span class="expand-hint">Beoordelen met score en feedback komt in een volgende versie.</span>';
+    // Content block differs per kind: assignment text/file vs open answer + marking guide.
+    let body = '';
+    if (isOpen) {
+      body += `<div class="expand-section-title">Antwoord van student</div>
+        <div class="answer-box">${s.open_answer ? escapeHtml(s.open_answer) : '<em style="color:var(--text3)">Geen antwoord ingevuld.</em>'}</div>`;
+      if (s.expected_result) {
+        body += `<div class="expand-section-title">Verwacht antwoord (kijkwijzer)</div>
+        <div class="answer-box" style="border-color:rgba(56,139,253,.3);">${escapeHtml(s.expected_result)}</div>`;
+      }
+    } else {
+      if (hasText) body += `<div class="expand-section-title">Tekstantwoord</div>
+        <div class="answer-box">${escapeHtml(s.text_answer)}</div>`;
+      if (hasFile) body += `<div class="expand-section-title">Bestand</div>
+        <a class="file-card" href="uploads/${escapeHtml(s.file_path || s.file_name)}" target="_blank" rel="noopener">
+          <span class="file-card-icon">📎</span><span>${escapeHtml(s.file_name)}</span></a>`;
+      if (!hasText && !hasFile) body += `<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Geen inhoud ingeleverd.</div>`;
+    }
 
-    // Expanded detail row
     html += `<tr class="expand-row"><td colspan="8">
       <div class="expand-content ${isExpanded?'open':''}" id="expand-${escapeHtml(key)}">
         <div class="meta-line">
@@ -546,26 +610,88 @@ function renderTable(filtered) {
           <strong>Pagina:</strong> ${escapeHtml(s.page_title || '—')} &nbsp;·&nbsp;
           <strong>Ingeleverd op:</strong> ${escapeHtml(s.submitted_on || '—')}
         </div>
-
-        ${hasText ? `<div class="expand-section-title">Tekstantwoord</div>
-        <div class="answer-box">${escapeHtml(s.text_answer)}</div>` : ''}
-
-        ${hasFile ? `<div class="expand-section-title">Bestand</div>
-        <a class="file-card" href="uploads/${escapeHtml(s.file_path || s.file_name)}" target="_blank" rel="noopener">
-          <span class="file-card-icon">📎</span>
-          <span>${escapeHtml(s.file_name)}</span>
-        </a>` : ''}
-
-        ${!hasText && !hasFile ? `<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Geen inhoud ingeleverd.</div>` : ''}
-
-        <div class="expand-actions">
-          ${gradeBtn}
-        </div>
+        ${body}
+        ${gradePanel(s, key)}
       </div>
     </td></tr>`;
   });
 
   tbody.innerHTML = html;
+}
+
+// Status badge driven by the verdict (none = na te kijken, V/X = beoordeeld).
+function verdictBadge(s) {
+  if (isMentorOnly(s)) return '<span class="status-badge graded">Alleen inzien</span>';
+  if (s.verdict === 'V') return '<span class="status-badge ok">Voldoende</span>';
+  if (s.verdict === 'X') return '<span class="status-badge bad">Onvoldoende</span>';
+  return '<span class="status-badge pending">Na te kijken</span>';
+}
+
+// The grade form (or a read-only note for mentor-only items).
+function gradePanel(s, key) {
+  if (isMentorOnly(s)) {
+    return `<div class="expand-actions"><span class="expand-hint">Je bent mentor, niet de cursus-docent — je kunt dit alleen inzien, niet beoordelen.</span></div>`;
+  }
+  const chosen = gradeChoice[key] ?? (isGraded(s) ? s.verdict : null);
+  const gradedLine = isGraded(s)
+    ? `<div class="meta-line">Beoordeeld als <strong>${s.verdict === 'V' ? 'Voldoende' : 'Onvoldoende'}</strong>${s.graded_by ? ' door ' + escapeHtml(s.graded_by) : ''}${s.graded_on ? ' · ' + formatDate(s.graded_on) : ''}</div>`
+    : '';
+  return `${gradedLine}
+    <div class="grade-box">
+      <div class="grade-verdicts">
+        <button type="button" class="verdict-btn v ${chosen === 'V' ? 'selected' : ''}" data-v="V" onclick="pickVerdict('${escapeHtml(key)}','V',this)">✓ Voldoende</button>
+        <button type="button" class="verdict-btn x ${chosen === 'X' ? 'selected' : ''}" data-v="X" onclick="pickVerdict('${escapeHtml(key)}','X',this)">✗ Onvoldoende</button>
+      </div>
+      <textarea class="grade-feedback" id="fb-${escapeHtml(key)}" placeholder="Feedback voor de student (optioneel)">${escapeHtml(s.feedback || '')}</textarea>
+      <div class="expand-actions">
+        <button class="btn btn-primary btn-sm" onclick="submitGrade('${escapeHtml(key)}')">${isGraded(s) ? 'Beoordeling bijwerken' : 'Opslaan'}</button>
+        <span class="expand-hint" id="ghint-${escapeHtml(key)}"></span>
+      </div>
+    </div>`;
+}
+
+/* ── Grading ── */
+let gradeChoice = {};  // key -> 'V' | 'X' (pending selection before save)
+
+function pickVerdict(key, v, btn) {
+  gradeChoice[key] = v;
+  btn.parentElement.querySelectorAll('.verdict-btn').forEach(b => b.classList.toggle('selected', b === btn));
+}
+
+function setHint(key, msg) {
+  const e = document.getElementById('ghint-' + key);
+  if (e) e.textContent = msg;
+}
+
+async function submitGrade(key) {
+  const s = SUBMISSIONS.find(x => submissionKey(x) === key);
+  if (!s) return;
+  const verdict = gradeChoice[key] ?? (isGraded(s) ? s.verdict : null);
+  if (verdict !== 'V' && verdict !== 'X') { setHint(key, 'Kies eerst voldoende of onvoldoende.'); return; }
+  const feedback = document.getElementById('fb-' + key)?.value ?? '';
+
+  const payload = s.kind === 'open_question'
+    ? { grader: ADMIN_USER, kind: 'open_question', did_question_id: s.did_question_id, verdict, feedback }
+    : { grader: ADMIN_USER, kind: 'assignment', student: s.username, assignment_id: s.assignment_id, verdict, feedback };
+
+  setHint(key, 'Opslaan…');
+  try {
+    const res = await fetch('api/grade.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) { setHint(key, data.error || 'Opslaan mislukt'); return; }
+    // Reflect the new state locally and re-render (row stays expanded).
+    s.verdict = data.verdict;
+    s.feedback = feedback;
+    s.graded_by = data.graded_by;
+    s.graded_on = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    delete gradeChoice[key];
+    showToast(s.kind === 'open_question' ? 'Open vraag beoordeeld' : 'Opdracht beoordeeld');
+    render();
+  } catch {
+    setHint(key, 'Netwerkfout — probeer opnieuw.');
+  }
 }
 
 /* ── Actions ── */

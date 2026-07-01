@@ -21,10 +21,21 @@ RewriteRule ^(.+)$ $1.html [L]
 # ── Prevent directory listing ────────────────────────────────────────────────
 Options -Indexes
 
-# ── Cache static assets ──────────────────────────────────────────────────────
+# ── No stale code ────────────────────────────────────────────────────────────
+# There's no build step, so caching HTML/JS/CSS just serves stale code after an
+# edit (the root cause of "hard-refresh to see my fix"). Force revalidation on
+# every request — cheap 304s on localhost. Media/uploads still cache normally.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|mjs|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
 <IfModule mod_expires.c>
   ExpiresActive On
-  ExpiresByType text/css              "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
-  ExpiresByType text/html             "access plus 0 seconds"
+  ExpiresByType text/html              "access plus 0 seconds"
+  ExpiresByType text/css               "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType image/png              "access plus 1 week"
+  ExpiresByType image/jpeg             "access plus 1 week"
+  ExpiresByType image/svg+xml          "access plus 1 week"
 </IfModule>
