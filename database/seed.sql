@@ -1109,9 +1109,9 @@ UPDATE `AC_Did_Question` SET `Verdict` = 'X'
 -- Marloes teaches Python (1) and JavaScript (2)
 -- Rick is superadmin — bypasses scoping, no rows needed
 -- -------------------------------------------------------------
-INSERT INTO `Teacher_ParticipatesIn_Course` (`courses_Id`, `accounts_username`) VALUES
-(1, 'Marloes'),
-(2, 'Marloes');
+INSERT INTO `Teacher_ParticipatesIn_Course` (`courses_Id`, `accounts_username`, `Role`) VALUES
+(1, 'Marloes', 'Owner'),
+(2, 'Marloes', 'Owner');
 
 -- -------------------------------------------------------------
 -- Teacher ↔ Student mentoring

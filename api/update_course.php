@@ -2,12 +2,13 @@
 /**
  * update_course.php — rename a course (and optionally icon/color) from the admin.
  *
- * Input (JSON POST): { course_id:int, name:string, icon?:string, color?:string, subject_id?:int }
+ * Input (JSON POST): { actor:string, course_id:int, name:string, icon?:string, color?:string, subject_id?:int }
  * Output: { ok:true, course: { id, name, icon, color, subject_id? } }
  */
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/db.connection.php';
+require_once __DIR__ . '/../config/course_perms.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -16,12 +17,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $in = json_decode(file_get_contents('php://input'), true);
+$actor    = is_array($in) ? trim((string)($in['actor'] ?? '')) : '';
 $courseId = is_array($in) ? (int)($in['course_id'] ?? 0) : 0;
 $name     = is_array($in) ? trim((string)($in['name'] ?? '')) : '';
 
 if (!$courseId || $name === '') {
     http_response_code(400);
     echo json_encode(['error' => 'course_id and name are required']);
+    exit;
+}
+
+// Only an Owner/Editor of this course (or a superadmin) may edit it.
+if (!can_edit_course($pdo, $actor, $courseId)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Geen rechten om deze cursus te bewerken']);
     exit;
 }
 

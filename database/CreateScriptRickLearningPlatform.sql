@@ -571,6 +571,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `rick learning platform`.`Teacher_ParticipatesIn_Course` (
   `courses_Id` INT(11) NOT NULL,
   `accounts_username` VARCHAR(25) NOT NULL,
+  `Role` ENUM('Owner', 'Grader', 'Editor') NOT NULL DEFAULT 'Grader',
   PRIMARY KEY (`courses_Id`, `accounts_username`),
   INDEX `fk_courses_has_accounts_accounts1_idx` (`accounts_username` ASC),
   INDEX `fk_courses_has_accounts_courses1_idx` (`courses_Id` ASC),

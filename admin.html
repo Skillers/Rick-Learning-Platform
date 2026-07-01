@@ -266,6 +266,7 @@
     .subject-course-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text3); }
     .subject-course-stats strong { color: var(--text); font-weight: 600; }
     .subject-course-stats .stat-pub strong { color: var(--accent2); }
+    .subject-course-stats .stat-hidden strong { color: var(--text2); }
     .subject-course-stats .stat-draft strong { color: var(--orange2); }
     .subject-course-arrow { font-size: 18px; color: var(--text3); flex-shrink: 0; }
     .subject-course-row:hover .subject-course-arrow { color: var(--text); }
@@ -388,13 +389,13 @@
     .course-subject-select:focus { outline: none; border-color: var(--blue); }
     .course-overview-title {
       font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1;
-      display: inline-flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 10px;
     }
     .course-title-edit {
-      width: 34px; height: 34px; padding: 0; flex-shrink: 0;
+      width: 44px; height: 44px; padding: 0; flex-shrink: 0; margin-left: auto;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 17px; color: var(--blue2); background: var(--bg3);
-      border: 1px solid var(--border); border-radius: 8px;
+      font-size: 22px; color: var(--blue2); background: var(--bg3);
+      border: 1px solid var(--border); border-radius: 10px;
       cursor: pointer; opacity: 1; transition: all .12s; line-height: 1;
     }
     .course-title-edit:hover { color: #fff; background: var(--blue); border-color: var(--blue); }
@@ -471,6 +472,10 @@
       font-family: 'JetBrains Mono', monospace; font-weight: 600;
       text-transform: uppercase; letter-spacing: .5px;
       white-space: nowrap; flex-shrink: 0;
+    }
+    .page-tile-hidden {
+      display: inline-flex; align-items: center; flex-shrink: 0;
+      color: var(--orange2, #d29922); margin-left: auto;
     }
     .page-tile-sections-label {
       font-size: 10px; color: var(--text3); text-transform: uppercase;
@@ -1007,6 +1012,30 @@
       padding:14px 20px; border-top:1px solid var(--border);
     }
 
+    /* ── Course settings: linked teachers ── */
+    .cs-teachers { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+    .cs-teacher {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg3);
+    }
+    .cs-teacher-name { flex:1; font-size:13px; color:var(--text); }
+    .cs-super { font-size:10px; color:var(--purple2); text-transform:uppercase; letter-spacing:.4px; }
+    .cs-role { padding:3px 6px; font-size:12px; border-radius:6px; border:1px solid var(--border); background:var(--bg2); color:var(--text); }
+    .cs-role-label { font-size:12px; color:var(--text2); }
+    .cs-remove { background:none; border:none; color:var(--text3); cursor:pointer; font-size:13px; }
+    .cs-remove:hover { color:var(--red); }
+    .cs-muted { font-size:12px; color:var(--text3); padding:6px 2px; }
+    /* ── Teacher picker (searchable) ── */
+    .tp-overlay { z-index:200; }
+    .tp-list { max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+    .tp-item {
+      display:flex; justify-content:space-between; align-items:center; gap:8px;
+      width:100%; text-align:left; cursor:pointer; font-size:13px;
+      padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius);
+      background:var(--bg3); color:var(--text);
+    }
+    .tp-item:hover { background:var(--bg4); border-color:var(--blue); }
+
     /* ── Drag indicator ── */
     .drag-over { border:2px dashed var(--blue) !important; background:rgba(56,139,253,.04) !important; }
 
@@ -1179,6 +1208,68 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeNewCourseModal()">Annuleren</button>
       <button class="btn btn-primary" onclick="createNewCourse()">Cursus aanmaken</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ COURSE SETTINGS MODAL ═══════════════════ -->
+<div class="modal-overlay" id="courseSettingsModal" style="display:none" onclick="if(event.target===this)closeCourseSettings()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Cursusinstellingen</span>
+      <button class="icon-btn" onclick="closeCourseSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;gap:14px;">
+        <div>
+          <label class="field-label">Vak</label>
+          <select class="field-select" id="csSubject"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 110px;gap:12px;">
+          <div>
+            <label class="field-label">Cursusnaam</label>
+            <input class="field-input" id="csName" />
+          </div>
+          <div>
+            <label class="field-label">Afkorting</label>
+            <input class="field-input" id="csIcon" maxlength="4" style="text-transform:uppercase;text-align:center;" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Hoofdkleur</label>
+          <input type="color" id="csColor" class="field-input" style="height:38px;padding:2px;cursor:pointer;" />
+        </div>
+        <div>
+          <label class="field-label">Gekoppelde docenten</label>
+          <div id="csTeachers" class="cs-teachers"><div class="cs-muted">Laden…</div></div>
+          <button class="btn btn-ghost btn-sm" id="csAddBtn" style="display:none;margin-top:8px;" onclick="openTeacherPicker()">＋ Docent koppelen</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCourseSettings()">Annuleren</button>
+      <button class="btn btn-primary" onclick="saveCourseSettings()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ TEACHER PICKER MODAL ═══════════════════ -->
+<div class="modal-overlay tp-overlay" id="teacherPickerModal" style="display:none" onclick="if(event.target===this)closeTeacherPicker()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Docent koppelen</span>
+      <button class="icon-btn" onclick="closeTeacherPicker()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input class="field-input" id="tpSearch" placeholder="Zoek op naam…" oninput="tpFilter()" autocomplete="off" style="flex:1;" />
+        <select class="field-select" id="tpRole" style="width:120px;" title="Rol bij koppelen">
+          <option value="Owner">Owner</option>
+          <option value="Editor">Editor</option>
+          <option value="Grader" selected>Grader</option>
+        </select>
+      </div>
+      <div class="tp-list" id="tpList"></div>
     </div>
   </div>
 </div>
@@ -1381,8 +1472,9 @@ function showSubjectView(subjectId) {
     const coursePages = PAGES.filter(p => p.course_id == c.id);
     const pageIds     = new Set(coursePages.map(p => p.id));
     const sectionCnt  = SECTIONS.filter(s => pageIds.has(s.page_id)).length;
-    const published   = coursePages.filter(p => p.published == 1).length;
-    const drafts       = coursePages.length - published;
+    const visible     = coursePages.filter(p => p.published == 1 && p.enabled == 1).length; // live + toggle on
+    const hidden      = coursePages.length - visible;                                       // not visible to students
+    const concepts    = coursePages.filter(p => p.concept_version_id != null).length;       // has a concept in progress
     const iconText    = c.icon || c.name.slice(0, 2).toUpperCase();
     return `
       <div class="subject-course-row" style="${courseTintStyle(c.color)}" onclick="selectCourse(${c.id})">
@@ -1392,8 +1484,9 @@ function showSubjectView(subjectId) {
           <div class="subject-course-stats">
             <span><strong>${coursePages.length}</strong> pagina${coursePages.length === 1 ? '' : '\'s'}</span>
             <span><strong>${sectionCnt}</strong> sectie${sectionCnt === 1 ? '' : 's'}</span>
-            <span class="stat-pub"><strong>${published}</strong> gepubliceerd</span>
-            <span class="stat-draft"><strong>${drafts}</strong> concept</span>
+            <span class="stat-pub"><strong>${visible}</strong> zichtbaar</span>
+            <span class="stat-hidden"><strong>${hidden}</strong> onzichtbaar</span>
+            <span class="stat-draft"><strong>${concepts}</strong> concept${concepts === 1 ? '' : 'en'}</span>
           </div>
         </div>
         <div class="subject-course-arrow">→</div>
@@ -1503,6 +1596,131 @@ async function commitCourseSubject(subjectId) {
 }
 
 /* ═══ SELECT COURSE → build sidebar ═══ */
+/* ═══ COURSE SETTINGS MODAL (cogwheel) ═══ */
+let _csCourseId = null;
+let _csCandidates = [];   // staff that can still be linked (for the picker)
+
+function openCourseSettings() {
+  if (!activeCourse || !canEditCourse(activeCourse.id)) return;
+  _csCourseId = activeCourse.id;
+  document.getElementById('csSubject').innerHTML = SUBJECTS.map(s =>
+    `<option value="${s.id}" ${s.id == activeCourse.subject_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  document.getElementById('csName').value  = activeCourse.name || '';
+  document.getElementById('csIcon').value  = activeCourse.icon || '';
+  document.getElementById('csColor').value = courseHex(activeCourse.color);
+  const modal = document.getElementById('courseSettingsModal');
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('visible'));
+  csLoadTeachers();
+}
+
+function closeCourseSettings() {
+  const modal = document.getElementById('courseSettingsModal');
+  modal.classList.remove('visible');
+  setTimeout(() => modal.style.display = 'none', 200);
+}
+
+async function saveCourseSettings() {
+  if (!_csCourseId) return;
+  const payload = {
+    actor:      CURRENT_USER?.name,
+    course_id:  _csCourseId,
+    name:       document.getElementById('csName').value.trim(),
+    icon:       document.getElementById('csIcon').value.trim(),
+    color:      document.getElementById('csColor').value,
+    subject_id: parseInt(document.getElementById('csSubject').value, 10),
+  };
+  if (!payload.name) { alert('Cursusnaam mag niet leeg zijn.'); return; }
+  try {
+    const res  = await fetch('api/update_course.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  } catch (err) { alert('Opslaan mislukt: ' + err.message); return; }
+
+  const c = COURSES.find(co => co.id == _csCourseId);
+  if (c) { c.name = payload.name; c.icon = payload.icon; c.color = payload.color; c.subject_id = payload.subject_id; }
+  if (activeCourse && activeCourse.id == _csCourseId) {
+    Object.assign(activeCourse, { name: payload.name, icon: payload.icon, color: payload.color, subject_id: payload.subject_id });
+    document.getElementById('topbarTitle').textContent = payload.name;
+    document.getElementById('panelTitle').textContent  = payload.name;
+  }
+  closeCourseSettings();
+  buildCourseSidebar();
+  renderCourseOverview();
+}
+
+async function csLoadTeachers() {
+  const box = document.getElementById('csTeachers');
+  box.innerHTML = `<div class="cs-muted">Laden…</div>`;
+  try {
+    const data = await fetch(`api/course_teachers.php?course_id=${_csCourseId}`).then(r => r.json());
+    csRenderTeachers(data);
+  } catch { box.innerHTML = `<div class="cs-muted">Kon docenten niet laden.</div>`; }
+}
+
+function csRenderTeachers(data) {
+  const canManage = canManageCourseTeachers(_csCourseId);
+  const roles = ['Owner', 'Editor', 'Grader'];
+  const teachers = data.teachers || [];
+  document.getElementById('csTeachers').innerHTML = teachers.length ? teachers.map(t => {
+    const isSuper = t.account_role === 'Superadmin';
+    const roleCtl = canManage
+      ? `<select class="cs-role" onchange="csSetRole('${esc(t.username)}', this.value)">${roles.map(r => `<option value="${r}" ${r === t.role ? 'selected' : ''}>${r}</option>`).join('')}</select>`
+      : `<span class="cs-role-label">${esc(t.role)}</span>`;
+    const rm = canManage ? `<button class="cs-remove" title="Ontkoppel" onclick="csRemoveTeacher('${esc(t.username)}')">✕</button>` : '';
+    return `<div class="cs-teacher"><span class="cs-teacher-name">${esc(t.username)}${isSuper ? ' <span class="cs-super">beheerder</span>' : ''}</span>${roleCtl}${rm}</div>`;
+  }).join('') : `<div class="cs-muted">Nog geen docenten gekoppeld.</div>`;
+
+  _csCandidates = data.candidates || [];
+  document.getElementById('csAddBtn').style.display = (canManage && _csCandidates.length) ? '' : 'none';
+}
+
+/* ── Teacher picker (searchable) ── */
+function openTeacherPicker() {
+  if (!canManageCourseTeachers(_csCourseId)) return;
+  document.getElementById('tpSearch').value = '';
+  const modal = document.getElementById('teacherPickerModal');
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('visible'));
+  tpFilter();
+  document.getElementById('tpSearch').focus();
+}
+function closeTeacherPicker() {
+  const modal = document.getElementById('teacherPickerModal');
+  modal.classList.remove('visible');
+  setTimeout(() => modal.style.display = 'none', 200);
+}
+function tpFilter() {
+  const q = document.getElementById('tpSearch').value.toLowerCase().trim();
+  const matches = _csCandidates.filter(c => c.username.toLowerCase().includes(q));
+  document.getElementById('tpList').innerHTML = matches.length
+    ? matches.map(c => `<button class="tp-item" onclick="tpPick('${esc(c.username)}')"><span>${esc(c.username)}</span>${c.account_role === 'Superadmin' ? '<span class="cs-super">beheerder</span>' : ''}</button>`).join('')
+    : `<div class="cs-muted">Geen docenten gevonden.</div>`;
+}
+async function tpPick(username) {
+  const role = document.getElementById('tpRole').value;
+  closeTeacherPicker();
+  await csMutate('POST', { actor: CURRENT_USER?.name, course_id: _csCourseId, username, role });
+  csLoadTeachers();
+}
+async function csSetRole(username, role) {
+  await csMutate('POST', { actor: CURRENT_USER?.name, course_id: _csCourseId, username, role });
+  csLoadTeachers();
+}
+async function csRemoveTeacher(username) {
+  if (!confirm(`${username} ontkoppelen van deze cursus?`)) { csLoadTeachers(); return; }
+  await csMutate('DELETE', { actor: CURRENT_USER?.name, course_id: _csCourseId, username });
+  csLoadTeachers();
+}
+async function csMutate(method, body) {
+  try {
+    const res = await fetch('api/course_teachers.php', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || ('HTTP ' + res.status)); }
+  } catch { alert('Netwerkfout'); }
+}
+
 function selectCourse(courseId) {
   activeCourse = COURSES.find(c => c.id == courseId);
   if (!activeCourse) return;
@@ -1535,10 +1753,10 @@ function renderCourseOverview() {
         <div class="course-overview-header">
           <div class="course-hero-logo" style="${courseIconStyle(activeCourse.color)}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
           <div class="course-hero-text">
-            <div class="course-overview-eyebrow">${courseSubjectEyebrow()}</div>
+            <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
             <div class="course-overview-title" id="courseTitleDisplay">
               <span class="course-title-text">${esc(activeCourse.name)}</span>
-              <button class="course-title-edit" onclick="startEditCourseTitle()" title="Cursusnaam wijzigen">✎</button>
+              ${canEditCourse(activeCourse.id) ? `<button class="course-title-edit" onclick="openCourseSettings()" title="Cursusinstellingen">⚙</button>` : ''}
             </div>
             <div class="course-overview-sub">Deze cursus heeft nog geen pagina's.</div>
           </div>
@@ -1551,6 +1769,8 @@ function renderCourseOverview() {
   const courseColor = activeCourse.color || '';
   const tileHtml = pages.map((page, idx) => {
     const tl = TYPE_LABELS[page.type] || TYPE_LABELS.lesson;
+    // Visible to students = has a live version AND the visibility toggle is on.
+    const visible = page.published == 1 && page.enabled == 1;
     const pageSections = SECTIONS
       .filter(s => s.page_id == page.id)
       .slice()
@@ -1570,6 +1790,7 @@ function renderCourseOverview() {
         <div class="page-tile-badge" style="background:${courseHex(activeCourse.color)};color:#fff;">${idx + 1}</div>
         <div class="page-tile-head">
           <div class="page-tile-title">${esc(page.title)}</div>
+          ${!visible ? `<span class="page-tile-hidden" title="Niet zichtbaar voor studenten"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg></span>` : ''}
           <span class="page-tile-type ${tl.cls}">${tl.label}</span>
         </div>
         <div class="page-tile-sections-label">${pageSections.length} sectie${pageSections.length === 1 ? '' : 's'}</div>
@@ -1583,10 +1804,10 @@ function renderCourseOverview() {
       <div class="course-overview-header">
         <div class="course-hero-logo" style="${courseIconStyle(activeCourse.color)}">${esc(activeCourse.icon || activeCourse.name.slice(0,2).toUpperCase())}</div>
         <div class="course-hero-text">
-          <div class="course-overview-eyebrow">${courseSubjectEyebrow()}</div>
+          <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
           <div class="course-overview-title" id="courseTitleDisplay">
             <span class="course-title-text">${esc(activeCourse.name)}</span>
-            <button class="course-title-edit" onclick="startEditCourseTitle()" title="Cursusnaam wijzigen">✎</button>
+            ${canEditCourse(activeCourse.id) ? `<button class="course-title-edit" onclick="openCourseSettings()" title="Cursusinstellingen">⚙</button>` : ''}
           </div>
           <div class="course-overview-sub">${pages.length} pagina${pages.length === 1 ? '' : '\'s'} · klik op een tegel om te bewerken</div>
         </div>
@@ -3545,6 +3766,18 @@ function courseIconStyle(c) { return `background:linear-gradient(135deg, ${cours
 function courseTintStyle(c) { return `background:${courseTint(c,0.08)};border-color:${courseTint(c,0.2)};color:${courseTint(c,0.22)};`; }
 /* ═══ USER / AUTH (shared with dashboard via sessionStorage) ═══ */
 let TEACHER_SCOPE = null; // null = superadmin (no restrictions), { courses:[], students:[] } = docent
+let CURRENT_USER = null;  // { name, initials, role, courseRoles:{courseId:role} }
+
+// Permission gates (superadmin overrides everything) — mirror config/course_perms.php.
+function myCourseRole(courseId) { return CURRENT_USER?.courseRoles?.[String(courseId)] || null; }
+function canEditCourse(courseId) {
+  if (CURRENT_USER?.role === 'Superadmin') return true;
+  return ['Owner', 'Editor'].includes(myCourseRole(courseId));
+}
+function canManageCourseTeachers(courseId) {
+  if (CURRENT_USER?.role === 'Superadmin') return true;
+  return myCourseRole(courseId) === 'Owner';
+}
 
 async function loadUser() {
   const name = sessionStorage.getItem("ict_user");
@@ -3560,7 +3793,8 @@ async function loadUser() {
     if (data.role === "Teacher") {
       TEACHER_SCOPE = { courses: data.courses || [], students: data.students || [] };
     }
-    return { name: data.username, initials: data.username.slice(0,2).toUpperCase(), role: data.role };
+    return { name: data.username, initials: data.username.slice(0,2).toUpperCase(),
+             role: data.role, courseRoles: data.courseRoles || {} };
   } catch {
     window.location = "./"; return null;
   }
@@ -3587,6 +3821,7 @@ document.addEventListener("click", (e) => {
 (async () => {
   const user = await loadUser();
   if (!user) return;
+  CURRENT_USER = user;
 
   // Populate avatar
   document.getElementById("topbarAvatar").textContent = user.initials;

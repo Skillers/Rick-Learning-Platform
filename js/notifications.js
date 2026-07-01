@@ -73,7 +73,7 @@
   }
   function tileItemHtml(n) {
     const v = view(n), t = timeLabel(n.created_at);
-    return `<div class="notif-card-item ${n.read_at ? "read" : ""}" onclick="Notifications.open(${n.id})" title="${esc(v.sub)}">${esc(v.title)} — ${esc(n.course_name || "")}${t ? ` · ${esc(t)}` : ""}</div>`;
+    return `<div class="notif-card-item ${n.read_at ? "read" : "unread"}" onclick="Notifications.open(${n.id})" title="${esc(v.sub)}">${esc(v.title)} — ${esc(n.course_name || "")}${t ? ` · ${esc(t)}` : ""}</div>`;
   }
 
   function render() {

@@ -59,17 +59,33 @@ if ($stmt->fetch()) {
     exit;
 }
 
-// Insert — pepper password with username before hashing
+// Insert — pepper password with username before hashing. New accounts are active
+// students (Role defaults to 'User'); CreatedAt/Active are NOT NULL with no DB
+// default, so set them explicitly.
 $peppered = hash_hmac('sha256', $password, $username);
 $hash     = password_hash($peppered, PASSWORD_BCRYPT);
-$stmt = $pdo->prepare("INSERT INTO `Accounts` (`username`, `Password`, `Email`) VALUES (?, ?, ?)");
-$stmt->execute([$username, $hash, $email]);
 
-// Initialise login-streak stats: the signup day counts as day 1
-$stmt = $pdo->prepare(
-    "INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`)
-     VALUES (?, NOW(), 1, 1)"
-);
-$stmt->execute([$username]);
+try {
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare(
+        "INSERT INTO `Accounts` (`username`, `Password`, `Email`, `CreatedAt`, `Active`)
+         VALUES (?, ?, ?, NOW(), 1)"
+    );
+    $stmt->execute([$username, $hash, $email]);
+
+    // Initialise login-streak stats: the signup day counts as day 1
+    $stmt = $pdo->prepare(
+        "INSERT INTO `AccountStats` (`accounts_username`, `LastLogin`, `LongestStreak`, `CurrentStreak`)
+         VALUES (?, NOW(), 1, 1)"
+    );
+    $stmt->execute([$username]);
+
+    $pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    http_response_code(500);
+    echo json_encode(['error' => 'Registratie mislukt.']);
+    exit;
+}
 
 echo json_encode(['success' => true]);

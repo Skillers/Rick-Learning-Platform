@@ -366,11 +366,16 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 .notif-card-list { flex: 1; max-height: 124px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .notif-card-item {
   font-size: 11px; color: var(--text2); cursor: pointer;
-  background: var(--bg3); border-left: 2px solid var(--blue); border-radius: 4px;
-  padding: 5px 8px; line-height: 1.35;
+  background: var(--bg3); border-left: 3px solid transparent; border-radius: 4px;
+  padding: 5px 8px 5px 9px; line-height: 1.35;
 }
 .notif-card-item:hover { color: var(--text); }
-.notif-card-item.read { border-left-color: var(--border2); opacity: .75; }
+/* Unread: blue bar + tint + bolder — mirrors the bell/modal (compact, no dot). */
+.notif-card-item.unread {
+  background: rgba(56,139,253,.12); border-left-color: var(--blue);
+  color: var(--text); font-weight: 600;
+}
+.notif-card-item.read { opacity: .6; }
 .notif-card-head-right { display: flex; align-items: center; gap: 8px; }
 .notif-card-more {
   background: none; border: none; color: var(--text3); cursor: pointer;
@@ -930,7 +935,8 @@ code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
 /* ── Lesson view ─────────────────────────────── */
 .lesson-view-header {
   background: var(--bg2); border: 1px solid var(--border);
-  border-radius: var(--radius2); padding: 20px 24px; margin-bottom: 16px;
+  border-radius: var(--radius2); padding: 20px 24px;
+  width: 100%; max-width: 1010px; margin: 0 auto 16px;
   display: flex; align-items: center; gap: 16px;
 }
 .lesson-breadcrumb { font-size: 12px; color: var(--text2); margin-bottom: 4px; }

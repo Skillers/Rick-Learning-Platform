@@ -2,6 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/db.connection.php';
+require_once __DIR__ . '/../config/course_perms.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -24,18 +25,8 @@ if (!$grader
     exit;
 }
 
-// Who is grading? (superadmin = bypass scoping, docent = only own courses)
-$stmt = $pdo->prepare("SELECT `Role` FROM `accounts` WHERE `username` = ?");
-$stmt->execute([$grader]);
-$role = $stmt->fetchColumn();
-if ($role === false) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Unknown grader']);
-    exit;
-}
-
 // Resolve the course this item lives on (via its live page version) — used for
-// the docent scope check and returned so the client can refresh its row.
+// the permission check and returned so the client can refresh its row.
 $student      = trim($body['student'] ?? '');
 $assignmentId = (int)($body['assignment_id'] ?? 0);
 $didId        = (int)($body['did_question_id'] ?? 0);
@@ -82,22 +73,11 @@ if ($courseId === false || $courseId === null) {
 }
 $courseId = (int)$courseId;
 
-// Authorization: Superadmin grades anything; a Teacher must teach this course.
-if ($role !== 'Superadmin') {
-    if ($role !== 'Teacher') {
-        http_response_code(403);
-        echo json_encode(['error' => 'Not allowed to grade']);
-        exit;
-    }
-    $stmt = $pdo->prepare(
-        "SELECT 1 FROM `Teacher_ParticipatesIn_Course`
-         WHERE `accounts_username` = ? AND `courses_Id` = ?");
-    $stmt->execute([$grader, $courseId]);
-    if (!$stmt->fetchColumn()) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Je bent geen docent van deze cursus']);
-        exit;
-    }
+// Authorization: superadmin, Owner, or Grader of this course may grade.
+if (!can_grade_course($pdo, $grader, $courseId)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Geen rechten om na te kijken voor deze cursus']);
+    exit;
 }
 
 // Persist the verdict + feedback. Empty feedback is stored as NULL.
@@ -115,11 +95,9 @@ if ($kind === 'assignment') {
          WHERE `Id` = ?");
     $stmt->execute([$verdict, $fb, $grader, $didId]);
 }
-if ($stmt->rowCount() === 0) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Submission not found']);
-    exit;
-}
+// Note: we don't treat rowCount()===0 as an error — re-saving an identical grade
+// changes no rows but is a valid no-op. The item's existence was already checked
+// when we resolved its course above.
 
 // Notifications (open questions only). Tell the student their answer was graded,
 // and mark the shared course-wide "to grade" notification handled.

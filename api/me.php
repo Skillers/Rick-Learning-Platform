@@ -115,9 +115,17 @@ $result['xpForNext']     = $progress['for_next'];
 // For docents: return assigned courses and mentored students
 // For superadmins: null = no restrictions (bypass all scoping)
 if ($row['Role'] === 'Teacher') {
-    $stmt = $pdo->prepare("SELECT `courses_Id` FROM `Teacher_ParticipatesIn_Course` WHERE `accounts_username` = ?");
+    // Per-course roles (Owner/Grader/Editor) so the UI can gate edit/grade/manage.
+    $stmt = $pdo->prepare("SELECT `courses_Id`, `Role` FROM `Teacher_ParticipatesIn_Course` WHERE `accounts_username` = ?");
     $stmt->execute([$username]);
-    $result['courses'] = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    $courseRoles = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $cr) { $courseRoles[(string)(int)$cr['courses_Id']] = $cr['Role']; }
+    $result['courseRoles'] = $courseRoles;
+    $result['courses']     = array_map('intval', array_keys($courseRoles));
+
+    $stmt = $pdo->prepare("SELECT `accounts_Student` FROM `Teacher_guides_Student` WHERE `accounts_Teacher` = ?");
+    $stmt->execute([$username]);
+    $result['students'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $stmt = $pdo->prepare("SELECT `accounts_Student` FROM `Teacher_guides_Student` WHERE `accounts_Teacher` = ?");
     $stmt->execute([$username]);
