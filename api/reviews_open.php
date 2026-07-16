@@ -11,16 +11,21 @@ $rows = $pdo->query("
         dq.`Id`               AS `did_question_id`,
         dq.`accounts_username` AS `username`,
         dq.`OpenAnswer`       AS `open_answer`,
+        dq.`FileName`         AS `file_name`,
+        dq.`FilePath`         AS `file_path`,
         dq.`AttemptDate`      AS `submitted_on`,
         dq.`Verdict`          AS `verdict`,
         dq.`ReviewFeedback`   AS `feedback`,
         dq.`ReviewedBy`       AS `graded_by`,
         dq.`ReviewedAt`       AS `graded_on`,
+        dq.`PointsAwarded`    AS `points_awarded`,
         q.`Id`                AS `question_id`,
         q.`Question`          AS `question_text`,
         q.`ExpectedResult`    AS `expected_result`,
+        q.`PossiblePoints`    AS `max_points`,
         p.`Id`                AS `page_id`,
         pv.`Title`            AS `page_title`,
+        pt.`Name`             AS `page_type`,
         c.`Id`                AS `course_id`,
         c.`Name`              AS `course_name`,
         c.`Icon`              AS `course_icon`,
@@ -32,6 +37,7 @@ $rows = $pdo->query("
     JOIN `PageVersion_has_sections` pvs ON pvs.`sections_Id`  = shc.`sections_Id`
     JOIN `PageVersion` pv               ON pv.`Id` = pvs.`PageVersion_Id` AND pv.`Status` = 'live'
     JOIN `pages` p                      ON p.`Id` = pv.`pages_Id`
+    LEFT JOIN `pagetypes` pt            ON pt.`Id` = p.`PageType_Id`
     JOIN `courses` c                    ON p.`Course_Id` = c.`Id`
     WHERE dq.`QuestionContext_ContextType` = 'section'
     ORDER BY dq.`AttemptDate` DESC

@@ -17,7 +17,8 @@ INSERT INTO `PageTypes` (`Id`, `Name`, `Color`) VALUES
 (1, 'lesson',   'type-lesson'),
 (2, 'exercise', 'type-exercise'),
 (3, 'quiz',     'type-quiz'),
-(4, 'project',  'type-project');
+(4, 'project',  'type-project'),
+(5, 'test',     'type-test');
 
 -- -------------------------------------------------------------
 -- Subjects
@@ -1112,6 +1113,17 @@ UPDATE `AC_Did_Question` SET `Verdict` = 'X'
 INSERT INTO `Teacher_ParticipatesIn_Course` (`courses_Id`, `accounts_username`, `Role`) VALUES
 (1, 'Marloes', 'Owner'),
 (2, 'Marloes', 'Owner');
+
+-- -------------------------------------------------------------
+-- Teacher ↔ Subject links  (Teacher_has_Subjects)
+-- Lets a teacher "join" a subject even before it has any of their courses, so
+-- an empty subject stays visible to them on the admin page. A teacher also sees
+-- any subject that holds one of their courses (derived, no row needed here).
+-- Demo: Marloes joins "Game & VR" (subject 2) though she has no course there yet,
+--       so she sees it as an empty subject. Remove this row if not wanted.
+-- -------------------------------------------------------------
+INSERT INTO `Teacher_has_Subjects` (`accounts_username`, `subjects_id`) VALUES
+('Marloes', 2);
 
 -- -------------------------------------------------------------
 -- Teacher ↔ Student mentoring

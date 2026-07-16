@@ -22,6 +22,7 @@ $stmt = $pdo->prepare("
         v.`Title`       AS `title`,
         pt.`Name`       AS `type`,
         v.`XpReward`    AS `xp_reward`,
+        v.`NTerm`       AS `n_term`,
         v.`CreatedAt`   AS `created_at`,
         v.`PublishedAt` AS `published_at`,
         v.`ArchivedAt`  AS `archived_at`,
@@ -39,6 +40,7 @@ foreach ($rows as &$r) {
     $r['id']            = (int)$r['id'];
     $r['version_no']    = (int)$r['version_no'];
     $r['xp_reward']     = (int)$r['xp_reward'];
+    $r['n_term']        = $r['n_term'] !== null ? (float)$r['n_term'] : 1.0;
     $r['section_count'] = (int)$r['section_count'];
 }
 unset($r);

@@ -177,6 +177,7 @@ function handleLogout() {
   document.getElementById("avatarMenu").classList.remove("open");
   document.getElementById("app-layout").style.display   = "none";
   document.getElementById("login-screen").style.display = "";
+  showLoginView("login");
   _stopLoginAnim = startLoginAnimation();
 }
 
@@ -1200,14 +1201,31 @@ function renderQuiz(jsonStr, componentId) {
   const qId = `quiz-q${questionId}`;
   const letters = ['A', 'B', 'C', 'D'];
   const letterCls = ['quiz-letter-a', 'quiz-letter-b', 'quiz-letter-c', 'quiz-letter-d'];
+  // On a Test page every question shows its max points next to the label.
+  const isTest = currentLesson?.type === 'test';
+  const pts = data.points != null ? data.points : null;
+  const pointsBadge = (isTest && pts != null)
+    ? `<span class="quiz-points-badge">${pts} ${pts === 1 ? 'punt' : 'punten'}</span>` : '';
 
   if (data.open_question) {
-    return `<div class="quiz-box" id="${qId}" data-question-id="${questionId}" data-open="1">
-      <span class="quiz-label">Vraag</span>
+    const allowDoc  = !!data.allow_document;
+    const allowImg  = !!data.allow_image;
+    const allowFile = allowDoc || allowImg;
+    const accept = [
+      ...(allowDoc ? ['.pdf', '.doc', '.docx', '.txt'] : []),
+      ...(allowImg ? ['.png', '.jpg', '.jpeg'] : []),
+    ].join(',');
+    const kinds = [allowDoc ? 'document' : null, allowImg ? 'afbeelding' : null].filter(Boolean).join(' of ');
+    const fileBlock = allowFile ? `
+      <label class="quiz-input-label">Bestand toevoegen (${kinds})</label>
+      <input class="quiz-file" type="file" accept="${accept}" id="${qId}-file" style="margin:4px 0 2px;color:var(--text2);font-size:13px;">` : '';
+    return `<div class="quiz-box" id="${qId}" data-question-id="${questionId}" data-open="1"${allowFile ? ' data-allow-file="1"' : ''}>
+      <span class="quiz-label">Vraag${pointsBadge}</span>
       <div class="quiz-question">${escHtml(data.question)}</div>
       ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
       <label class="quiz-input-label">Jouw antwoord</label>
       <input class="quiz-input" type="text" placeholder="Typ je antwoord hier..." id="${qId}-input">
+      ${fileBlock}
       <button class="quiz-check-btn" data-quiz-submit="${qId}">Lever in</button>
       <div class="quiz-feedback" id="${qId}-feedback"></div>
     </div>`;
@@ -1231,7 +1249,7 @@ function renderQuiz(jsonStr, componentId) {
   }).join('');
 
   return `<div class="quiz-box" id="${qId}" data-question-id="${questionId}" data-multi="${isMulti ? '1' : '0'}">
-    <span class="quiz-label">Vraag</span>
+    <span class="quiz-label">Vraag${pointsBadge}</span>
     ${isMulti ? '<div class="quiz-hint">Meerdere antwoorden zijn juist</div>' : ''}
     <div class="quiz-question">${escHtml(data.question)}</div>
     ${data.image ? `<img class="quiz-image" src="${escHtml(data.image)}" alt="">` : ''}
@@ -1319,6 +1337,8 @@ async function loadQuizSubmissions(pageId) {
       _quizSubmissions[r.question_id] = {
         picked_answer_ids: r.picked_answer_ids || [],
         open_answer:       r.open_answer,
+        file_name:         r.file_name,
+        file_path:         r.file_path,
         verdict:           r.verdict,       // 'none' | 'V' | 'X'
         feedback:          r.feedback,
       };
@@ -1347,15 +1367,7 @@ function submitQuiz(qId) {
   const isOpen    = box.dataset.open === '1';
 
   if (isOpen) {
-    const input = box.querySelector('.quiz-input');
-    const fb    = document.getElementById(qId + '-feedback');
-    const text  = input.value.trim();
-    if (!text) { fb.textContent = 'Typ een antwoord.'; fb.className = 'quiz-feedback'; return; }
-    persistQuiz(questionId, { open_answer: text }).then(() => {
-      _quizSubmissions[questionId] = { picked_answer_ids: [], open_answer: text };
-      applyQuizState(box, _quizSubmissions[questionId]);
-      maybeMarkSectionOnQuizAnswered(questionId);
-    });
+    submitOpenQuiz(box, qId, questionId);
     return;
   }
 
@@ -1370,7 +1382,65 @@ function submitQuiz(qId) {
     _quizSubmissions[questionId] = { picked_answer_ids: pickedIds, open_answer: null };
     applyQuizState(box, _quizSubmissions[questionId]);
     maybeMarkSectionOnQuizAnswered(questionId);
+    refreshTestResult();   // keep the Test result panel in sync
   });
+}
+
+// Open-question submit: optionally upload a file first, then persist. A submission
+// is valid with text, a file, or both — but never empty.
+async function submitOpenQuiz(box, qId, questionId) {
+  const input     = box.querySelector('.quiz-input');
+  const fileInput = box.querySelector('.quiz-file');
+  const fb        = document.getElementById(qId + '-feedback');
+  const btn       = box.querySelector('.quiz-check-btn');
+  const text      = input ? input.value.trim() : '';
+  const file      = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+  if (!text && !file) {
+    fb.textContent = box.dataset.allowFile === '1'
+      ? 'Typ een antwoord of voeg een bestand toe.'
+      : 'Typ een antwoord.';
+    fb.className = 'quiz-feedback';
+    return;
+  }
+
+  let fileInfo = null;
+  if (file) {
+    if (btn) btn.disabled = true;
+    fb.className   = 'quiz-feedback';
+    fb.textContent = 'Bestand uploaden…';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('question_id', questionId);
+      const res  = await fetch('api/upload_submission.php', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        fb.textContent = data.error || 'Uploaden mislukt.';
+        fb.className   = 'quiz-feedback wrong';
+        if (btn) btn.disabled = false;
+        return;
+      }
+      fileInfo = { file_name: data.original_name, file_path: data.path };
+    } catch {
+      fb.textContent = 'Uploaden mislukt.';
+      fb.className   = 'quiz-feedback wrong';
+      if (btn) btn.disabled = false;
+      return;
+    }
+  }
+
+  const record = {
+    picked_answer_ids: [],
+    open_answer: text,
+    file_name:   fileInfo ? fileInfo.file_name : null,
+    file_path:   fileInfo ? fileInfo.file_path : null,
+  };
+  await persistQuiz(questionId, record);
+  _quizSubmissions[questionId] = record;
+  applyQuizState(box, record);
+  maybeMarkSectionOnQuizAnswered(questionId);
+  refreshTestResult();   // keep the Test result panel in sync
 }
 
 // If this question was the last unanswered one in its section, optimistically
@@ -1395,6 +1465,8 @@ async function persistQuiz(questionId, payload) {
         question_id:        questionId,
         picked_answer_ids:  payload.picked_answer_ids || [],
         open_answer:        payload.open_answer ?? null,
+        file_name:          payload.file_name ?? null,
+        file_path:          payload.file_path ?? null,
       }),
     });
   } catch {}
@@ -1632,6 +1704,19 @@ function applyQuizState(box, saved) {
       input.value    = saved.open_answer || '';
       input.disabled = true;
     }
+    // Lock the picker and show the handed-in file as a download link (once).
+    const fileInput = box.querySelector('.quiz-file');
+    if (fileInput) { fileInput.disabled = true; fileInput.style.display = 'none'; }
+    if (saved.file_path && !box.querySelector('.quiz-file-link')) {
+      const link = document.createElement('a');
+      link.className   = 'quiz-file-link';
+      link.href        = saved.file_path;
+      link.target      = '_blank';
+      link.rel         = 'noopener';
+      link.textContent = '📎 ' + (saved.file_name || 'Bestand');
+      link.style.cssText = 'display:inline-block;margin:8px 0;color:var(--accent,#388bfd);font-size:13px;text-decoration:none;';
+      if (fb && fb.parentNode) fb.parentNode.insertBefore(link, fb);
+    }
     if (fb) {
       const v = saved.verdict;
       const fbBlock = saved.feedback
@@ -1834,9 +1919,11 @@ function paginateSections(sections, startIdx = 0) {
   _fullViewSeen = new Set();        // fresh page — nothing seen in full view yet
   const btn = document.getElementById("viewToggleBtn");
   if (btn) btn.textContent = "Switch to full view";
-  // One section per slide
+  // One section per slide. A Test gets an extra terminal slide: the result
+  // summary, reached by navigating past the last section.
   currentSlides = sections.map(s => [s]);
-  setCurrentSections(sections);
+  if (currentLesson?.type === 'test') currentSlides.push([SUMMARY_SLIDE]);
+  setCurrentSections(sections);   // real sections only — the summary isn't awardable
   renderSlide(Math.min(startIdx, sections.length - 1));
 }
 
@@ -1849,7 +1936,7 @@ function toggleView() {
 }
 
 function renderFullView() {
-  const allSections = currentSlides.flat();
+  const allSections = currentSlides.flat().filter(s => !s.__summary);
   const sectionsHTML = allSections.map((s, globalIdx) => {
     const sectionKey   = `${currentCourse.id}__${currentLesson.id}__${globalIdx}`;
     const reportCount  = getReportCount(sectionKey);
@@ -1888,6 +1975,72 @@ function renderFullView() {
     });
   }, { root: document.querySelector(".main"), threshold: 0.3 });
   sections.forEach(s => _fullViewObserver.observe(s));
+
+  // Full view shows every section at once but not the result — offer a button
+  // that jumps to the summary slide (in section view).
+  if (currentLesson?.type === 'test') {
+    const cta = document.createElement('div');
+    cta.className = 'test-summary-cta';
+    cta.innerHTML = `<button class="btn btn-primary" onclick="goToTestSummary()">Naar resultaat →</button>`;
+    el.appendChild(cta);
+  }
+}
+
+// Jump to the Test result slide (leaving full view if active).
+function goToTestSummary() {
+  const idx = currentSlides.findIndex(isSummarySlide);
+  if (idx < 0) return;
+  if (fullView) {
+    fullView = false;
+    const btn = document.getElementById("viewToggleBtn");
+    if (btn) btn.textContent = "Switch to full view";
+  }
+  renderSlide(idx);
+  document.querySelector(".main").scrollTo({ top: 0, behavior: "smooth" });
+}
+window.goToTestSummary = goToTestSummary;
+
+/* ── Test (Toets) result slide ─────────────────────────────
+   On a Test page the score/grade summary is its OWN final slide — reached with
+   the normal "next" navigation after the last content section (and via a button
+   in full view). Values come from api/test_result.php. */
+const SUMMARY_SLIDE = { __summary: true };
+function isSummarySlide(slide) { return !!(slide && slide.length === 1 && slide[0] && slide[0].__summary); }
+
+// Inner HTML for the summary slide: a heading + the (async-filled) result card.
+function summarySlideHTML() {
+  return `<div class="page-section test-summary-section">
+      <h3 class="section-heading">Resultaat</h3>
+      <div id="testResultPanel" class="test-result-card"><div class="tr-foot">Resultaat laden…</div></div>
+    </div>`;
+}
+
+async function refreshTestResult() {
+  const el = document.getElementById('testResultPanel');
+  if (!el || currentLesson?.type !== 'test' || !STUDENT) return;
+  let d;
+  try {
+    const r = await fetch(`../api/test_result.php?username=${encodeURIComponent(STUDENT.name)}&page_id=${currentLesson.id}`);
+    if (!r.ok) return;
+    d = await r.json();
+  } catch (_) { return; }
+  if (!d || d.error) return;
+
+  const nl    = n => (n == null ? '—' : String(Math.round(n * 100) / 100).replace('.', ','));
+  const grade = g => (g == null ? '—' : g.toFixed(1).replace('.', ','));
+  const passed = d.grade_current != null && d.grade_current >= d.pass_line;
+  const hasPending = d.pending_points > 0;
+  const unanswered = Math.max(0, d.question_count - d.answered_count);
+
+  el.innerHTML = `
+    <div class="test-result-head">Resultaat</div>
+    <div class="tr-grid">
+      <div class="tr-row"><span>Behaalde punten</span><strong>${nl(d.earned_points)} / ${nl(d.max_points)}</strong></div>
+      ${hasPending ? `<div class="tr-row"><span>Nog na te kijken</span><strong>${nl(d.pending_points)} punten</strong></div>` : ''}
+      <div class="tr-row tr-grade ${passed ? 'pass' : 'fail'}"><span>Huidig cijfer</span><strong>${grade(d.grade_current)}</strong></div>
+      ${hasPending ? `<div class="tr-row tr-grade-possible"><span>Mogelijk cijfer</span><strong>${grade(d.grade_possible)}</strong></div>` : ''}
+    </div>
+    <div class="tr-foot">Voldoende vanaf ${grade(d.pass_line)}${unanswered > 0 ? ` · nog ${unanswered} vraag/vragen open` : ''}</div>`;
 }
 
 function renderSlide(idx) {
@@ -1909,8 +2062,9 @@ function renderSlide(idx) {
   const total  = currentSlides.length;
   const isLast = currentSlideIdx === total - 1;
   const isFirst= currentSlideIdx === 0;
+  const isSummary = isSummarySlide(slide);
 
-  const sectionsHTML = slide.map((s, i) => {
+  const sectionsHTML = isSummary ? summarySlideHTML() : slide.map((s, i) => {
     const globalIdx = currentSlides.slice(0, currentSlideIdx).reduce((a, sl) => a + sl.length, 0) + i;
     const sectionKey = `${currentCourse.id}__${currentLesson.id}__${globalIdx}`;
     const reportCount = getReportCount(sectionKey);
@@ -1941,7 +2095,7 @@ function renderSlide(idx) {
   const progressPct = Math.round(((currentSlideIdx + 1) / total) * 100);
 
   const dots = Array.from({ length: total }, (_, i) => {
-    const sectionTitle = currentSlides[i]?.[0]?.title || `Sectie ${i + 1}`;
+    const sectionTitle = isSummarySlide(currentSlides[i]) ? 'Resultaat' : (currentSlides[i]?.[0]?.title || `Sectie ${i + 1}`);
     return `<button class="slide-dot${i === currentSlideIdx ? " active" : ""}" data-slide-to="${i}" title="${sectionTitle}" aria-label="${sectionTitle}"></button>`;
   }).join("");
 
@@ -1978,6 +2132,7 @@ function renderSlide(idx) {
 
   wireReportButtons();
   wireQuizzes();
+  if (isSummary) refreshTestResult();
 
   // Wire nav buttons
   document.getElementById("lessonContent").querySelectorAll("[data-slide-to]").forEach(btn => {

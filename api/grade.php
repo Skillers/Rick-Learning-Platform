@@ -16,10 +16,17 @@ $kind     = $body['kind']          ?? '';
 $verdict  = $body['verdict']       ?? '';
 $feedback = isset($body['feedback']) ? trim($body['feedback']) : '';
 
+// Test (Toets) open questions are graded with a point value; the verdict is then
+// derived from it. When points_awarded is absent this is a plain pass/fail grade.
+$pointsAwarded = (array_key_exists('points_awarded', $body)
+                  && $body['points_awarded'] !== '' && $body['points_awarded'] !== null)
+                 ? (float)$body['points_awarded'] : null;
+
 // Verdict: 'V' = voldoende, 'X' = onvoldoende, 'none' = terug naar wachtrij.
+// It is required unless a point value is supplied (from which we derive it).
 if (!$grader
     || !in_array($kind, ['assignment', 'open_question'], true)
-    || !in_array($verdict, ['V', 'X', 'none'], true)) {
+    || ($pointsAwarded === null && !in_array($verdict, ['V', 'X', 'none'], true))) {
     http_response_code(400);
     echo json_encode(['error' => 'Missing or invalid fields']);
     exit;
@@ -54,7 +61,7 @@ if ($kind === 'assignment') {
         exit;
     }
     $stmt = $pdo->prepare("
-        SELECT p.`Course_Id`
+        SELECT p.`Course_Id` AS course_id, q.`PossiblePoints` AS max_points
         FROM `AC_Did_Question` dq
         JOIN `PQQuestion` q                 ON q.`Id` = dq.`PQQuestion_Id`
         JOIN `components` cp                ON q.`component_Id`   = cp.`Id`
@@ -65,13 +72,22 @@ if ($kind === 'assignment') {
         WHERE dq.`Id` = ? LIMIT 1");
     $stmt->execute([$didId]);
 }
-$courseId = $stmt->fetchColumn();
-if ($courseId === false || $courseId === null) {
+$resolved = $stmt->fetch(PDO::FETCH_ASSOC);
+$courseId = $resolved['course_id'] ?? ($resolved['Course_Id'] ?? null);
+if ($courseId === null) {
     http_response_code(404);
     echo json_encode(['error' => 'Item or its live page not found']);
     exit;
 }
 $courseId = (int)$courseId;
+
+// For a point-graded open question: clamp to the question's max, then derive verdict.
+if ($kind === 'open_question' && $pointsAwarded !== null) {
+    $maxPoints = (float)($resolved['max_points'] ?? 0);
+    if ($pointsAwarded < 0) $pointsAwarded = 0.0;
+    if ($maxPoints > 0 && $pointsAwarded > $maxPoints) $pointsAwarded = $maxPoints;
+    $verdict = $pointsAwarded > 0 ? 'V' : 'X';
+}
 
 // Authorization: superadmin, Owner, or Grader of this course may grade.
 if (!can_grade_course($pdo, $grader, $courseId)) {
@@ -88,6 +104,13 @@ if ($kind === 'assignment') {
            SET `Verdict` = ?, `Feedback` = ?, `FeedbackDate` = NOW(), `GradedBy` = ?
          WHERE `account_username` = ? AND `Assigment_Id` = ?");
     $stmt->execute([$verdict, $fb, $grader, $student, $assignmentId]);
+} elseif ($pointsAwarded !== null) {
+    // Point-graded (Test): store the awarded points alongside the derived verdict.
+    $stmt = $pdo->prepare("
+        UPDATE `AC_Did_Question`
+           SET `Verdict` = ?, `ReviewFeedback` = ?, `ReviewedAt` = NOW(), `ReviewedBy` = ?, `PointsAwarded` = ?
+         WHERE `Id` = ?");
+    $stmt->execute([$verdict, $fb, $grader, $pointsAwarded, $didId]);
 } else {
     $stmt = $pdo->prepare("
         UPDATE `AC_Did_Question`
@@ -118,10 +141,11 @@ if ($kind === 'open_question') {
 }
 
 echo json_encode([
-    'success'   => true,
-    'kind'      => $kind,
-    'verdict'   => $verdict,
-    'feedback'  => $feedback,
-    'graded_by' => $grader,
-    'course_id' => $courseId,
+    'success'        => true,
+    'kind'           => $kind,
+    'verdict'        => $verdict,
+    'feedback'       => $feedback,
+    'graded_by'      => $grader,
+    'course_id'      => $courseId,
+    'points_awarded' => $pointsAwarded,
 ]);

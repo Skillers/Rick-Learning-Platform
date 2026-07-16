@@ -639,7 +639,7 @@ let ADMIN_USER = null;
 async function init() {
   const [accRes, courseRes] = await Promise.all([
     fetch('api/accounts.php').then(r => r.json()),
-    fetch('api/courses.php').then(r => r.json())
+    fetch('api/courses.php?username=' + encodeURIComponent(ADMIN_USER)).then(r => r.json())
   ]);
   DATA = accRes;
   allCourses = courseRes;
@@ -1024,13 +1024,8 @@ function renderCourseDetail() {
   const candidates = DATA.accounts.filter(a => a.role === 'User' && a.active == 1)
     .filter(a => isStudentVisible(a))
     .filter(a => !search || a.username.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
-    .sort((a,b) => {
-      // enrolled first, then alphabetical
-      const ea = enrolled.has(a.username) ? 0 : 1;
-      const eb = enrolled.has(b.username) ? 0 : 1;
-      if (ea !== eb) return ea - eb;
-      return a.username.localeCompare(b.username);
-    });
+    // Stable alphabetical order — toggling a checkbox must NOT reorder the list.
+    .sort((a,b) => a.username.localeCompare(b.username));
 
   wrap.innerHTML = `
     <div class="course-detail">
@@ -1095,12 +1090,8 @@ function renderCourseModalBody() {
   const search = modalSearch.toLowerCase();
   const list = allCourses
     .filter(c => !search || c.name.toLowerCase().includes(search) || (c.icon||'').toLowerCase().includes(search))
-    .sort((a,b) => {
-      const ea = enrolled.has(String(a.id)) ? 0 : 1;
-      const eb = enrolled.has(String(b.id)) ? 0 : 1;
-      if (ea !== eb) return ea - eb;
-      return a.name.localeCompare(b.name);
-    });
+    // Stable alphabetical order — toggling a checkbox must NOT reorder the list.
+    .sort((a,b) => a.name.localeCompare(b.name));
 
   const body = document.getElementById('courseModalBody');
   body.innerHTML = list.length === 0

@@ -14,6 +14,8 @@ $username    = trim($body['username']    ?? '');
 $question_id = (int)($body['question_id'] ?? 0);
 $picked      = $body['picked_answer_ids'] ?? [];
 $open_answer = isset($body['open_answer']) ? trim($body['open_answer']) : null;
+$file_name   = isset($body['file_name']) ? trim((string)$body['file_name']) : null;
+$file_path   = isset($body['file_path']) ? trim((string)$body['file_path']) : null;
 
 if (!$username || !$question_id) {
     http_response_code(400);
@@ -34,30 +36,40 @@ if ($stmt->fetchColumn()) {
     exit;
 }
 
-// Validate question exists + decide MC vs open.
-$stmt = $pdo->prepare("SELECT OpenQuestion FROM PQQuestion WHERE Id = ?");
+// Validate question exists + decide MC vs open. Also read its file permissions so a
+// crafted request can't attach a file to a question the teacher didn't open for it.
+$stmt = $pdo->prepare("SELECT OpenQuestion, AllowDocument, AllowImage, PossiblePoints FROM PQQuestion WHERE Id = ?");
 $stmt->execute([$question_id]);
-$isOpen = $stmt->fetchColumn();
-if ($isOpen === false) {
+$q = $stmt->fetch();
+if ($q === false) {
     http_response_code(404);
     echo json_encode(['error' => 'Question not found']);
     exit;
 }
-$isOpen = (int)$isOpen === 1;
+$isOpen    = (int)$q['OpenQuestion'] === 1;
+$allowFile = (int)$q['AllowDocument'] === 1 || (int)$q['AllowImage'] === 1;
+$qPoints   = (float)$q['PossiblePoints'];
 
 $pdo->beginTransaction();
 try {
+    // Only persist an attached file on open questions, and only when the path looks
+    // like one our own upload endpoint produced (guards against arbitrary values).
+    $storeFile = ($isOpen && $allowFile && $file_path && preg_match('#^uploads/[A-Za-z0-9_.-]+$#', $file_path));
+    $fileName  = $storeFile && $file_name !== '' ? mb_substr($file_name, 0, 255) : null;
+    $filePath  = $storeFile ? mb_substr($file_path, 0, 255) : null;
+
     $stmt = $pdo->prepare(
         "INSERT INTO AC_Did_Question
-            (accounts_username, PQQuestion_Id, QuestionContext_ContextType, AttemptDate, OpenAnswer)
-         VALUES (?, ?, 'section', NOW(), ?)"
+            (accounts_username, PQQuestion_Id, QuestionContext_ContextType, AttemptDate, OpenAnswer, FileName, FilePath)
+         VALUES (?, ?, 'section', NOW(), ?, ?, ?)"
     );
-    $stmt->execute([$username, $question_id, $isOpen ? ($open_answer ?: '') : null]);
+    $stmt->execute([$username, $question_id, $isOpen ? ($open_answer ?: '') : null, $fileName, $filePath]);
     $didId = (int)$pdo->lastInsertId();
 
     $savedPicks = [];
-    if (!$isOpen && is_array($picked) && $picked) {
-        // Pull all valid answers for this question so we can validate IDs and compute Correct.
+    if (!$isOpen) {
+        // Pull all valid answers for this question so we can validate IDs, store
+        // Correct, and score the question.
         $stmt = $pdo->prepare("SELECT Id, IsCorrect FROM PQAnswer WHERE PQQuestion_Id = ?");
         $stmt->execute([$question_id]);
         $valid = [];
@@ -65,15 +77,34 @@ try {
             $valid[(int)$row['Id']] = (int)$row['IsCorrect'];
         }
 
-        $insertPick = $pdo->prepare(
-            "INSERT INTO AC_Picked_Answer (AC_Did_Question_Id, PQAnswer_Id, Correct) VALUES (?, ?, ?)"
-        );
-        foreach ($picked as $pid) {
-            $pid = (int)$pid;
-            if (!isset($valid[$pid])) continue;
-            $insertPick->execute([$didId, $pid, $valid[$pid]]);
-            $savedPicks[] = $pid;
+        if (is_array($picked) && $picked) {
+            $insertPick = $pdo->prepare(
+                "INSERT INTO AC_Picked_Answer (AC_Did_Question_Id, PQAnswer_Id, Correct) VALUES (?, ?, ?)"
+            );
+            foreach ($picked as $pid) {
+                $pid = (int)$pid;
+                if (!isset($valid[$pid])) continue;
+                $insertPick->execute([$didId, $pid, $valid[$pid]]);
+                $savedPicks[] = $pid;
+            }
         }
+
+        // Auto-score: partial credit = points * (options classified correctly / total).
+        // An option is classified correctly when the student's picked/not-picked
+        // state matches its IsCorrect flag. Stored on the attempt for Test grading.
+        $total = count($valid);
+        $awarded = 0.0;
+        if ($total > 0) {
+            $pickedSet = array_flip($savedPicks);
+            $classifiedRight = 0;
+            foreach ($valid as $aid => $isCorrect) {
+                $isPicked = isset($pickedSet[$aid]);
+                if (($isPicked && $isCorrect === 1) || (!$isPicked && $isCorrect === 0)) $classifiedRight++;
+            }
+            $awarded = round($qPoints * $classifiedRight / $total, 2);
+        }
+        $pdo->prepare("UPDATE AC_Did_Question SET PointsAwarded = ? WHERE Id = ?")
+            ->execute([$awarded, $didId]);
     }
 
     // Open answers need a teacher review. Create ONE course-scoped "to grade"

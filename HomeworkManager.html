@@ -6,6 +6,8 @@
   <title>Huiswerkbeheer — ICT Leerlijn</title>
   <link rel="stylesheet" href="css/main.css">
   <script src="js/notifications.js?v=3"></script>
+  <!-- Client-side .docx → HTML rendering for inline submission preview (offline, vendored). -->
+  <script src="js/vendor/mammoth.browser.min.js"></script>
   <style>
     /* ── Layout ── */
     button { cursor:pointer; }
@@ -175,6 +177,41 @@
     }
     .file-card:hover { border-color:var(--blue); color:var(--blue2); }
     .file-card-icon { font-size:16px; }
+    /* Inline submission preview (image shown directly, documents on demand). */
+    .file-card-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .file-card-row .file-card { margin-bottom:0; }
+    .submission-media { margin:0 0 14px; }
+    .submission-image {
+      max-width:100%; max-height:480px; display:block;
+      border:1px solid var(--border); border-radius:var(--radius); background:var(--bg2);
+    }
+    .submission-doc {
+      width:100%; height:600px; display:block; background:#fff;
+      border:1px solid var(--border); border-radius:var(--radius);
+    }
+    .submission-text {
+      max-height:600px; overflow:auto; margin:0; padding:14px;
+      background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius);
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      font-size:12px; line-height:1.5; color:var(--text); white-space:pre; tab-size:4;
+    }
+    .submission-note {
+      padding:12px 14px; font-size:12px; color:var(--text2);
+      background:var(--bg2); border:1px dashed var(--border); border-radius:var(--radius);
+    }
+    /* Rendered .docx content — shown as a white "document" for readability. */
+    .submission-docx {
+      max-height:600px; overflow:auto; padding:24px;
+      background:#fff; color:#1a1a1a;
+      border:1px solid var(--border); border-radius:var(--radius);
+      font-size:14px; line-height:1.6;
+    }
+    .submission-docx img { max-width:100%; height:auto; }
+    .submission-docx table { border-collapse:collapse; margin:.5em 0; }
+    .submission-docx td, .submission-docx th { border:1px solid #ccc; padding:4px 8px; }
+    .submission-docx h1, .submission-docx h2, .submission-docx h3 { margin:.6em 0 .3em; line-height:1.3; }
+    .submission-docx p { margin:.5em 0; }
+    .submission-docx ul, .submission-docx ol { margin:.5em 0; padding-left:1.5em; }
 
     .expand-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .expand-hint { font-size:11px; color:var(--text3); margin-left:4px; }
@@ -415,7 +452,7 @@ async function init() {
   const [subsRes, openRes, courseRes] = await Promise.all([
     fetch('api/submissions.php').then(r => r.json()).catch(() => []),
     fetch('api/reviews_open.php').then(r => r.json()).catch(() => []),
-    fetch('api/courses.php').then(r => r.json()).catch(() => [])
+    fetch('api/courses.php?username=' + encodeURIComponent(ADMIN_USER)).then(r => r.json()).catch(() => [])
   ]);
   // Unify assignments + open-question answers into one gradeable list.
   const asg  = (Array.isArray(subsRes) ? subsRes : []).map(s => ({ ...s, kind: 'assignment',    title: s.assignment_title }));
@@ -485,6 +522,116 @@ function submissionKey(s) {
 }
 
 function isGraded(s) { return s.verdict && s.verdict !== 'none'; }
+
+// Is this file directly renderable as an image?
+function isImageFile(name) {
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(name || '');
+}
+
+// Renders an uploaded submission file inside the grading section:
+//  · images are shown inline right away
+//  · documents are NOT auto-opened — a "Bekijk document hier" button reveals them
+//    inline (in an iframe) on demand, toggling closed again.
+function renderSubmissionFile(url, fileName, key) {
+  const safeUrl  = escapeHtml(url);
+  const safeName = escapeHtml(fileName || 'Bestand');
+  if (isImageFile(fileName)) {
+    return `<div class="file-card-row">
+        <a class="file-card" href="${safeUrl}" target="_blank" rel="noopener">
+          <span class="file-card-icon">&#128444;&#65039;</span><span>${safeName}</span></a>
+      </div>
+      <div class="submission-media"><img class="submission-image" src="${safeUrl}" alt="${safeName}" loading="lazy"></div>`;
+  }
+  return `<div class="file-card-row">
+      <span class="file-card"><span class="file-card-icon">&#128206;</span><span>${safeName}</span></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="docbtn-${escapeHtml(key)}"
+        data-url="${safeUrl}" data-name="${safeName}"
+        onclick="toggleDocView('${escapeHtml(key)}', this.dataset.url, this.dataset.name)">Bekijk document hier</button>
+    </div>
+    <div class="submission-media" id="docview-${escapeHtml(key)}"></div>`;
+}
+
+// Code/text file extensions we can safely fetch and show as plain text.
+const PREVIEW_TEXT_EXTS = ['txt','py','java','js','ts','jsx','tsx','c','cpp','h','hpp',
+  'cs','html','htm','css','json','md','markdown','csv','sql','xml','yml','yaml','sh','bat','php','rb','go','rs','kt'];
+
+function fileExt(name) {
+  const m = /\.([a-z0-9]+)$/i.exec(name || '');
+  return m ? m[1].toLowerCase() : '';
+}
+
+// Show/hide the inline document viewer for one submission. Renders the file in the
+// way the browser can actually display it — never an iframe onto a type the browser
+// would just download (that caused the blank area + forced download).
+async function toggleDocView(key, url, fileName) {
+  const box = document.getElementById('docview-' + key);
+  const btn = document.getElementById('docbtn-' + key);
+  if (!box) return;
+
+  if (box.dataset.open === '1') {
+    box.innerHTML = '';
+    box.dataset.open = '';
+    if (btn) btn.textContent = 'Bekijk document hier';
+    return;
+  }
+  box.dataset.open = '1';
+  if (btn) btn.textContent = 'Verberg document';
+
+  const ext = fileExt(fileName);
+  const openLink = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open of download het bestand</a>`;
+
+  if (ext === 'pdf') {
+    box.innerHTML = `<iframe class="submission-doc" src="${escapeHtml(url)}" title="Ingeleverd document"></iframe>`;
+  } else if (PREVIEW_TEXT_EXTS.includes(ext)) {
+    box.innerHTML = `<div class="submission-note">Laden…</div>`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      box.innerHTML = `<pre class="submission-text">${escapeHtml(txt)}</pre>`;
+    } catch (_) {
+      box.innerHTML = `<div class="submission-note">Kon het bestand niet laden. ${openLink}.</div>`;
+    }
+  } else if (OFFICE_EXTS.includes(ext)) {
+    await renderOfficeDoc(box, url, ext, openLink);
+  } else {
+    // e.g. .zip — browsers can't render these inline, so don't fake it.
+    box.innerHTML = `<div class="submission-note">Dit bestandstype kan niet in de browser worden weergegeven. ${openLink}.</div>`;
+  }
+}
+
+// Office documents LibreOffice can convert to PDF for a faithful preview.
+const OFFICE_EXTS = ['docx','doc','odt','rtf','ppt','pptx','odp','xls','xlsx','ods'];
+
+// Preview an Office document. Prefer a faithful server-side PDF (LibreOffice);
+// fall back to mammoth.js (content-only, .docx) and finally an open/download link.
+async function renderOfficeDoc(box, url, ext, openLink) {
+  box.innerHTML = `<div class="submission-note">Laden…</div>`;
+
+  // 1) Faithful: server converts to PDF (like itslearning/Blackboard).
+  try {
+    const res = await fetch('api/preview_doc.php?file=' + encodeURIComponent(url));
+    if (res.ok && (res.headers.get('content-type') || '').includes('pdf')) {
+      const obj = URL.createObjectURL(await res.blob());
+      box.innerHTML = `<iframe class="submission-doc" src="${obj}" title="Ingeleverd document"></iframe>`;
+      return;
+    }
+  } catch (_) { /* fall through */ }
+
+  // 2) Fallback: mammoth renders .docx content in-browser (no LibreOffice needed).
+  if (ext === 'docx' && window.mammoth) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const result = await mammoth.convertToHtml({ arrayBuffer: await r.arrayBuffer() });
+      box.innerHTML = `<div class="submission-docx">${result.value || '<em>Leeg document.</em>'}</div>`;
+      return;
+    } catch (_) { /* fall through */ }
+  }
+
+  // 3) Nothing worked — offer to open/download.
+  box.innerHTML = `<div class="submission-note">Voorbeeld niet beschikbaar voor dit bestandstype. ${openLink}.</div>`;
+}
 
 function escapeHtml(str) {
   if (str == null) return '';
@@ -565,7 +712,7 @@ function renderTable(filtered) {
     const isOpen = s.kind === 'open_question';
     const hasText = !isOpen && !!s.text_answer;
     const hasFile = !isOpen && !!s.file_name;
-    const typeIcon = isOpen          ? '❓'
+    const typeIcon = isOpen          ? (s.file_path ? '❓&#8203;📎' : '❓')
                    : hasFile && hasText ? '📄&#8203;📎'
                    : hasFile             ? '📎'
                    : hasText             ? '📄'
@@ -590,6 +737,12 @@ function renderTable(filtered) {
     if (isOpen) {
       body += `<div class="expand-section-title">Antwoord van student</div>
         <div class="answer-box">${s.open_answer ? escapeHtml(s.open_answer) : '<em style="color:var(--text3)">Geen antwoord ingevuld.</em>'}</div>`;
+      // Open-question file_path already carries its "uploads/" prefix, so link as-is.
+      if (s.file_path) {
+        // Open-question file_path already carries its "uploads/" prefix.
+        body += `<div class="expand-section-title">Ingeleverd bestand</div>
+        ${renderSubmissionFile(s.file_path, s.file_name, key)}`;
+      }
       if (s.expected_result) {
         body += `<div class="expand-section-title">Verwacht antwoord (kijkwijzer)</div>
         <div class="answer-box" style="border-color:rgba(56,139,253,.3);">${escapeHtml(s.expected_result)}</div>`;
@@ -598,8 +751,7 @@ function renderTable(filtered) {
       if (hasText) body += `<div class="expand-section-title">Tekstantwoord</div>
         <div class="answer-box">${escapeHtml(s.text_answer)}</div>`;
       if (hasFile) body += `<div class="expand-section-title">Bestand</div>
-        <a class="file-card" href="uploads/${escapeHtml(s.file_path || s.file_name)}" target="_blank" rel="noopener">
-          <span class="file-card-icon">📎</span><span>${escapeHtml(s.file_name)}</span></a>`;
+        ${renderSubmissionFile('uploads/' + (s.file_path || s.file_name), s.file_name, key)}`;
       if (!hasText && !hasFile) body += `<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Geen inhoud ingeleverd.</div>`;
     }
 
@@ -632,22 +784,40 @@ function gradePanel(s, key) {
   if (isMentorOnly(s)) {
     return `<div class="expand-actions"><span class="expand-hint">Je bent mentor, niet de cursus-docent — je kunt dit alleen inzien, niet beoordelen.</span></div>`;
   }
+  // Test (Toets) open questions are graded by awarding points (0…max); the
+  // verdict is derived server-side. Other open questions keep the V/X buttons.
+  const isTest = s.kind === 'open_question' && s.page_type === 'test';
   const chosen = gradeChoice[key] ?? (isGraded(s) ? s.verdict : null);
   const gradedLine = isGraded(s)
-    ? `<div class="meta-line">Beoordeeld als <strong>${s.verdict === 'V' ? 'Voldoende' : 'Onvoldoende'}</strong>${s.graded_by ? ' door ' + escapeHtml(s.graded_by) : ''}${s.graded_on ? ' · ' + formatDate(s.graded_on) : ''}</div>`
+    ? `<div class="meta-line">Beoordeeld${isTest && s.points_awarded != null ? ' — <strong>' + fmtPoints(s.points_awarded) + ' / ' + fmtPoints(s.max_points) + ' punten</strong>' : ' als <strong>' + (s.verdict === 'V' ? 'Voldoende' : 'Onvoldoende') + '</strong>'}${s.graded_by ? ' door ' + escapeHtml(s.graded_by) : ''}${s.graded_on ? ' · ' + formatDate(s.graded_on) : ''}</div>`
     : '';
+  const control = isTest
+    ? `<div class="grade-points" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+         <label style="font-size:13px;color:var(--text2);">Punten:</label>
+         <input type="number" class="grade-points-input" id="pts-${escapeHtml(key)}" min="0" max="${Number(s.max_points) || 0}" step="0.5"
+                value="${s.points_awarded != null ? fmtPoints(s.points_awarded) : ''}"
+                style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text);" />
+         <span style="font-size:13px;color:var(--text3);">/ ${fmtPoints(s.max_points)}</span>
+       </div>`
+    : `<div class="grade-verdicts">
+         <button type="button" class="verdict-btn v ${chosen === 'V' ? 'selected' : ''}" data-v="V" onclick="pickVerdict('${escapeHtml(key)}','V',this)">✓ Voldoende</button>
+         <button type="button" class="verdict-btn x ${chosen === 'X' ? 'selected' : ''}" data-v="X" onclick="pickVerdict('${escapeHtml(key)}','X',this)">✗ Onvoldoende</button>
+       </div>`;
   return `${gradedLine}
     <div class="grade-box">
-      <div class="grade-verdicts">
-        <button type="button" class="verdict-btn v ${chosen === 'V' ? 'selected' : ''}" data-v="V" onclick="pickVerdict('${escapeHtml(key)}','V',this)">✓ Voldoende</button>
-        <button type="button" class="verdict-btn x ${chosen === 'X' ? 'selected' : ''}" data-v="X" onclick="pickVerdict('${escapeHtml(key)}','X',this)">✗ Onvoldoende</button>
-      </div>
+      ${control}
       <textarea class="grade-feedback" id="fb-${escapeHtml(key)}" placeholder="Feedback voor de student (optioneel)">${escapeHtml(s.feedback || '')}</textarea>
       <div class="expand-actions">
         <button class="btn btn-primary btn-sm" onclick="submitGrade('${escapeHtml(key)}')">${isGraded(s) ? 'Beoordeling bijwerken' : 'Opslaan'}</button>
         <span class="expand-hint" id="ghint-${escapeHtml(key)}"></span>
       </div>
     </div>`;
+}
+
+// Points without trailing ",0" (e.g. 7 not 7,0; 7,5 stays 7,5).
+function fmtPoints(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return (Number.isInteger(v) ? String(v) : String(v).replace('.', ','));
 }
 
 /* ── Grading ── */
@@ -666,13 +836,23 @@ function setHint(key, msg) {
 async function submitGrade(key) {
   const s = SUBMISSIONS.find(x => submissionKey(x) === key);
   if (!s) return;
-  const verdict = gradeChoice[key] ?? (isGraded(s) ? s.verdict : null);
-  if (verdict !== 'V' && verdict !== 'X') { setHint(key, 'Kies eerst voldoende of onvoldoende.'); return; }
   const feedback = document.getElementById('fb-' + key)?.value ?? '';
+  const isTest = s.kind === 'open_question' && s.page_type === 'test';
 
-  const payload = s.kind === 'open_question'
-    ? { grader: ADMIN_USER, kind: 'open_question', did_question_id: s.did_question_id, verdict, feedback }
-    : { grader: ADMIN_USER, kind: 'assignment', student: s.username, assignment_id: s.assignment_id, verdict, feedback };
+  let payload;
+  if (isTest) {
+    // Point-graded: the server clamps to max and derives the verdict.
+    const raw = document.getElementById('pts-' + key)?.value ?? '';
+    if (raw === '' || isNaN(parseFloat(raw))) { setHint(key, 'Vul een puntenaantal in.'); return; }
+    const points = Math.max(0, Math.min(Number(s.max_points) || 0, parseFloat(raw)));
+    payload = { grader: ADMIN_USER, kind: 'open_question', did_question_id: s.did_question_id, points_awarded: points, feedback };
+  } else {
+    const verdict = gradeChoice[key] ?? (isGraded(s) ? s.verdict : null);
+    if (verdict !== 'V' && verdict !== 'X') { setHint(key, 'Kies eerst voldoende of onvoldoende.'); return; }
+    payload = s.kind === 'open_question'
+      ? { grader: ADMIN_USER, kind: 'open_question', did_question_id: s.did_question_id, verdict, feedback }
+      : { grader: ADMIN_USER, kind: 'assignment', student: s.username, assignment_id: s.assignment_id, verdict, feedback };
+  }
 
   setHint(key, 'Opslaan…');
   try {
@@ -683,6 +863,7 @@ async function submitGrade(key) {
     if (!res.ok || !data.success) { setHint(key, data.error || 'Opslaan mislukt'); return; }
     // Reflect the new state locally and re-render (row stays expanded).
     s.verdict = data.verdict;
+    if (data.points_awarded != null) s.points_awarded = data.points_awarded;
     s.feedback = feedback;
     s.graded_by = data.graded_by;
     s.graded_on = new Date().toISOString().slice(0, 19).replace('T', ' ');

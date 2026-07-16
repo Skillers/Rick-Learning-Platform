@@ -42,8 +42,11 @@
     .topbar {
       padding:12px 24px; border-bottom:1px solid var(--border);
       display:flex; align-items:center; gap:12px;
-      background:var(--bg2); flex-shrink:0; position:sticky; top:0; z-index:10;
+      background:var(--bg2); flex-shrink:0; position:sticky; top:0; z-index:60;
     }
+    /* z-index 60: above the floating component palette (#floatingPreview, z:50) so
+       the notification/avatar dropdowns that live in the topbar are never covered
+       by editor content — but below the fixed modal overlays (z:100/200). */
     .topbar-brand { display:flex; align-items:center; gap:8px; }
     .brand-chip { background:var(--orange); color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:.5px; }
     .topbar-title { font-size:15px; font-weight:600; }
@@ -989,6 +992,7 @@
     .type-exercise { background:rgba(46,160,67,.15);   color:#3fb950; }
     .type-quiz     { background:rgba(188,140,255,.15); color:#d2a8ff; }
     .type-project  { background:rgba(247,129,102,.15); color:#ffa657; }
+    .type-test     { background:rgba(247,120,186,.15); color:#f778ba; }
 
     /* ── Modal ── */
     .modal-overlay {
@@ -1144,12 +1148,8 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <label class="field-label">Type</label>
-            <select class="field-select" id="npType">
-              <option value="theory">Theorie</option>
-              <option value="exercise">Oefening</option>
-              <option value="quiz">Quiz</option>
-              <option value="project">Project</option>
-            </select>
+            <!-- Options filled from the PageTypes table by showNewPageModal(). -->
+            <select class="field-select" id="npType"></select>
           </div>
           <div>
             <label class="field-label">XP beloning</label>
@@ -1175,7 +1175,7 @@
     <div class="modal-body">
       <div style="display:grid;gap:14px;">
         <div>
-          <label class="field-label">Vak</label>
+          <label class="field-label">Onderwerp</label>
           <select class="field-select" id="ncSubject"></select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 110px;gap:12px;">
@@ -1222,7 +1222,7 @@
     <div class="modal-body">
       <div style="display:grid;gap:14px;">
         <div>
-          <label class="field-label">Vak</label>
+          <label class="field-label">Onderwerp</label>
           <select class="field-select" id="csSubject"></select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 110px;gap:12px;">
@@ -1278,17 +1278,33 @@
 <div class="modal-overlay" id="newSubjectModal" style="display:none" onclick="if(event.target===this)closeNewSubjectModal()">
   <div class="modal-box" style="max-width:400px;">
     <div class="modal-header">
-      <span class="modal-title">Nieuw vak</span>
+      <span class="modal-title">Nieuw onderwerp</span>
       <button class="icon-btn" onclick="closeNewSubjectModal()">✕</button>
     </div>
     <div class="modal-body">
-      <label class="field-label">Naam van het vak</label>
+      <label class="field-label">Naam van het onderwerp</label>
       <input class="field-input" id="nsName" placeholder="bijv. Webdevelopment"
              onkeydown="if(event.key==='Enter')createNewSubject()" />
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeNewSubjectModal()">Annuleren</button>
-      <button class="btn btn-primary" onclick="createNewSubject()">Vak aanmaken</button>
+      <button class="btn btn-primary" onclick="createNewSubject()">Onderwerp aanmaken</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic page-styled message/warning popup (replaces browser alert()) -->
+<div class="modal-overlay" id="messageModal" style="display:none" onclick="if(event.target===this)closeMessageModal()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title" id="messageModalTitle">Melding</span>
+      <button class="icon-btn" onclick="closeMessageModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="messageModalText" style="font-size:14px;color:var(--text2);line-height:1.5;margin:0;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeMessageModal()">Oké</button>
     </div>
   </div>
 </div>
@@ -1302,6 +1318,7 @@ let SUBJECTS = [];
 let COURSES = [];
 let PAGES = [];
 let SECTIONS = [];
+let PAGE_TYPES = [];   // [{id,name,color}] from the PageTypes table (api/page_types.php)
 let activeCourse = null;
 let activePageId = null;
 
@@ -1319,12 +1336,25 @@ const TYPE_LABELS = {
   exercise: { label:"oefening", cls:"type-exercise" },
   quiz:     { label:"quiz",     cls:"type-quiz" },
   project:  { label:"project",  cls:"type-project" },
+  test:     { label:"toets",    cls:"type-test" },
 };
 // Accent color per page type (matches the .type-* badge colors).
 const TYPE_COLORS = {
-  lesson: '#58a6ff', theory: '#58a6ff', exercise: '#3fb950', quiz: '#d2a8ff', project: '#ffa657',
+  lesson: '#58a6ff', theory: '#58a6ff', exercise: '#3fb950', quiz: '#d2a8ff', project: '#ffa657', test: '#f778ba',
 };
 function typeColor(t) { return TYPE_COLORS[t] || '#8b949e'; }
+
+// Dutch dropdown label for a page-type name (falls back to the raw name).
+function pageTypeLabel(name) {
+  const l = TYPE_LABELS[name]?.label || name;
+  return l.charAt(0).toUpperCase() + l.slice(1);
+}
+// <option>s built from the PageTypes table; value = the real type name.
+function pageTypeOptions(selected) {
+  return PAGE_TYPES.map(pt =>
+    `<option value="${esc(pt.name)}" ${pt.name === selected ? 'selected' : ''}>${esc(pageTypeLabel(pt.name))}</option>`
+  ).join('');
+}
 
 let pages = [];
 let activePage = null;
@@ -1401,10 +1431,10 @@ function showCourseOverview() {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:12px;">
       <div>
         <div style="font-size:20px;font-weight:700;color:var(--text);">Cursussen</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px;">Klik op een vak voor details, of maak iets nieuws aan.</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px;">Klik op een onderwerp voor details, of maak iets nieuws aan.</div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-ghost" onclick="showNewSubjectModal()">＋ Nieuw vak</button>
+        <button class="btn btn-ghost" onclick="showNewSubjectModal()">＋ Nieuw onderwerp</button>
         <button class="btn btn-primary" onclick="showNewCourseModal()">＋ Nieuwe cursus</button>
       </div>
     </div>`;
@@ -1461,10 +1491,10 @@ function showSubjectView(subjectId) {
   document.getElementById("panelTitle").textContent = subj.name;
   document.getElementById("structureTree").innerHTML = `
     <div style="padding:24px 18px;text-align:center;color:var(--text3);font-size:12px;">
-      Kies een cursus in dit vak om de structuur te bekijken.
+      Kies een cursus in dit onderwerp om de structuur te bekijken.
     </div>`;
   document.getElementById("topbarTitle").textContent = subj.name;
-  document.getElementById("topbarSub").textContent = "Vakoverzicht";
+  document.getElementById("topbarSub").textContent = "Onderwerpoverzicht";
 
   const courses = COURSES.filter(c => c.subject_id == subjectId);
 
@@ -1496,13 +1526,13 @@ function showSubjectView(subjectId) {
   document.getElementById("editorMain").innerHTML = `
     <div class="page-editor">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:12px;">
-        <button class="btn btn-ghost btn-sm" onclick="showCourseOverview()">← Alle vakken</button>
+        <button class="btn btn-ghost btn-sm" onclick="showCourseOverview()">← Alle onderwerpen</button>
         <button class="btn btn-primary btn-sm" onclick="prefillNewCourse(${subjectId})">＋ Nieuwe cursus</button>
       </div>
       <div style="font-size:22px;font-weight:700;color:var(--text);margin:10px 0 2px;">${esc(subj.name)}</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">${courses.length} cursus${courses.length === 1 ? '' : 'sen'} in dit vak</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">${courses.length} cursus${courses.length === 1 ? '' : 'sen'} in dit onderwerp</div>
       <div class="subject-course-list">
-        ${rows || '<div style="color:var(--text3);font-size:13px;padding:16px 0;">Nog geen cursussen in dit vak.</div>'}
+        ${rows || '<div style="color:var(--text3);font-size:13px;padding:16px 0;">Nog geen cursussen in dit onderwerp.</div>'}
       </div>
     </div>`;
 }
@@ -1561,13 +1591,13 @@ async function commitCourseTitle() {
   renderCourseOverview();
 }
 
-// Subject selector shown in the course header — lets you move a course to another vak.
+// Subject selector shown in the course header — lets you move a course to another onderwerp.
 function courseSubjectEyebrow() {
   if (!activeCourse) return '';
   const opts = SUBJECTS.map(s =>
     `<option value="${s.id}"${s.id == activeCourse.subject_id ? ' selected' : ''}>${esc(s.name)}</option>`
   ).join('');
-  return `<select class="course-subject-select" title="Verplaats deze cursus naar een ander vak"
+  return `<select class="course-subject-select" title="Verplaats deze cursus naar een ander onderwerp"
             onchange="commitCourseSubject(this.value)">${opts}</select>`;
 }
 
@@ -1584,7 +1614,7 @@ async function commitCourseSubject(subjectId) {
     if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
   } catch (err) {
     setSaveStatus('error');
-    alert('Vak wijzigen mislukt: ' + err.message);
+    alert('Onderwerp wijzigen mislukt: ' + err.message);
     renderCourseOverview();
     return;
   }
@@ -1601,7 +1631,7 @@ let _csCourseId = null;
 let _csCandidates = [];   // staff that can still be linked (for the picker)
 
 function openCourseSettings() {
-  if (!activeCourse || !canEditCourse(activeCourse.id)) return;
+  if (!activeCourse || !canManageCourse(activeCourse.id)) return;
   _csCourseId = activeCourse.id;
   document.getElementById('csSubject').innerHTML = SUBJECTS.map(s =>
     `<option value="${s.id}" ${s.id == activeCourse.subject_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
@@ -1669,7 +1699,11 @@ function csRenderTeachers(data) {
     const roleCtl = canManage
       ? `<select class="cs-role" onchange="csSetRole('${esc(t.username)}', this.value)">${roles.map(r => `<option value="${r}" ${r === t.role ? 'selected' : ''}>${r}</option>`).join('')}</select>`
       : `<span class="cs-role-label">${esc(t.role)}</span>`;
-    const rm = canManage ? `<button class="cs-remove" title="Ontkoppel" onclick="csRemoveTeacher('${esc(t.username)}')">✕</button>` : '';
+    // An owner may remove others but never themselves.
+    const isSelfOwner = t.username === CURRENT_USER?.name && t.role === 'Owner';
+    const rm = (canManage && !isSelfOwner)
+      ? `<button class="cs-remove" title="Ontkoppel" onclick="csRemoveTeacher('${esc(t.username)}')">✕</button>`
+      : '';
     return `<div class="cs-teacher"><span class="cs-teacher-name">${esc(t.username)}${isSuper ? ' <span class="cs-super">beheerder</span>' : ''}</span>${roleCtl}${rm}</div>`;
   }).join('') : `<div class="cs-muted">Nog geen docenten gekoppeld.</div>`;
 
@@ -1756,7 +1790,7 @@ function renderCourseOverview() {
             <div class="course-overview-eyebrow">${esc(subj?.name || '')}</div>
             <div class="course-overview-title" id="courseTitleDisplay">
               <span class="course-title-text">${esc(activeCourse.name)}</span>
-              ${canEditCourse(activeCourse.id) ? `<button class="course-title-edit" onclick="openCourseSettings()" title="Cursusinstellingen">⚙</button>` : ''}
+              ${canManageCourse(activeCourse.id) ? `<button class="course-title-edit" onclick="openCourseSettings()" title="Cursusinstellingen">⚙</button>` : ''}
             </div>
             <div class="course-overview-sub">Deze cursus heeft nog geen pagina's.</div>
           </div>
@@ -1981,6 +2015,7 @@ async function openPageFromDb(pageId, keepFocus, versionId = null) {
     enabled: dbPage.enabled != null ? +dbPage.enabled : 1,
     xp: (view && view.xp_reward != null) ? view.xp_reward
         : (dbPage.xp_reward != null ? dbPage.xp_reward : 60),
+    nTerm: (view && view.n_term != null) ? view.n_term : 1.0,
     versions,
     viewVersionId,
     viewStatus: view ? view.status : 'live',
@@ -2040,16 +2075,21 @@ function renderEditor() {
             <select class="field-select type-select" id="metaType"
                     style="border-left:4px solid ${typeColor(activePage.type)};"
                     onchange="updateMeta('type',this.value)">
-              <option value="lesson"   ${activePage.type==='lesson'  ?'selected':''}>Theorie</option>
-              <option value="exercise" ${activePage.type==='exercise'?'selected':''}>Oefening</option>
-              <option value="quiz"     ${activePage.type==='quiz'    ?'selected':''}>Quiz</option>
-              <option value="project"  ${activePage.type==='project' ?'selected':''}>Project</option>
+              ${pageTypeOptions(activePage.type)}
             </select>
           </div>
           <div>
             <label class="field-label">XP beloning</label>
             <input class="field-input" id="metaXP" type="number" value="${activePage.xp}" min="0" max="500" oninput="updateMeta('xp',parseInt(this.value)||0)" />
           </div>
+          ${activePage.type === 'test' ? `
+          <div>
+            <label class="field-label">Normering (N-term)</label>
+            <input class="field-input" id="metaNTerm" type="number" step="0.1" min="0" max="10"
+                   value="${activePage.nTerm ?? 1}"
+                   oninput="updateMeta('nTerm',Math.max(0,Math.min(10,parseFloat(this.value)||0)))" />
+          </div>
+          ` : ''}
         </div>
         ${renderVersionBar()}
         <div style="display:flex;justify-content:flex-end;margin-top:14px;">
@@ -2384,7 +2424,8 @@ function insertAtSlot(sectionId, beforeCompId) {
   if (!pendingInsertType) return;
   const section = activePage.sections.find(s => s.id === sectionId);
   if (!section) return;
-  const newComp = makeComp(pendingInsertType, "");
+  const tpl = newComponentTemplate(pendingInsertType);
+  const newComp = makeComp(pendingInsertType, tpl.content, tpl.meta);
   if (beforeCompId) {
     const idx = section.components.findIndex(c => c.id === beforeCompId);
     section.components.splice(idx >= 0 ? idx : section.components.length, 0, newComp);
@@ -2590,6 +2631,14 @@ function renderCompCard(comp, sectionId, ci) {
           onclick="setQuizType('${comp.id}', false)">Meerkeuze</button>
       </div>
 
+      ${activePage?.type === 'test' ? `
+      <div class="quiz-points-row" style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+        <span class="comp-meta-label" style="font-size:13px;color:var(--text2);">Punten voor deze vraag:</span>
+        <input class="comp-input" type="number" min="0" max="100" style="width:80px;"
+          value="${qd.points ?? 1}"
+          oninput="updateQuizPoints('${comp.id}', this.value)" />
+      </div>` : ''}
+
       <textarea class="comp-textarea" rows="2"
         oninput="updateQuizQuestion('${comp.id}', this.value)"
         placeholder="Stel de vraag...">${esc(question)}</textarea>
@@ -2599,7 +2648,14 @@ function renderCompCard(comp, sectionId, ci) {
            <div class="quiz-hint" style="margin-top:8px;">Verwacht antwoord (kijkwijzer) — alleen zichtbaar voor docenten bij het nakijken.</div>
            <textarea class="comp-textarea" rows="3"
              oninput="updateQuizExpected('${comp.id}', this.value)"
-             placeholder="Beschrijf wat je in een goed antwoord verwacht...">${esc(qd.expected_result || '')}</textarea>`
+             placeholder="Beschrijf wat je in een goed antwoord verwacht...">${esc(qd.expected_result || '')}</textarea>
+           <div class="quiz-hint" style="margin-top:10px;">Inleveren als bestand toestaan (optioneel):</div>
+           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-top:4px;cursor:pointer;">
+             <input type="checkbox" ${qd.allow_document ? 'checked' : ''}
+               onchange="setQuizAllowFile('${comp.id}','document',this.checked)"> Document (pdf, doc, docx, txt)</label>
+           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-top:4px;cursor:pointer;">
+             <input type="checkbox" ${qd.allow_image ? 'checked' : ''}
+               onchange="setQuizAllowFile('${comp.id}','image',this.checked)"> Afbeelding (png, jpg, jpeg)</label>`
         : mcBlock}`;
   }
 
@@ -3025,6 +3081,9 @@ function updateMeta(field, value) {
     if (badge) { badge.textContent = tl.label; badge.className = "tree-page-type " + tl.cls; }
     const sel = document.getElementById("metaType");
     if (sel) sel.style.borderLeft = "4px solid " + typeColor(value);
+    // Test pages surface extra controls (N-term, per-question points) — re-render
+    // so they appear/disappear when switching type to/from 'test'.
+    renderEditor();
   }
   if (field === "courseId") {
     const course = COURSES.find(c => c.id == value);
@@ -3250,6 +3309,23 @@ function updateQuizExpected(compId, value) {
   markUnsaved(); debounceSave();   // no re-render → keep textarea focus
 }
 
+// Max points for a question (Test pages). Non-negative integer.
+function updateQuizPoints(compId, value) {
+  const comp = findComp(compId); if (!comp) return;
+  const n = Math.max(0, parseInt(value, 10) || 0);
+  quizDataOf(comp).points = n;
+  markUnsaved(); debounceSave();   // no re-render → keep input focus
+}
+
+// Per-question file-upload permissions (document / image). Either, both, or neither.
+function setQuizAllowFile(compId, kind, on) {
+  const comp = findComp(compId); if (!comp) return;
+  const qd = quizDataOf(comp);
+  if (kind === 'document') qd.allow_document = on ? 1 : 0;
+  else                     qd.allow_image    = on ? 1 : 0;
+  markUnsaved(); debounceSave();   // no re-render → keep the other checkbox stable
+}
+
 function addQuizAnswer(compId) {
   const comp = findComp(compId); if (!comp) return;
   quizDataOf(comp).answers.push({ text: '', is_correct: 0 });
@@ -3375,18 +3451,28 @@ function moveSection(sectionId, dir) {
   markUnsaved(); debounceSave(); renderEditor(); buildCourseSidebar();
 }
 
-function addComponent(sectionId, type) {
-  if (!structuralAllowed()) return;
-  const section = activePage?.sections.find(s => s.id === sectionId);
-  if (!section) return;
+// Single source of truth for a new component's starting content/meta. Both the
+// side-panel "＋" and the floating-palette insert use this so a component is never
+// created half-initialised. A quiz ALWAYS gets a quizData (with an explicit
+// open_question) — otherwise the editor renders "no quizData" as multiple-choice
+// while the first edit lazily seeds it as open, flipping the question type.
+function newComponentTemplate(type) {
   const defaults = {
     text:    { content:"", meta:{} },
     code:    { content:"", meta:{ language:"python", filename:"" } },
     callout: { content:"", meta:{ style:"tip", title:"💡 Tip" } },
     video:   { content:"", meta:{ caption:"" } },
     quiz:    { content:"", meta:{ label:"🎯 Opdracht", quizData:{ question:"", open_question:1, answers:[] } } },
-  }[type] || { content:"", meta:{} };
-  section.components.push(makeComp(type, defaults.content, defaults.meta));
+  };
+  return defaults[type] || { content:"", meta:{} };
+}
+
+function addComponent(sectionId, type) {
+  if (!structuralAllowed()) return;
+  const section = activePage?.sections.find(s => s.id === sectionId);
+  if (!section) return;
+  const tpl = newComponentTemplate(type);
+  section.components.push(makeComp(type, tpl.content, tpl.meta));
   markUnsaved(); debounceSave(); renderEditor();
 }
 
@@ -3482,6 +3568,7 @@ function buildPagePayload() {
     title:     activePage.title || 'Naamloze pagina',
     type:      activePage.type || 'lesson',
     xp:        parseInt(activePage.xp, 10) || 0,
+    n_term:    activePage.nTerm != null ? activePage.nTerm : 1.0,
     sections:  (activePage.sections || []).map(s => ({
       db_id:      s.dbId || null,
       title:      s.title || 'Sectie',
@@ -3542,6 +3629,7 @@ async function persistActivePage() {
 function showNewPageModal() {
   const sel = document.getElementById("npCourse");
   sel.innerHTML = COURSES.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  document.getElementById("npType").innerHTML = pageTypeOptions('lesson');
   document.getElementById("npTitle").value = "";
   document.getElementById("npXP").value = "60";
   const modal = document.getElementById("newPageModal");
@@ -3565,7 +3653,28 @@ function closeNewPageModal() {
 // Quick-pick presets for the free color input.
 const COURSE_COLOR_PRESETS = ['#388bfd', '#58a6ff', '#3fb950', '#e3b341', '#f78166', '#f85149', '#bc8cff', '#d2a8ff', '#8b949e'];
 
+// Page-styled replacement for alert(): a small centered popup modal.
+function showMessageModal(title, message) {
+  document.getElementById("messageModalTitle").textContent = title;
+  document.getElementById("messageModalText").textContent = message;
+  const m = document.getElementById("messageModal");
+  m.style.display = "flex";
+  requestAnimationFrame(() => m.classList.add("visible"));
+}
+function closeMessageModal() {
+  const m = document.getElementById("messageModal");
+  m.classList.remove("visible");
+  setTimeout(() => m.style.display = "none", 200);
+}
+
 function showNewCourseModal() {
+  // A course must live under an onderwerp. With none available the teacher can't
+  // pick one, so warn them to create an onderwerp first instead of a broken form.
+  if (!SUBJECTS.length) {
+    showMessageModal("Geen onderwerp beschikbaar",
+      "Je hebt nog geen onderwerp. Maak eerst een onderwerp aan — een cursus kan niet zonder onderwerp bestaan.");
+    return;
+  }
   const subjSel = document.getElementById("ncSubject");
   subjSel.innerHTML = SUBJECTS.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
   document.getElementById("ncName").value = "";
@@ -3630,18 +3739,33 @@ async function createNewCourse() {
   try {
     const res = await fetch('api/save_course.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject_id: subjectId, name, icon, color }),
+      body: JSON.stringify({ subject_id: subjectId, name, icon, color, actor: CURRENT_USER?.name }),
     });
     data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok || !data.ok) {
+      setSaveStatus('error');
+      // Keep the create modal open so the name can be fixed; show a styled popup.
+      showMessageModal('Cursus aanmaken mislukt',
+        data.error || ('Er ging iets mis (HTTP ' + res.status + ').'));
+      return;
+    }
   } catch (err) {
     setSaveStatus('error');
-    alert('Cursus aanmaken mislukt: ' + err.message);
+    showMessageModal('Cursus aanmaken mislukt', err.message);
     return;
   }
 
   // Add to the in-memory list (or re-fetch for canonical data).
   COURSES.push(data.course);
+  // The creator is now the course Owner (server-side) — mirror that locally so the
+  // settings cogwheel + teacher management show immediately, without a reload.
+  if (CURRENT_USER) {
+    CURRENT_USER.courseRoles = CURRENT_USER.courseRoles || {};
+    CURRENT_USER.courseRoles[String(data.course.id)] = 'Owner';
+  }
+  if (TEACHER_SCOPE && !TEACHER_SCOPE.courses.includes(data.course.id)) {
+    TEACHER_SCOPE.courses.push(data.course.id);
+  }
   setSaveStatus('saved');
   closeNewCourseModal();
   // Drop the teacher straight into the new (empty) course so they can add pages.
@@ -3678,20 +3802,25 @@ async function createNewSubject() {
   try {
     const res = await fetch('api/save_subject.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, actor: CURRENT_USER?.name }),
     });
     data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
   } catch (err) {
     setSaveStatus('error');
-    alert('Vak aanmaken mislukt: ' + err.message);
+    showMessageModal('Onderwerp aanmaken mislukt', err.message);
     return;
   }
 
   if (!SUBJECTS.some(s => s.id == data.subject.id)) SUBJECTS.push(data.subject);
   setSaveStatus('saved');
   closeNewSubjectModal();
-  showSubjectView(data.subject.id);   // jump into the new (empty) subject
+  showSubjectView(data.subject.id);   // jump into the (possibly empty) subject
+  // Existing onderwerp → the teacher was linked to it, not creating a duplicate.
+  if (data.existed) {
+    showMessageModal('Onderwerp bestaat al',
+      `Het onderwerp "${data.subject.name}" bestaat al. Je bent aan dit onderwerp toegevoegd in plaats van een nieuw onderwerp aan te maken.`);
+  }
 }
 
 // Re-fetch the DB page/section lists so a freshly created page is openable.
@@ -3771,8 +3900,15 @@ let CURRENT_USER = null;  // { name, initials, role, courseRoles:{courseId:role}
 // Permission gates (superadmin overrides everything) — mirror config/course_perms.php.
 function myCourseRole(courseId) { return CURRENT_USER?.courseRoles?.[String(courseId)] || null; }
 function canEditCourse(courseId) {
+  // Content editing (pages/sections). Editors and owners both qualify.
   if (CURRENT_USER?.role === 'Superadmin') return true;
   return ['Owner', 'Editor'].includes(myCourseRole(courseId));
+}
+// Course-level management (the settings cogwheel: rename, move, teachers, delete).
+// Owner-only — an Editor edits content but can't reconfigure the course.
+function canManageCourse(courseId) {
+  if (CURRENT_USER?.role === 'Superadmin') return true;
+  return myCourseRole(courseId) === 'Owner';
 }
 function canManageCourseTeachers(courseId) {
   if (CURRENT_USER?.role === 'Superadmin') return true;
@@ -3830,16 +3966,20 @@ document.addEventListener("click", (e) => {
   if (window.Notifications) Notifications.init(user.name);
 
   try {
-    const [subjRes, courseRes, pageRes, secRes] = await Promise.all([
-      fetch('api/subjects.php'),
-      fetch('api/courses.php'),
+    // Scope subjects + courses to this teacher (superadmin gets everything).
+    const scope = '?username=' + encodeURIComponent(user.name);
+    const [subjRes, courseRes, pageRes, secRes, typeRes] = await Promise.all([
+      fetch('api/subjects.php' + scope),
+      fetch('api/courses.php' + scope),
       fetch('api/pages.php?include_unpublished=1'),
       fetch('api/sections.php'),
+      fetch('api/page_types.php'),
     ]);
     if (subjRes.ok) SUBJECTS = await subjRes.json();
     if (courseRes.ok) COURSES = await courseRes.json();
     if (pageRes.ok) PAGES = await pageRes.json();
     if (secRes.ok) SECTIONS = await secRes.json();
+    if (typeRes.ok) PAGE_TYPES = await typeRes.json();
   } catch (_) {}
 
   // Scope: docent only sees assigned courses + their pages

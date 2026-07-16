@@ -130,6 +130,9 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`PQQuestion` (
   `OpenQuestion` TINYINT NOT NULL,
   `component_Id` INT(11) NOT NULL,
   `ExpectedResult` TEXT NULL,
+  `AllowDocument` TINYINT NOT NULL DEFAULT 0,
+  `AllowImage` TINYINT NOT NULL DEFAULT 0,
+  `PossiblePoints` INT NOT NULL DEFAULT 1,
   PRIMARY KEY (`Id`),
   INDEX `fk_PQQuestion_components1_idx` (`component_Id` ASC),
   CONSTRAINT `fk_PQQuestion_components1`
@@ -382,6 +385,9 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`AC_Did_Question` (
   `OpenAnswer` TEXT NULL,
   `ReviewFeedback` TEXT NULL,
   `Verdict` ENUM('none', 'X', 'V') NOT NULL DEFAULT 'none',
+  `FileName` VARCHAR(255) NULL,
+  `FilePath` VARCHAR(255) NULL,
+  `PointsAwarded` DECIMAL(6,2) NULL,
   INDEX `fk_accounts_has_PQQuestion_PQQuestion1_idx` (`PQQuestion_Id` ASC),
   INDEX `fk_accounts_has_PQQuestion_accounts1_idx` (`accounts_username` ASC),
   PRIMARY KEY (`Id`),
@@ -658,6 +664,7 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`PageVersion` (
   `CreatedAt` DATETIME NOT NULL,
   `PublishedAt` DATETIME NULL,
   `ArchivedAt` DATETIME NULL,
+  `NTerm` DECIMAL(6,2) NOT NULL DEFAULT 1,
   PRIMARY KEY (`Id`),
   INDEX `fk_PageVersion_pages1_idx` (`pages_Id` ASC),
   CONSTRAINT `fk_PageVersion_pages1`
@@ -748,6 +755,29 @@ CREATE TABLE IF NOT EXISTS `rick learning platform`.`Notifications` (
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`Teacher_has_Subjects`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`Teacher_has_Subjects` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `subjects_id` INT(11) NOT NULL,
+  PRIMARY KEY (`accounts_username`, `subjects_id`),
+  INDEX `fk_accounts_has_subjects_subjects1_idx` (`subjects_id` ASC),
+  INDEX `fk_accounts_has_subjects_accounts1_idx` (`accounts_username` ASC),
+  CONSTRAINT `fk_accounts_has_subjects_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_accounts_has_subjects_subjects1`
+    FOREIGN KEY (`subjects_id`)
+    REFERENCES `rick learning platform`.`subjects` (`id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB
+DEFAULT CHARACTER SET = utf8mb4;
 
 
 SET SQL_MODE=@OLD_SQL_MODE;

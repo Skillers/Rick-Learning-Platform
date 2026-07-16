@@ -3,6 +3,7 @@ export const TYPE_LABELS = {
   exercise: { label: "oef",     cls: "type-exercise" },
   quiz:     { label: "quiz",    cls: "type-quiz" },
   project:  { label: "project", cls: "type-project" },
+  test:     { label: "toets",   cls: "type-test" },
 };
 
 let _subjects      = [];
@@ -77,9 +78,13 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
   const nav = document.getElementById("sidebarNav");
   if (!nav) return [];
 
+  // Scope subjects + courses to what this account may see (enrolled / assigned).
+  // No username → the endpoints return the full list (unchanged legacy behaviour).
+  const scope = username ? `?username=${encodeURIComponent(username)}` : "";
+
   // Layer 1 — Subjects
   try {
-    _subjects = await fetchJSON("../api/subjects.php");
+    _subjects = await fetchJSON("../api/subjects.php" + scope);
     _subjects.forEach(s => {
       nav.appendChild(mkEl("div", "nav-section-header", s.name));
       const bucket = mkEl("div", "");
@@ -92,7 +97,7 @@ export async function initSidebar(mountId, onLessonClick, onCourseClick, usernam
 
   // Layer 2 — Courses
   try {
-    _courseRows = await fetchJSON("../api/courses.php");
+    _courseRows = await fetchJSON("../api/courses.php" + scope);
     _courseRows.forEach(c => {
       const bucket = document.getElementById("subject-" + c.subject_id);
       if (bucket) bucket.appendChild(buildCourseGroup(c, onLessonClick, onCourseClick));

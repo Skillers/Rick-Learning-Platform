@@ -32,6 +32,12 @@ function can_edit_course(PDO $pdo, string $username, int $courseId): bool {
     return in_array(course_role($pdo, $username, $courseId), ['Owner', 'Editor'], true);
 }
 
+/** Course-level settings (rename, move subject, delete). Owner-only. */
+function can_manage_course(PDO $pdo, string $username, int $courseId): bool {
+    if (is_superadmin($pdo, $username)) return true;
+    return course_role($pdo, $username, $courseId) === 'Owner';
+}
+
 function can_grade_course(PDO $pdo, string $username, int $courseId): bool {
     if (is_superadmin($pdo, $username)) return true;
     return in_array(course_role($pdo, $username, $courseId), ['Owner', 'Grader'], true);

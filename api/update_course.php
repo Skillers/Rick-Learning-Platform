@@ -27,10 +27,11 @@ if (!$courseId || $name === '') {
     exit;
 }
 
-// Only an Owner/Editor of this course (or a superadmin) may edit it.
-if (!can_edit_course($pdo, $actor, $courseId)) {
+// Course settings (rename/move) are Owner-only — an Editor edits content, not the
+// course configuration (mirrors the cogwheel being hidden for Editors in the UI).
+if (!can_manage_course($pdo, $actor, $courseId)) {
     http_response_code(403);
-    echo json_encode(['error' => 'Geen rechten om deze cursus te bewerken']);
+    echo json_encode(['error' => 'Alleen de eigenaar kan de cursusinstellingen wijzigen']);
     exit;
 }
 

@@ -7,11 +7,18 @@
  *   - unchanged (content signature matches what's stored) → left as-is.
  *   - changed & SHARED with another version            → forked to a new
  *                                                          private section row.
- *   - changed & PRIVATE to this concept                → edited in place
- *                                                          (same id, no churn).
+ *   - changed & PRIVATE to this concept                → rebuilt in place
+ *                                                          (same section id).
  *   - removed from the payload                          → unlinked; the row is
  *                                                          deleted only if no
  *                                                          version still uses it.
+ *
+ * Copy-on-write is per COMPONENT, not per section: when a section is forked or
+ * rebuilt, every component whose content is unchanged KEEPS its existing row
+ * (matched by content signature) and is simply relinked — so its id, and the
+ * PQQuestion id that student answers (AC_Did_Question) hang off, stay stable and
+ * survive publish. Only genuinely new/edited components get fresh rows. This is
+ * why moving a question or tweaking a sibling block no longer wipes answers.
  *
  * Target resolution:
  *   - version_id given            → that version (must be 'concept').
@@ -46,10 +53,18 @@ $courseId  = (int)($in['course_id'] ?? 0);
 $title     = trim((string)($in['title'] ?? ''));
 $typeStr   = strtolower(trim((string)($in['type'] ?? 'lesson')));
 $xp        = (int)($in['xp'] ?? 0);
+// N-term: Test grade normering. Default 1.00, clamped to a sane range.
+$nTerm     = isset($in['n_term']) && $in['n_term'] !== '' ? (float)$in['n_term'] : 1.0;
+if ($nTerm < 0)  $nTerm = 0.0;
+if ($nTerm > 10) $nTerm = 10.0;
 $sections  = is_array($in['sections'] ?? null) ? $in['sections'] : [];
 
-$PAGE_TYPE  = ['theory' => 1, 'lesson' => 1, 'exercise' => 2, 'quiz' => 3, 'project' => 4];
-$pageTypeId = $PAGE_TYPE[$typeStr] ?? 1;
+// Resolve the type name to a PageTypes.Id from the DB (the dropdowns are driven by
+// that table). 'theory' is a legacy alias for 'lesson'. Fall back to the lowest Id.
+if ($typeStr === 'theory') $typeStr = 'lesson';
+$pt = $pdo->prepare("SELECT `Id` FROM `PageTypes` WHERE LOWER(`Name`) = LOWER(?)");
+$pt->execute([$typeStr]);
+$pageTypeId = (int)($pt->fetchColumn() ?: $pdo->query("SELECT MIN(`Id`) FROM `PageTypes`")->fetchColumn());
 $LANG = ['python' => 1, 'javascript' => 2, 'java' => 3, 'c#' => 4, 'csharp' => 4, 'html' => 5, 'css' => 6, 'sql' => 7];
 
 const DEFAULT_SECTION_XP = 5;
@@ -71,6 +86,12 @@ function db_component_type(array $comp): ?string {
         case 'assignment': return 'assignment';
         default:           return null;
     }
+}
+
+/** Question points (max obtainable), normalised: non-negative int, default 1. */
+function quiz_points(array $qd): int {
+    $p = (int)($qd['points'] ?? 1);
+    return $p < 0 ? 0 : $p;
 }
 
 /** Canonical, comparable representation of one payload component (DB-normalised). */
@@ -98,6 +119,11 @@ function payload_canonical(array $comp, array $LANG): ?array {
             $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : '';
             // Expected-answer guidance is only meaningful for open questions.
             $expected = $isOpen ? (string)($qd['expected_result'] ?? '') : '';
+            // File-upload permissions — open questions only.
+            $allowDoc = $isOpen && !empty($qd['allow_document']) ? 1 : 0;
+            $allowImg = $isOpen && !empty($qd['allow_image'])    ? 1 : 0;
+            // Points (max obtainable) — Test pages score on this; changing it must fork the component.
+            $points   = quiz_points($qd);
             $answers  = [];
             if (!$isOpen) {
                 foreach (($qd['answers'] ?? []) as $ans) {
@@ -106,13 +132,19 @@ function payload_canonical(array $comp, array $LANG): ?array {
                     $answers[] = [mb_substr($t, 0, 255), !empty($ans['is_correct']) ? 1 : 0];
                 }
             }
-            return [$dbType, $question, $isOpen, $image, $answers, $expected];
+            return [$dbType, $question, $isOpen, $image, $answers, $expected, $allowDoc, $allowImg, $points];
     }
     return null;
 }
 
-/** Canonical list of a stored section's components, same shape as payload_canonical. */
-function db_section_components_canonical(PDO $pdo, int $sectionId): array {
+/**
+ * A stored section's components as [ ['id'=>componentId, 'canon'=>[...]], ... ]
+ * in link order. The canonical has the SAME shape as payload_canonical(), so a
+ * stored component and a payload component that are content-identical produce
+ * equal canonicals — that's what lets us match an unchanged component to its
+ * existing row and keep its id (and thus its PQQuestion id + student answers).
+ */
+function db_section_components_pairs(PDO $pdo, int $sectionId): array {
     $st = $pdo->prepare("
         SELECT c.`Id`, c.`ComponentType_ComponentTypeText` AS type
         FROM `sections_has_components` shc
@@ -124,11 +156,12 @@ function db_section_components_canonical(PDO $pdo, int $sectionId): array {
     $out = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $cid = (int)$r['Id'];
+        $canon = null;
         switch ($r['type']) {
             case 'text':
                 $t = $pdo->prepare("SELECT `Text` FROM `TextBLocks` WHERE `Component_Id` = ?");
                 $t->execute([$cid]);
-                $out[] = ['text', (string)$t->fetchColumn()];
+                $canon = ['text', (string)$t->fetchColumn()];
                 break;
             case 'code':
                 $t = $pdo->prepare("SELECT cs.`Code`, l.`LanguageName` FROM `CodeSnippets` cs
@@ -136,23 +169,23 @@ function db_section_components_canonical(PDO $pdo, int $sectionId): array {
                                     WHERE cs.`Components_Id` = ?");
                 $t->execute([$cid]);
                 $row = $t->fetch(PDO::FETCH_ASSOC) ?: [];
-                $out[] = ['code', strtolower((string)($row['LanguageName'] ?? 'python')), (string)($row['Code'] ?? '')];
+                $canon = ['code', strtolower((string)($row['LanguageName'] ?? 'python')), (string)($row['Code'] ?? '')];
                 break;
             case 'tip':
             case 'warning':
                 $t = $pdo->prepare("SELECT `Text` FROM `InfoBoxes` WHERE `components_Id` = ?");
                 $t->execute([$cid]);
-                $out[] = [$r['type'], (string)$t->fetchColumn()];
+                $canon = [$r['type'], (string)$t->fetchColumn()];
                 break;
             case 'multimedia':
                 $t = $pdo->prepare("SELECT `URL`, `Uploaded`, `MultiMediaType_MultiMediaType` AS mt FROM `MultiMedia` WHERE `components_Id` = ?");
                 $t->execute([$cid]);
                 $row = $t->fetch(PDO::FETCH_ASSOC) ?: [];
-                $out[] = ['multimedia', (string)($row['URL'] ?? ''), (int)($row['Uploaded'] ?? 0), (string)($row['mt'] ?? 'image')];
+                $canon = ['multimedia', (string)($row['URL'] ?? ''), (int)($row['Uploaded'] ?? 0), (string)($row['mt'] ?? 'image')];
                 break;
             case 'quiz':
             case 'assignment':
-                $t = $pdo->prepare("SELECT `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult` FROM `PQQuestion` WHERE `component_Id` = ?");
+                $t = $pdo->prepare("SELECT `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult`, `AllowDocument`, `AllowImage`, `PossiblePoints` FROM `PQQuestion` WHERE `component_Id` = ?");
                 $t->execute([$cid]);
                 $q = $t->fetch(PDO::FETCH_ASSOC) ?: [];
                 $answers = [];
@@ -164,11 +197,25 @@ function db_section_components_canonical(PDO $pdo, int $sectionId): array {
                     }
                 }
                 $expected = !empty($q['OpenQuestion']) ? (string)($q['ExpectedResult'] ?? '') : '';
-                $out[] = [$r['type'], (string)($q['Question'] ?? ''), (int)($q['OpenQuestion'] ?? 0), (string)($q['Image'] ?? ''), $answers, $expected];
+                $allowDoc = !empty($q['OpenQuestion']) ? (int)($q['AllowDocument'] ?? 0) : 0;
+                $allowImg = !empty($q['OpenQuestion']) ? (int)($q['AllowImage'] ?? 0) : 0;
+                $points   = (int)($q['PossiblePoints'] ?? 1);
+                $canon = [$r['type'], (string)($q['Question'] ?? ''), (int)($q['OpenQuestion'] ?? 0), (string)($q['Image'] ?? ''), $answers, $expected, $allowDoc, $allowImg, $points];
                 break;
         }
+        if ($canon !== null) $out[] = ['id' => $cid, 'canon' => $canon];
     }
     return $out;
+}
+
+/** Canonical list of a stored section's components, same shape as payload_canonical. */
+function db_section_components_canonical(PDO $pdo, int $sectionId): array {
+    return array_map(fn($p) => $p['canon'], db_section_components_pairs($pdo, $sectionId));
+}
+
+/** Stable key for matching two content-identical component canonicals. */
+function component_key(array $canon): string {
+    return sha1(json_encode($canon, JSON_UNESCAPED_UNICODE));
 }
 
 /** Signature of a section: title + ordered component canonicals. */
@@ -200,15 +247,15 @@ try {
         $pdo->prepare("INSERT INTO `Pages` (`Course_Id`, `order`, `Published`, `PageType_Id`) VALUES (?,?,0,?)")
             ->execute([$courseId, $ord, $pageTypeId]);
         $pageId = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO `PageVersion` (`pages_Id`, `VersionNo`, `Status`, `Title`, `XpReward`, `EstimatedDuration`, `CreatedAt`)
-                       VALUES (?,1,'concept',?,?,?,NOW())")
-            ->execute([$pageId, mb_substr($title, 0, 45), $xp, DEFAULT_DURATION]);
+        $pdo->prepare("INSERT INTO `PageVersion` (`pages_Id`, `VersionNo`, `Status`, `Title`, `XpReward`, `EstimatedDuration`, `NTerm`, `CreatedAt`)
+                       VALUES (?,1,'concept',?,?,?,?,NOW())")
+            ->execute([$pageId, mb_substr($title, 0, 45), $xp, DEFAULT_DURATION, $nTerm]);
         $versionId = (int)$pdo->lastInsertId();
     }
 
     // ── 2. Update the concept's metadata (title/xp on the version, type on the page) ──
-    $pdo->prepare("UPDATE `PageVersion` SET `Title` = ?, `XpReward` = ? WHERE `Id` = ?")
-        ->execute([mb_substr($title, 0, 45), $xp, $versionId]);
+    $pdo->prepare("UPDATE `PageVersion` SET `Title` = ?, `XpReward` = ?, `NTerm` = ? WHERE `Id` = ?")
+        ->execute([mb_substr($title, 0, 45), $xp, $nTerm, $versionId]);
     $pdo->prepare("UPDATE `pages` SET `PageType_Id` = ? WHERE `Id` = ?")->execute([$pageTypeId, $pageId]);
 
     // ── 3. Snapshot the concept's current sections (id → meta + signature) ───
@@ -250,62 +297,64 @@ try {
     $insCode    = $pdo->prepare("INSERT INTO `CodeSnippets` (`Id`, `Components_Id`, `Languages_Id`, `Code`) VALUES (?,?,?,?)");
     $insInfo    = $pdo->prepare("INSERT INTO `InfoBoxes` (`Id`, `components_Id`, `Text`, `IsWarning`) VALUES (?,?,?,?)");
     $insMedia   = $pdo->prepare("INSERT INTO `MultiMedia` (`Id`, `URL`, `components_Id`, `Uploaded`, `MultiMediaType_MultiMediaType`) VALUES (?,?,?,?,?)");
-    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`, `Question`, `Image`, `OpenQuestion`, `component_Id`, `ExpectedResult`) VALUES (?,?,?,?,?,?)");
+    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`, `Question`, `Image`, `OpenQuestion`, `component_Id`, `ExpectedResult`, `AllowDocument`, `AllowImage`, `PossiblePoints`) VALUES (?,?,?,?,?,?,?,?,?)");
     $insA       = $pdo->prepare("INSERT INTO `PQAnswer` (`PQQuestion_Id`, `AnswerOption`, `IsCorrect`) VALUES (?,?,?)");
 
-    // Insert all components of a section (rows + detail + ordering links).
-    $addComponents = function (int $secId, array $components)
-        use ($newId, $insComp, $insSHC, $insText, $insCode, $insInfo, $insMedia, $insQ, $insA, $LANG) {
-        $order = 0;
-        foreach ($components as $comp) {
-            $dbType = db_component_type($comp);
-            if ($dbType === null) continue;
-            $order++;
-            $compId  = $newId('Components');
-            $content = (string)($comp['content'] ?? '');
-            $meta    = is_array($comp['meta'] ?? null) ? $comp['meta'] : [];
-            $insComp->execute([$compId, $dbType]);
-            $insSHC->execute([$secId, $compId, $order]);
-            switch ($dbType) {
-                case 'text':
-                    $insText->execute([$compId, $content]);
-                    break;
-                case 'code':
-                    $lang = strtolower((string)($meta['language'] ?? 'python'));
-                    $insCode->execute([$newId('CodeSnippets'), $compId, $LANG[$lang] ?? 1, $content]);
-                    break;
-                case 'tip':
-                case 'warning':
-                    $insInfo->execute([$newId('InfoBoxes'), $compId, $content, $dbType === 'warning' ? 1 : 0]);
-                    break;
-                case 'multimedia':
-                    $isUpload  = ($meta['source'] ?? '') === 'upload';
-                    $url       = $isUpload ? (string)($meta['uploaded'] ?? '') : $content;
-                    $mediaType = (string)($meta['media_type'] ?? 'image');
-                    if (!in_array($mediaType, ['image', 'video', 'audio'], true)) $mediaType = 'image';
-                    $insMedia->execute([$newId('MultiMedia'), mb_substr($url, 0, 255), $compId, $isUpload ? 1 : 0, $mediaType]);
-                    break;
-                case 'quiz':
-                case 'assignment':
-                    $qd       = is_array($meta['quizData'] ?? null) ? $meta['quizData'] : [];
-                    $question = mb_substr((string)($qd['question'] ?? $content), 0, 255);
-                    $isOpen   = !empty($qd['open_question']) ? 1 : 0;
-                    $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : null;
-                    // Expected-answer guidance: only stored for open questions, NULL when empty.
-                    $expected = ($isOpen && trim((string)($qd['expected_result'] ?? '')) !== '')
-                              ? (string)$qd['expected_result'] : null;
-                    $qId      = $newId('PQQuestion');
-                    $insQ->execute([$qId, $question, $image, $isOpen, $compId, $expected]);
-                    if (!$isOpen) {
-                        foreach (($qd['answers'] ?? []) as $ans) {
-                            $t = trim((string)($ans['text'] ?? ''));
-                            if ($t === '') continue;
-                            $insA->execute([$qId, mb_substr($t, 0, 255), !empty($ans['is_correct']) ? 1 : 0]);
-                        }
+    // Create ONE component (row + detail rows) and return its new id. Linking to
+    // a section (sections_has_components) is the caller's job, so the same helper
+    // serves both fresh sections and in-place rebuilds.
+    $createComponent = function (array $comp)
+        use ($newId, $insComp, $insText, $insCode, $insInfo, $insMedia, $insQ, $insA, $LANG): ?int {
+        $dbType = db_component_type($comp);
+        if ($dbType === null) return null;
+        $compId  = $newId('Components');
+        $content = (string)($comp['content'] ?? '');
+        $meta    = is_array($comp['meta'] ?? null) ? $comp['meta'] : [];
+        $insComp->execute([$compId, $dbType]);
+        switch ($dbType) {
+            case 'text':
+                $insText->execute([$compId, $content]);
+                break;
+            case 'code':
+                $lang = strtolower((string)($meta['language'] ?? 'python'));
+                $insCode->execute([$newId('CodeSnippets'), $compId, $LANG[$lang] ?? 1, $content]);
+                break;
+            case 'tip':
+            case 'warning':
+                $insInfo->execute([$newId('InfoBoxes'), $compId, $content, $dbType === 'warning' ? 1 : 0]);
+                break;
+            case 'multimedia':
+                $isUpload  = ($meta['source'] ?? '') === 'upload';
+                $url       = $isUpload ? (string)($meta['uploaded'] ?? '') : $content;
+                $mediaType = (string)($meta['media_type'] ?? 'image');
+                if (!in_array($mediaType, ['image', 'video', 'audio'], true)) $mediaType = 'image';
+                $insMedia->execute([$newId('MultiMedia'), mb_substr($url, 0, 255), $compId, $isUpload ? 1 : 0, $mediaType]);
+                break;
+            case 'quiz':
+            case 'assignment':
+                $qd       = is_array($meta['quizData'] ?? null) ? $meta['quizData'] : [];
+                $question = mb_substr((string)($qd['question'] ?? $content), 0, 255);
+                $isOpen   = !empty($qd['open_question']) ? 1 : 0;
+                $image    = isset($qd['image']) ? mb_substr((string)$qd['image'], 0, 255) : null;
+                // Expected-answer guidance: only stored for open questions, NULL when empty.
+                $expected = ($isOpen && trim((string)($qd['expected_result'] ?? '')) !== '')
+                          ? (string)$qd['expected_result'] : null;
+                // File-upload permissions — open questions only.
+                $allowDoc = $isOpen && !empty($qd['allow_document']) ? 1 : 0;
+                $allowImg = $isOpen && !empty($qd['allow_image'])    ? 1 : 0;
+                $points   = quiz_points($qd);
+                $qId      = $newId('PQQuestion');
+                $insQ->execute([$qId, $question, $image, $isOpen, $compId, $expected, $allowDoc, $allowImg, $points]);
+                if (!$isOpen) {
+                    foreach (($qd['answers'] ?? []) as $ans) {
+                        $t = trim((string)($ans['text'] ?? ''));
+                        if ($t === '') continue;
+                        $insA->execute([$qId, mb_substr($t, 0, 255), !empty($ans['is_correct']) ? 1 : 0]);
                     }
-                    break;
-            }
+                }
+                break;
         }
+        return $compId;
     };
 
     // Delete a component that no section references any more (+ its detail rows).
@@ -316,31 +365,24 @@ try {
         $pdo->prepare("DELETE FROM `Components` WHERE `Id` = ?")->execute([$cid]);
     };
 
-    // Replace a private section's components in place (keeps the section id).
     $countLinks = $pdo->prepare("SELECT COUNT(*) FROM `sections_has_components` WHERE `components_Id` = ?");
-    $replaceComponents = function (int $secId, array $components) use ($pdo, $addComponents, $deleteOrphanComponent, $countLinks) {
-        $old = $pdo->prepare("SELECT `components_Id` FROM `sections_has_components` WHERE `sections_Id` = ?");
-        $old->execute([$secId]);
-        $oldComps = array_map('intval', $old->fetchAll(PDO::FETCH_COLUMN));
-        $pdo->prepare("DELETE FROM `sections_has_components` WHERE `sections_Id` = ?")->execute([$secId]);
-        foreach ($oldComps as $cid) {
-            $countLinks->execute([$cid]);
-            if ((int)$countLinks->fetchColumn() === 0) $deleteOrphanComponent($cid);
-        }
-        $addComponents($secId, $components);
-    };
 
     // ── 5. Walk the payload, applying copy-on-write per section ──────────────
+    // Copy-on-write is per COMPONENT, not per section: when a section changes we
+    // reuse the rows of every component that DIDN'T change (matched by content),
+    // so their ids — and the PQQuestion ids student answers hang off — stay put.
+    // Only genuinely new/edited components get fresh rows.
     $finalSections = [];   // [ [sectionId, xp], ... ] in payload order
     foreach ($sections as $sec) {
         $secTitle   = (string)($sec['title'] ?? 'Sectie');
         $components = is_array($sec['components'] ?? null) ? $sec['components'] : [];
-        $canon = [];
+        // Desired components as [payload, canon], skipping non-persisted types (dividers).
+        $desired = [];
         foreach ($components as $comp) {
             $c = payload_canonical($comp, $LANG);
-            if ($c !== null) $canon[] = $c;
+            if ($c !== null) $desired[] = ['comp' => $comp, 'canon' => $c];
         }
-        $desiredSig = section_signature($secTitle, $canon);
+        $desiredSig = section_signature($secTitle, array_column($desired, 'canon'));
         $secDbId    = (int)($sec['db_id'] ?? 0);
         $linked     = $secDbId && isset($currentXp[$secDbId]);
 
@@ -350,19 +392,53 @@ try {
             continue;
         }
 
-        if ($linked && !$isShared($secDbId)) {
-            // Changed but private to this concept — edit in place.
-            $updSection->execute([mb_substr(trim($secTitle), 0, 45), $secDbId]);
-            $replaceComponents($secDbId, $components);
-            $finalSections[] = [$secDbId, $currentXp[$secDbId]];
-            continue;
+        // Pool of this section's existing components, keyed by content, so an
+        // unchanged payload component can claim (reuse) its stored row.
+        $pool = [];         // component_key => [componentId, ...]
+        $origComps = [];    // every original component id of the section (for GC)
+        if ($linked) {
+            foreach (db_section_components_pairs($pdo, $secDbId) as $p) {
+                $origComps[] = (int)$p['id'];
+                $pool[component_key($p['canon'])][] = (int)$p['id'];
+            }
         }
 
-        // New section, or changed while shared — fork a fresh private section.
-        $newSec = $newId('Sections');
-        $insSection->execute([$newSec, mb_substr(trim($secTitle), 0, 45)]);
-        $addComponents($newSec, $components);
-        $finalSections[] = [$newSec, $linked ? $currentXp[$secDbId] : DEFAULT_SECTION_XP];
+        // A shared section (or a brand-new one) forks to a fresh private section
+        // row; a section private to this concept is rebuilt in place (same id).
+        $private = $linked && !$isShared($secDbId);
+        if ($private) {
+            $targetSec = $secDbId;
+            $updSection->execute([mb_substr(trim($secTitle), 0, 45), $targetSec]);
+            // Drop the old ordering links; we re-add them (reused rows keep existing).
+            $pdo->prepare("DELETE FROM `sections_has_components` WHERE `sections_Id` = ?")->execute([$targetSec]);
+        } else {
+            $targetSec = $newId('Sections');
+            $insSection->execute([$targetSec, mb_substr(trim($secTitle), 0, 45)]);
+        }
+
+        // (Re)build the section's components in payload order.
+        $order = 0;
+        foreach ($desired as $d) {
+            $key = component_key($d['canon']);
+            if (!empty($pool[$key])) {
+                $compId = array_shift($pool[$key]);   // unchanged → reuse existing row
+            } else {
+                $compId = $createComponent($d['comp']); // new/edited → fresh row
+            }
+            if ($compId !== null) $insSHC->execute([$targetSec, $compId, ++$order]);
+        }
+
+        // For an in-place rebuild, GC components that dropped out of the section
+        // AND are no longer used anywhere (a component still shared with the live
+        // version survives — that's how its student answers are preserved).
+        if ($private) {
+            foreach ($origComps as $cid) {
+                $countLinks->execute([$cid]);
+                if ((int)$countLinks->fetchColumn() === 0) $deleteOrphanComponent($cid);
+            }
+        }
+
+        $finalSections[] = [$targetSec, $linked ? $currentXp[$secDbId] : DEFAULT_SECTION_XP];
     }
 
     // ── 6. Rebuild the concept's section links in payload order ──────────────

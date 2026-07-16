@@ -18,6 +18,8 @@ $stmt = $pdo->prepare("
         dq.Id            AS did_question_id,
         dq.PQQuestion_Id AS question_id,
         dq.OpenAnswer    AS open_answer,
+        dq.FileName      AS file_name,
+        dq.FilePath      AS file_path,
         dq.Verdict       AS verdict,
         dq.ReviewFeedback AS feedback,
         dq.ReviewedAt    AS reviewed_at
@@ -59,6 +61,8 @@ foreach ($attempts as $a) {
     $out[] = [
         'question_id'       => (int)$a['question_id'],
         'open_answer'       => $a['open_answer'],
+        'file_name'         => $a['file_name'],
+        'file_path'         => $a['file_path'],
         'picked_answer_ids' => $picksByDid[$didId] ?? [],
         'verdict'           => $a['verdict'],       // 'none' | 'V' | 'X'
         'feedback'          => $a['feedback'],

@@ -78,6 +78,12 @@ if ($method === 'POST') {
 }
 
 if ($method === 'DELETE') {
+    // An owner may remove others but not themselves (a course must keep its owner).
+    if ($actor === $username && course_role($pdo, $username, $courseId) === 'Owner') {
+        http_response_code(409);
+        echo json_encode(['error' => 'Je kunt jezelf niet als eigenaar van de cursus verwijderen.']);
+        exit;
+    }
     $pdo->prepare(
         "DELETE FROM `Teacher_ParticipatesIn_Course`
          WHERE `courses_Id` = ? AND `accounts_username` = ?")

@@ -59,7 +59,7 @@ $mediaById = $indexBy("SELECT `components_Id`, `URL`, `Uploaded`, `MultiMediaTyp
                        FROM `MultiMedia` WHERE `components_Id` IN ($ph)", 'components_Id');
 
 // Quiz question + answers.
-$quizById = $indexBy("SELECT `component_Id`, `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult`
+$quizById = $indexBy("SELECT `component_Id`, `Id`, `Question`, `Image`, `OpenQuestion`, `ExpectedResult`, `AllowDocument`, `AllowImage`, `PossiblePoints`
                       FROM `PQQuestion` WHERE `component_Id` IN ($ph)", 'component_Id');
 $answersByQ = [];
 if ($quizById) {
@@ -117,6 +117,11 @@ foreach ($members as $m) {
             'question'      => $q['Question'] ?? '',
             'image'         => $q['Image'] ?? null,
             'open_question' => (int)($q['OpenQuestion'] ?? 0),
+            // Max points (Test pages score on this; harmless on other page types).
+            'points'        => (int)($q['PossiblePoints'] ?? 1),
+            // File-upload permissions — students need these to render the picker.
+            'allow_document' => (int)($q['AllowDocument'] ?? 0),
+            'allow_image'    => (int)($q['AllowImage'] ?? 0),
             // Teacher-only marking guide — never expose on the student read path.
             'expected_result' => $editMode ? ($q['ExpectedResult'] ?? '') : null,
             'answers'       => $answersByQ[(int)($q['Id'] ?? 0)] ?? [],
