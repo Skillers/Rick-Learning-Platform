@@ -38,8 +38,8 @@ function clone_version_into_independent(PDO $pdo, int $versionId): void {
     $insInfo    = $pdo->prepare("INSERT INTO `InfoBoxes` (`Id`,`components_Id`,`Text`,`IsWarning`) VALUES (?,?,?,?)");
     $fetchMedia = $pdo->prepare("SELECT `URL`,`Uploaded`,`MultiMediaType_MultiMediaType` FROM `MultiMedia` WHERE `components_Id` = ?");
     $insMedia   = $pdo->prepare("INSERT INTO `MultiMedia` (`Id`,`URL`,`components_Id`,`Uploaded`,`MultiMediaType_MultiMediaType`) VALUES (?,?,?,?,?)");
-    $fetchQ     = $pdo->prepare("SELECT `Id`,`Question`,`Image`,`OpenQuestion`,`ExpectedResult`,`AllowDocument`,`AllowImage` FROM `PQQuestion` WHERE `component_Id` = ?");
-    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`,`Question`,`Image`,`OpenQuestion`,`component_Id`,`ExpectedResult`,`AllowDocument`,`AllowImage`) VALUES (?,?,?,?,?,?,?,?)");
+    $fetchQ     = $pdo->prepare("SELECT `Id`,`Question`,`Image`,`OpenQuestion`,`ExpectedResult`,`AllowDocument`,`AllowImage`,`PossiblePoints` FROM `PQQuestion` WHERE `component_Id` = ?");
+    $insQ       = $pdo->prepare("INSERT INTO `PQQuestion` (`Id`,`Question`,`Image`,`OpenQuestion`,`component_Id`,`ExpectedResult`,`AllowDocument`,`AllowImage`,`PossiblePoints`) VALUES (?,?,?,?,?,?,?,?,?)");
     $copyA      = $pdo->prepare("INSERT INTO `PQAnswer` (`PQQuestion_Id`,`AnswerOption`,`IsCorrect`)
                                  SELECT ?, `AnswerOption`, `IsCorrect` FROM `PQAnswer` WHERE `PQQuestion_Id` = ?");
 
@@ -86,7 +86,8 @@ function clone_version_into_independent(PDO $pdo, int $versionId): void {
             if ($r = $fetchQ->fetch(PDO::FETCH_ASSOC)) {
                 $newQ = $newId('PQQuestion');
                 $insQ->execute([$newQ, $r['Question'], $r['Image'], $r['OpenQuestion'], $newComp,
-                                $r['ExpectedResult'], $r['AllowDocument'], $r['AllowImage']]);
+                                $r['ExpectedResult'], $r['AllowDocument'], $r['AllowImage'],
+                                (int)($r['PossiblePoints'] ?? 1)]);
                 $copyA->execute([$newQ, (int)$r['Id']]);
             }
         }

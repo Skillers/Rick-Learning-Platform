@@ -108,7 +108,9 @@ Het platform vereist XAMPP (Apache + MySQL). Een gewone statische server is niet
    - `http://localhost/AccountManager.html` — accountbeheer
    - `http://localhost/HomeworkManager.html` — huiswerkbeheer
 
-**Database-instellingen** staan in `config/db.settings.php`. Standaard: host `localhost`, geen wachtwoord.
+**Database-instellingen** — kopieer `config/db.settings.example.php` naar
+`config/db.settings.php` en vul de echte waarden in. Dat bestand staat in `.gitignore` en
+hoort **nooit** in version control: het bevat een live wachtwoord.
 
 **Demo-accounts** (wachtwoord voor allemaal: `wachtwoord123`):
 
@@ -139,7 +141,8 @@ ict-leerlijn/
 |   +-- sidebar.html           <- Sidebar HTML-template
 |
 |-- config/
-|   |-- db.settings.php        <- Host, databasenaam, gebruiker, wachtwoord
+|   |-- db.settings.example.php <- Template; kopieer naar db.settings.php
+|   |-- db.settings.php        <- Host, databasenaam, gebruiker, wachtwoord (GITIGNORED)
 |   +-- db.connection.php      <- PDO-verbinding (gebruikt door alle API-bestanden)
 |
 |-- api/
@@ -223,13 +226,14 @@ inhoud**; welke secties een versie vormen (en hun volgorde/XP) staat in
 `sections_has_components`. Zo blijft de voortgang van studenten behouden bij een
 nieuwe publicatie. Volledige uitleg: `devlog/2026-06-18-page-versioning.md`.
 
-**33 tabellen** georganiseerd rond drie kernconcepten:
+**37 tabellen** georganiseerd rond vier kernconcepten:
 
 | Concept | Tabellen |
 |---|---|
 | **Lesinhoud & versies** | Subjects, Courses, PageTypes, Pages, **PageVersion**, **PageVersion_has_sections**, Sections, **sections_has_components**, ComponentType, Components, TextBlocks, CodeSnippets, InfoBoxes, MultiMedia, MultiMediaType, Languages, EmptySpace, EmptySpaceTypes |
 | **Opdrachten & quizzen** | Assigments, Accounts_have_assignments, PQQuestion, PQAnswer, QuestionContext, AC_Did_Question, AC_Picked_Answer |
-| **Gebruikers & rollen** | Accounts, Student_Has_Course, Accounts_opened_pages, Teacher_ParticipatesIn_Course, Teacher_guides_Student, Groups, Group_has_Teacher, Student_BelongsTo_Group |
+| **Gebruikers & rollen** | Accounts, Student_Has_Course, Accounts_opened_pages, Teacher_ParticipatesIn_Course, **Teacher_has_Subjects**, Teacher_guides_Student, Groups, Group_has_Teacher, Student_BelongsTo_Group |
+| **Voortgang & meldingen** | AccountStats, UserXPLog, **Notifications** |
 
 ---
 
@@ -317,7 +321,9 @@ De schakelknop in de topbar wisselt tussen dark en light mode. Implementatie: `d
 
 Bij hover op een sectie verschijnt een subtiel vlagje rechts naast de sectietitel. Klikken opent een compact modal met vier meldingstypen: fout in de inhoud, onduidelijke uitleg, probleem met de opdracht, of iets anders. Na versturen: toast-bevestiging, de vlag kleurt oranje als herinnering.
 
-**Opslag:** `localStorage` onder `ict-reports`. Geen server nodig in de huidige fase.
+**Opslag:** oorspronkelijk `localStorage` onder `ict-reports`. Inmiddels serverside via
+`api/notifications.php` en de `Notifications`-tabel, zodat docenten de meldingen ook
+daadwerkelijk zien.
 
 ---
 
@@ -459,14 +465,18 @@ Gebruik de **Lesontwerper** (`admin.html`):
 
 | Prioriteit | Feature |
 |---|---|
-| Hoog | Beoordelen met score en feedback in Huiswerkbeheer (DB-migratie: Grade, Feedback, GradedOn kolommen) |
-| Hoog | Quizvragen toevoegen aan Huiswerkbeheer (UNION van AC_Did_Question met submissions) |
-| Hoog | Student-side inleverflow (opdracht inleveren vanuit de lesweergave) |
 | Hoog | Docentbeheer-UI in AccountManager (superadmin wijst cursussen en mentorstudenten toe aan docent) |
 | Middel | Groepenbeheer-UI (klassen aanmaken, studenten toewijzen) |
 | Middel | Server-side scoping (API-endpoints filteren op rol i.p.v. alleen client-side) |
-| Middel | Meldingen naar een server sturen (vervang localStorage) |
 | Middel | Zoekfunctie over alle lessen |
-| Laag | OpenAnswer en ReviewFeedback kolommen verbreden (VARCHAR(45) naar LONGTEXT) |
+| Laag | `OpenAnswer` en `ReviewFeedback` kolommen verbreden (`VARCHAR(45)` naar `LONGTEXT`) |
 | Laag | Voortgang exporteren als PDF |
 | Laag | Mobiele weergave verfijnen |
+
+**Recent afgerond** (stond hier eerder als backlog): beoordelen met score en feedback in
+Huiswerkbeheer, quizvragen in Huiswerkbeheer, de student-side inleverflow (inclusief
+bestandsinzending), en meldingen naar de server (`api/notifications.php` +
+`Notifications`-tabel — niet langer `localStorage`). Daarnaast opgelost: `PossiblePoints`
+werd niet meegekopieerd door `_clone.php` en `update_live.php`, waardoor punten per vraag op
+toetspagina's stilzwijgend terugvielen naar 1 — zie
+`devlog/2026-07-16-file-submissions-and-course-roles.md`.

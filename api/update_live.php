@@ -101,7 +101,7 @@ try {
     $updCode  = $pdo->prepare("UPDATE `CodeSnippets` SET `Code` = ?, `Languages_Id` = ? WHERE `Components_Id` = ?");
     $updInfo  = $pdo->prepare("UPDATE `InfoBoxes` SET `Text` = ?, `IsWarning` = ? WHERE `components_Id` = ?");
     $updMedia = $pdo->prepare("UPDATE `MultiMedia` SET `URL` = ?, `Uploaded` = ?, `MultiMediaType_MultiMediaType` = ? WHERE `components_Id` = ?");
-    $updQ     = $pdo->prepare("UPDATE `PQQuestion` SET `Question` = ?, `Image` = ?, `OpenQuestion` = ?, `ExpectedResult` = ?, `AllowDocument` = ?, `AllowImage` = ? WHERE `component_Id` = ?");
+    $updQ     = $pdo->prepare("UPDATE `PQQuestion` SET `Question` = ?, `Image` = ?, `OpenQuestion` = ?, `ExpectedResult` = ?, `AllowDocument` = ?, `AllowImage` = ?, `PossiblePoints` = ? WHERE `component_Id` = ?");
 
     foreach ($sections as $sec) {
         $secId = (int)($sec['db_id'] ?? 0);
@@ -162,7 +162,11 @@ try {
                               ? (string)$qd['expected_result'] : null;
                     $allowDoc = $isOpen && !empty($qd['allow_document']) ? 1 : 0;
                     $allowImg = $isOpen && !empty($qd['allow_image'])    ? 1 : 0;
-                    $updQ->execute([$question, $image, $isOpen, $expected, $allowDoc, $allowImg, $cid]);
+                    // Points are content, not structure — the editor shows the field on live
+                    // test pages, so it has to persist here too (see save_page.php::quiz_points).
+                    $points   = (int)($qd['points'] ?? 1);
+                    if ($points < 0) $points = 0;
+                    $updQ->execute([$question, $image, $isOpen, $expected, $allowDoc, $allowImg, $points, $cid]);
                     // Update existing answers in place (no add/remove → student picks stay valid).
                     $qIdStmt = $pdo->prepare("SELECT `Id` FROM `PQQuestion` WHERE `component_Id` = ?");
                     $qIdStmt->execute([$cid]);

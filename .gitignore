@@ -1,2 +1,11 @@
+# Local database credentials — never commit. Copy config/db.settings.example.php
+# to config/db.settings.php and fill in the real values.
+config/db.settings.php
+
+# Runtime uploads — student submissions and lesson media belong on the server,
+# not in version control. The directory itself is kept via uploads/.gitkeep.
+uploads/*
+!uploads/.gitkeep
+
 # LibreOffice-generated document previews (cache)
 uploads/.previews/
