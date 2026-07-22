@@ -9,3 +9,7 @@ uploads/*
 
 # LibreOffice-generated document previews (cache)
 uploads/.previews/
+
+# Local-only SQL seeds (may contain real password hashes / personal data).
+# e.g. database/seed_rick_account.local.sql — re-seed a personal account after rebuild.
+*.local.sql

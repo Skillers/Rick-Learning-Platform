@@ -17,6 +17,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/db.connection.php';
 require_once __DIR__ . '/../config/grade_scale.php';
+require_once __DIR__ . '/_versions.php';
 
 $username = trim($_GET['username'] ?? '');
 $pageId   = (int)($_GET['page_id'] ?? 0);
@@ -26,13 +27,24 @@ if (!$username || !$pageId) {
     exit;
 }
 
-// The live version carries the N-term used to grade this test.
-$vStmt = $pdo->prepare("SELECT `Id`, `NTerm` FROM `PageVersion` WHERE `pages_Id` = ? AND `Status` = 'live' LIMIT 1");
-$vStmt->execute([$pageId]);
+// A student who finished this test is graded against the version they completed
+// (frozen), not the current live one. Otherwise grade against live.
+$pinnedId = finished_test_version($pdo, $pageId, $username);
+$frozen   = $pinnedId !== null;
+
+if ($frozen) {
+    $vStmt = $pdo->prepare("SELECT `Id`, `NTerm`, `Status` FROM `PageVersion` WHERE `Id` = ? LIMIT 1");
+    $vStmt->execute([$pinnedId]);
+} else {
+    $vStmt = $pdo->prepare("SELECT `Id`, `NTerm`, `Status` FROM `PageVersion` WHERE `pages_Id` = ? AND `Status` = 'live' LIMIT 1");
+    $vStmt->execute([$pageId]);
+}
 $version = $vStmt->fetch(PDO::FETCH_ASSOC);
 if (!$version) { echo json_encode(['error' => 'No live version']); exit; }
 $versionId = (int)$version['Id'];
 $nTerm     = (float)$version['NTerm'];
+// Only surface "old version" when the pinned version is no longer the live one.
+$isOldVersion = $frozen && $version['Status'] !== 'live';
 
 // Every question on the live version, with its max points.
 $qStmt = $pdo->prepare("
@@ -94,6 +106,9 @@ foreach ($questions as $q) {
 
 echo json_encode([
     'page_id'        => $pageId,
+    'version_id'     => $versionId,
+    'frozen'         => $frozen,        // student completed this test → grade is pinned
+    'old_version'    => $isOldVersion,  // ...and it has since been superseded by a new live
     'n_term'         => $nTerm,
     'pass_line'      => GRADE_PASS_LINE,
     'question_count' => count($questions),

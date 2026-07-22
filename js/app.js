@@ -1051,16 +1051,32 @@ async function loadLessonContent(course, lesson) {
   const builtin = BUILTIN_CONTENT[`${course.id}-${lesson.id}`];
   if (builtin) return parseSections(builtin);
 
-  // Load section content from the database
-  const dbSections = getSectionsByPage()[lesson.id];
+  // Load section content from the database. Passing the student's name lets the
+  // API serve the version they're pinned to if they finished a test here (else
+  // live). Sections AND content must come from the SAME version so their section
+  // ids line up — so we fetch this page's sections with the name too, rather than
+  // reuse the sidebar's (always-live) cache.
+  const uname = (typeof STUDENT !== 'undefined' && STUDENT && STUDENT.name) ? STUDENT.name : '';
+  const uq = uname ? `&username=${encodeURIComponent(uname)}` : '';
+
+  let dbSections = getSectionsByPage()[lesson.id];
+  if (uname) {
+    try {
+      const sres = await fetch(`../api/sections.php?page_id=${lesson.id}${uq}`);
+      if (sres.ok) {
+        const rows = await sres.json();
+        if (Array.isArray(rows) && rows.length) dbSections = rows;
+      }
+    } catch (_) {}
+  }
   if (!dbSections || !dbSections.length) {
     return [{ title: null, html: '<p class="lesson-text">Inhoud voor <strong>' + lesson.title + '</strong> wordt nog toegevoegd.</p>' }];
   }
 
-  // Fetch components for this page from the API
+  // Fetch components for this page from the API (same version as the sections above).
   let componentsBySection = {};
   try {
-    const res = await fetch(`../api/section_content.php?page_id=${lesson.id}`);
+    const res = await fetch(`../api/section_content.php?page_id=${lesson.id}${uq}`);
     if (res.ok) {
       const components = await res.json();
       components.forEach(c => {
@@ -2032,8 +2048,15 @@ async function refreshTestResult() {
   const hasPending = d.pending_points > 0;
   const unanswered = Math.max(0, d.question_count - d.answered_count);
 
+  // A student who completed this test is frozen on the version they did; once you
+  // publish a newer version, tell them they're looking at the one they finished.
+  const oldVersionBanner = d.old_version
+    ? `<div class="tr-old-version">Je bekijkt de versie die je hebt afgerond. Er is inmiddels een nieuwere versie van deze toets.</div>`
+    : '';
+
   el.innerHTML = `
     <div class="test-result-head">Resultaat</div>
+    ${oldVersionBanner}
     <div class="tr-grid">
       <div class="tr-row"><span>Behaalde punten</span><strong>${nl(d.earned_points)} / ${nl(d.max_points)}</strong></div>
       ${hasPending ? `<div class="tr-row"><span>Nog na te kijken</span><strong>${nl(d.pending_points)} punten</strong></div>` : ''}

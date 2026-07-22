@@ -13,8 +13,13 @@
 /**
  * Replace every section a version links with a private deep copy, then delete
  * any original rows left unreferenced. Idempotent per call; safe inside a tx.
+ *
+ * @return array<int,int> map of original PQQuestion id → its cloned id. Lets the
+ *   caller move a finished student's answers onto the archived snapshot so their
+ *   completed test stays pinned to the version they actually did.
  */
-function clone_version_into_independent(PDO $pdo, int $versionId): void {
+function clone_version_into_independent(PDO $pdo, int $versionId): array {
+    $questionMap = [];
     // Running id counters for the manual-id tables.
     $next = [];
     foreach (['Sections', 'Components', 'CodeSnippets', 'InfoBoxes', 'PQQuestion', 'MultiMedia'] as $t) {
@@ -89,6 +94,7 @@ function clone_version_into_independent(PDO $pdo, int $versionId): void {
                                 $r['ExpectedResult'], $r['AllowDocument'], $r['AllowImage'],
                                 (int)($r['PossiblePoints'] ?? 1)]);
                 $copyA->execute([$newQ, (int)$r['Id']]);
+                $questionMap[(int)$r['Id']] = $newQ;
             }
         }
 
@@ -115,4 +121,6 @@ function clone_version_into_independent(PDO $pdo, int $versionId): void {
             }
         }
     }
+
+    return $questionMap;
 }

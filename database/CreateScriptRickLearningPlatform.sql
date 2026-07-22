@@ -780,6 +780,36 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4;
 
 
+-- -----------------------------------------------------
+-- Table `rick learning platform`.`FinishedTests`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `rick learning platform`.`FinishedTests` (
+  `accounts_username` VARCHAR(25) NOT NULL,
+  `pages_Id` INT(11) NOT NULL,
+  `PageVersion_Id` INT NOT NULL,
+  `CompletedAt` DATETIME NOT NULL,
+  INDEX `fk_FinishedTests_accounts1_idx` (`accounts_username` ASC),
+  INDEX `fk_FinishedTests_PageVersion1_idx` (`PageVersion_Id` ASC),
+  INDEX `fk_FinishedTests_pages1_idx` (`pages_Id` ASC),
+  PRIMARY KEY (`accounts_username`, `pages_Id`),
+  CONSTRAINT `fk_FinishedTests_accounts1`
+    FOREIGN KEY (`accounts_username`)
+    REFERENCES `rick learning platform`.`accounts` (`username`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_FinishedTests_PageVersion1`
+    FOREIGN KEY (`PageVersion_Id`)
+    REFERENCES `rick learning platform`.`PageVersion` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_FinishedTests_pages1`
+    FOREIGN KEY (`pages_Id`)
+    REFERENCES `rick learning platform`.`pages` (`Id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

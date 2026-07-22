@@ -107,6 +107,55 @@ try {
             ->execute([$awarded, $didId]);
     }
 
+    // Test pages: if this submit means the student has now answered EVERY question
+    // of the live version, pin them to that version (FinishedTests). "Answered every
+    // question" is the finish rule — open questions count even before the teacher
+    // grades them. The pin freezes their version: a later republish keeps their
+    // completed test on the version they actually did (see set_live_version.php).
+    $ctx = $pdo->prepare("
+        SELECT p.`Id` AS page_id, pv.`Id` AS version_id, pt.`Name` AS page_type
+        FROM `PQQuestion` q
+        JOIN `components` cp                ON q.`component_Id`    = cp.`Id`
+        JOIN `sections_has_components` shc  ON shc.`components_Id` = cp.`Id`
+        JOIN `PageVersion_has_sections` pvs ON pvs.`sections_Id`   = shc.`sections_Id`
+        JOIN `PageVersion` pv               ON pv.`Id` = pvs.`PageVersion_Id` AND pv.`Status` = 'live'
+        JOIN `pages` p                      ON p.`Id` = pv.`pages_Id`
+        JOIN `PageTypes` pt                 ON pt.`Id` = p.`PageType_Id`
+        WHERE q.`Id` = ? LIMIT 1");
+    $ctx->execute([$question_id]);
+    $pageCtx = $ctx->fetch(PDO::FETCH_ASSOC);
+
+    if ($pageCtx && $pageCtx['page_type'] === 'test') {
+        $versionId = (int)$pageCtx['version_id'];
+        $total = (int)$pdo->query("
+            SELECT COUNT(*)
+            FROM `PageVersion_has_sections` pvs
+            JOIN `sections_has_components` shc ON shc.`sections_Id`  = pvs.`sections_Id`
+            JOIN `components` c                ON c.`Id`             = shc.`components_Id`
+            JOIN `PQQuestion` q                ON q.`component_Id`   = c.`Id`
+            WHERE pvs.`PageVersion_Id` = " . $versionId)->fetchColumn();
+        $answeredStmt = $pdo->prepare("
+            SELECT COUNT(DISTINCT q.`Id`)
+            FROM `PageVersion_has_sections` pvs
+            JOIN `sections_has_components` shc ON shc.`sections_Id`  = pvs.`sections_Id`
+            JOIN `components` c                ON c.`Id`             = shc.`components_Id`
+            JOIN `PQQuestion` q                ON q.`component_Id`   = c.`Id`
+            JOIN `AC_Did_Question` a           ON a.`PQQuestion_Id`  = q.`Id`
+                 AND a.`accounts_username` = ? AND a.`QuestionContext_ContextType` = 'section'
+            WHERE pvs.`PageVersion_Id` = ?");
+        $answeredStmt->execute([$username, $versionId]);
+        $answered = (int)$answeredStmt->fetchColumn();
+
+        if ($total > 0 && $answered >= $total) {
+            // PK (accounts_username, pages_Id) → one pin per student per page; IGNORE
+            // keeps the first-completed version if somehow retried.
+            $pdo->prepare("INSERT IGNORE INTO `FinishedTests`
+                    (`accounts_username`, `pages_Id`, `PageVersion_Id`, `CompletedAt`)
+                 VALUES (?, ?, ?, NOW())")
+                ->execute([$username, (int)$pageCtx['page_id'], $versionId]);
+        }
+    }
+
     // Open answers need a teacher review. Create ONE course-scoped "to grade"
     // notification — its audience (the course's teachers + superadmins) is derived
     // at read time, so it stays correct as course assignments change.

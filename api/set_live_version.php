@@ -66,9 +66,28 @@ try {
     $outgoing->execute([$pageId, $versionId]);
     $outgoingId = $outgoing->fetchColumn();
     if ($outgoingId !== false) {
-        clone_version_into_independent($pdo, (int)$outgoingId);
+        $outgoingId = (int)$outgoingId;
+        $questionMap = clone_version_into_independent($pdo, $outgoingId);
         $pdo->prepare("UPDATE `PageVersion` SET `Status` = 'archived', `ArchivedAt` = NOW() WHERE `Id` = ?")
-            ->execute([(int)$outgoingId]);
+            ->execute([$outgoingId]);
+
+        // Students who FINISHED the outgoing version are pinned to it. The clone gave
+        // that (now archived) version its own private question ids, so move their
+        // answers onto those ids — their completed test and grade stay with the version
+        // they did, instead of carrying forward to the new live like partial students'.
+        $fin = $pdo->prepare("SELECT `accounts_username` FROM `FinishedTests` WHERE `pages_Id` = ? AND `PageVersion_Id` = ?");
+        $fin->execute([$pageId, $outgoingId]);
+        $finishedUsers = $fin->fetchAll(PDO::FETCH_COLUMN);
+
+        if ($finishedUsers && $questionMap) {
+            $ph  = implode(',', array_fill(0, count($finishedUsers), '?'));
+            $upd = $pdo->prepare("UPDATE `AC_Did_Question` SET `PQQuestion_Id` = ?
+                                  WHERE `PQQuestion_Id` = ? AND `QuestionContext_ContextType` = 'section'
+                                    AND `accounts_username` IN ($ph)");
+            foreach ($questionMap as $origQid => $newQid) {
+                $upd->execute(array_merge([$newQid, $origQid], $finishedUsers));
+            }
+        }
     }
 
     // Promote the target.
